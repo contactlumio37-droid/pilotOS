@@ -49,7 +49,7 @@ export default function LoginPage() {
 
     if (memberResult.data) {
       const { role, mfa_enabled, organisation } = memberResult.data
-      const policy = (organisation as { mfa_policy: string } | null)?.mfa_policy ?? 'optional'
+      const policy = (organisation as unknown as { mfa_policy: string } | null)?.mfa_policy ?? 'optional'
 
       if (isMFARequired(policy, role, mfa_enabled)) {
         navigate('/mfa/verify', { state: { from: { pathname: from ?? '/app' } }, replace: true })

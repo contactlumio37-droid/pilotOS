@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowRight, CheckCircle2, BarChart2, GitBranch, FolderOpen, AlertCircle } from 'lucide-react'
+import { ArrowRight, BarChart2, GitBranch, FolderOpen, AlertCircle } from 'lucide-react'
 
 const FEATURES = [
   {

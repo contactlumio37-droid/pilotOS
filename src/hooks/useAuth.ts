@@ -48,7 +48,8 @@ export function useAuth(): AuthState {
 
     const profile = profileResult.data as Profile | null
     const member = memberResult.data
-    const organisation = member?.organisation as Organisation | null
+    const rawOrg = member?.organisation
+    const organisation = (Array.isArray(rawOrg) ? rawOrg[0] : rawOrg) as Organisation | null
     const role = member?.role as UserRole | null
 
     setState({ user, session, profile, organisation, role, mfaVerified, loading: false })

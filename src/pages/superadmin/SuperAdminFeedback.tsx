@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { supabase } from '@/lib/supabase'
 import type { FeedbackReport } from '@/types/database'
@@ -22,8 +22,6 @@ const PRIORITY_COLORS: Record<string, string> = {
 }
 
 export default function SuperAdminFeedback() {
-  const queryClient = useQueryClient()
-
   const { data: reports = [] } = useQuery({
     queryKey: ['superadmin_feedback'],
     queryFn: async () => {
@@ -34,17 +32,6 @@ export default function SuperAdminFeedback() {
       if (error) throw error
       return data as FeedbackReport[]
     },
-  })
-
-  const updateStatus = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      const { error } = await supabase
-        .from('feedback_reports')
-        .update({ status })
-        .eq('id', id)
-      if (error) throw error
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['superadmin_feedback'] }),
   })
 
   return (

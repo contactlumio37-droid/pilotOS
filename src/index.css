@@ -6,6 +6,7 @@
   :root {
     --sidebar-width: 210px;
     --sidebar-collapsed-width: 52px;
+    --sidebar-current-width: 210px;
     --bottom-nav-height: 64px;
   }
 
@@ -100,17 +101,15 @@
     height: var(--bottom-nav-height);
   }
 
-  /* Main content avec sidebar */
+  /* Main content avec sidebar — margin pilotée par JS via --sidebar-current-width */
   .main-with-sidebar {
     @apply ml-0;
   }
 
   @screen lg {
     .main-with-sidebar {
-      margin-left: var(--sidebar-width);
-    }
-    .main-with-sidebar.sidebar-collapsed {
-      margin-left: var(--sidebar-collapsed-width);
+      margin-left: var(--sidebar-current-width, var(--sidebar-width));
+      transition: margin-left 0.2s ease-out;
     }
   }
 
