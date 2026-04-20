@@ -579,6 +579,26 @@ export interface FeatureBounty {
   created_at: string
 }
 
+export interface MfaEnrollment {
+  id: string
+  user_id: string
+  method: 'totp' | 'email_otp'
+  totp_factor_id: string | null
+  is_active: boolean
+  enrolled_at: string | null
+  created_at: string
+}
+
+export interface MfaChallenge {
+  id: string
+  user_id: string
+  code_hash: string
+  expires_at: string
+  used_at: string | null
+  ip_address: string | null
+  created_at: string
+}
+
 // ============================================================
 // Inserts (Omit des champs auto-générés)
 // ============================================================
