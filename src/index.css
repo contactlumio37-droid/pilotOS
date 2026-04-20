@@ -1,0 +1,128 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --sidebar-width: 210px;
+    --sidebar-collapsed-width: 52px;
+    --bottom-nav-height: 64px;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-slate-50 text-slate-900 font-sans;
+    margin: 0;
+    min-height: 100vh;
+  }
+
+  #root {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+@layer components {
+  /* Cards */
+  .card {
+    @apply bg-white rounded-xl shadow-card border border-slate-100 p-6;
+  }
+
+  .card-hover {
+    @apply card transition-shadow duration-200 hover:shadow-card-hover;
+  }
+
+  /* Buttons */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-brand-600 text-white font-medium rounded-lg
+           hover:bg-brand-700 active:bg-brand-800 transition-colors duration-150
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white text-slate-700 font-medium rounded-lg
+           border border-slate-200 hover:bg-slate-50 active:bg-slate-100 transition-colors duration-150
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-danger text-white font-medium rounded-lg
+           hover:bg-red-700 active:bg-red-800 transition-colors duration-150
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* Badges de statut */
+  .badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .badge-success { @apply badge bg-success-light text-success; }
+  .badge-warning { @apply badge bg-warning-light text-warning; }
+  .badge-danger { @apply badge bg-danger-light text-danger; }
+  .badge-neutral { @apply badge bg-slate-100 text-slate-600; }
+  .badge-brand { @apply badge bg-brand-100 text-brand-700; }
+
+  /* Inputs */
+  .input {
+    @apply w-full px-3 py-2.5 bg-white border border-slate-200 rounded-lg text-sm
+           focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent
+           placeholder:text-slate-400 disabled:bg-slate-50 disabled:cursor-not-allowed;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-slate-700 mb-1;
+  }
+
+  /* Sidebar desktop */
+  .sidebar {
+    @apply fixed left-0 top-0 h-full bg-slate-900 text-white z-40
+           transition-all duration-200 flex flex-col;
+    width: var(--sidebar-width);
+  }
+
+  .sidebar.collapsed {
+    width: var(--sidebar-collapsed-width);
+  }
+
+  /* Bottom nav mobile/tablette */
+  .bottom-nav {
+    @apply fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-40
+           flex items-center justify-around;
+    height: var(--bottom-nav-height);
+  }
+
+  /* Main content avec sidebar */
+  .main-with-sidebar {
+    @apply ml-0;
+  }
+
+  @screen lg {
+    .main-with-sidebar {
+      margin-left: var(--sidebar-width);
+    }
+    .main-with-sidebar.sidebar-collapsed {
+      margin-left: var(--sidebar-collapsed-width);
+    }
+  }
+
+  /* Main content avec bottom nav */
+  .main-with-bottom-nav {
+    padding-bottom: var(--bottom-nav-height);
+  }
+}
+
+/* Animations Framer Motion overrides — snappy 0.2-0.4s */
+@layer utilities {
+  .glass-header {
+    @apply bg-slate-900/80 backdrop-blur-md;
+  }
+}
