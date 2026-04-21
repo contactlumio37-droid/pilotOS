@@ -95,9 +95,25 @@ export interface OrganisationMember {
   invited_at: string
   accepted_at: string | null
   is_active: boolean
+  /** GENERATED: true pour tous les rôles sauf 'superadmin' */
+  is_billable: boolean
+  /** Permission explicite d'impersonation — ne découle pas du rôle */
+  can_impersonate: boolean
   mfa_enabled: boolean
   mfa_enrolled_at: string | null
   kpi_config: Json
+}
+
+export interface ImpersonationLog {
+  id: string
+  impersonator_id: string
+  impersonated_user_id: string
+  organisation_id: string
+  reason: string | null
+  ip_address: string | null
+  user_agent: string | null
+  started_at: string
+  ended_at: string | null
 }
 
 export interface ModuleAccess {
