@@ -7,7 +7,8 @@ import DirectorDashboard from './DirectorDashboard'
 import StrategyPage from '@/pages/shared/StrategyPage'
 import ActionsPage from '@/pages/contributor/ActionsPage'
 import ProcessesPage from '@/pages/shared/ProcessesPage'
-import DocumentsPage from '@/pages/contributor/DocumentsPage'
+import DocumentsPage from '@/pages/shared/DocumentsPage'
+import ProfilePage from '@/pages/shared/ProfilePage'
 
 const NAV_ITEMS = [
   { to: '/direction',           label: 'Synthèse',   icon: LayoutDashboard, end: true },
@@ -23,7 +24,7 @@ export default function DirectorApp() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {isDesktop ? <Sidebar items={NAV_ITEMS} /> : <BottomNav items={NAV_ITEMS} />}
+      {isDesktop ? <Sidebar items={NAV_ITEMS} profileTo="/direction/profil" /> : <BottomNav items={NAV_ITEMS} />}
 
       <main className={isDesktop ? 'main-with-sidebar p-8' : 'main-with-bottom-nav p-4'}>
         <Routes>
@@ -32,6 +33,7 @@ export default function DirectorApp() {
           <Route path="/actions"   element={<ActionsPage />} />
           <Route path="/processus" element={<ProcessesPage />} />
           <Route path="/documents" element={<DocumentsPage />} />
+          <Route path="/profil"    element={<ProfilePage />} />
         </Routes>
       </main>
     </div>

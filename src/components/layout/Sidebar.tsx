@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, LogOut } from 'lucide-react'
+import { ChevronLeft, ChevronRight, LogOut, UserCircle } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { signOut } from '@/hooks/useAuth'
+import NotificationBell from './NotificationBell'
 
 interface NavItem {
   to: string
@@ -14,12 +15,12 @@ interface NavItem {
 interface SidebarProps {
   items: NavItem[]
   dark?: boolean
+  profileTo?: string
 }
 
-export default function Sidebar({ items, dark = false }: SidebarProps) {
+export default function Sidebar({ items, dark = false, profileTo = '/profil' }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
 
-  // Sync main content margin via CSS variable
   useEffect(() => {
     document.documentElement.style.setProperty('--sidebar-current-width', '210px')
     return () => { document.documentElement.style.removeProperty('--sidebar-current-width') }
@@ -76,7 +77,25 @@ export default function Sidebar({ items, dark = false }: SidebarProps) {
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-slate-800 p-2">
+      <div className="border-t border-slate-800 p-2 space-y-0.5">
+        {/* Notifications */}
+        <NotificationBell collapsed={collapsed} />
+
+        {/* Profile */}
+        <NavLink
+          to={profileTo}
+          className={({ isActive }) =>
+            `flex items-center gap-3 w-full px-3 py-2.5 rounded-lg transition-colors ${
+              isActive ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            } ${collapsed ? 'justify-center' : ''}`
+          }
+          title={collapsed ? 'Mon profil' : undefined}
+        >
+          <UserCircle className="w-5 h-5 shrink-0" />
+          {!collapsed && <span className="text-sm">Mon profil</span>}
+        </NavLink>
+
+        {/* Logout */}
         <button
           onClick={() => signOut()}
           className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors ${

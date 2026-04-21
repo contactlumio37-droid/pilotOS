@@ -6,7 +6,8 @@ import BottomNav from '@/components/layout/BottomNav'
 import DashboardPage from './DashboardPage'
 import ActionsPage from './ActionsPage'
 import ProcessesPage from '@/pages/shared/ProcessesPage'
-import DocumentsPage from './DocumentsPage'
+import DocumentsPage from '@/pages/shared/DocumentsPage'
+import ProfilePage from '@/pages/shared/ProfilePage'
 
 const NAV_ITEMS = [
   { to: '/app', label: 'Tableau de bord', icon: LayoutDashboard, end: true },
@@ -22,7 +23,7 @@ export default function ContributorApp() {
   return (
     <div className="min-h-screen bg-slate-50">
       {isDesktop ? (
-        <Sidebar items={NAV_ITEMS} />
+        <Sidebar items={NAV_ITEMS} profileTo="/app/profil" />
       ) : (
         <BottomNav items={NAV_ITEMS} />
       )}
@@ -33,6 +34,7 @@ export default function ContributorApp() {
           <Route path="/actions" element={<ActionsPage />} />
           <Route path="/processus" element={<ProcessesPage />} />
           <Route path="/documents" element={<DocumentsPage />} />
+          <Route path="/profil" element={<ProfilePage />} />
         </Routes>
       </main>
     </div>

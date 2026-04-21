@@ -13,7 +13,8 @@ import ActionsPage from '@/pages/contributor/ActionsPage'
 import StrategyPage from '@/pages/shared/StrategyPage'
 import ProcessesPage from '@/pages/shared/ProcessesPage'
 import IndicatorsPage from '@/pages/shared/IndicatorsPage'
-import DocumentsPage from '@/pages/contributor/DocumentsPage'
+import DocumentsPage from '@/pages/shared/DocumentsPage'
+import ProfilePage from '@/pages/shared/ProfilePage'
 import TerrainReportsManager from '@/pages/manager/TerrainReportsManager'
 
 const NAV_ITEMS = [
@@ -34,7 +35,7 @@ export default function AdminApp() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {isDesktop ? <Sidebar items={NAV_ITEMS} /> : <BottomNav items={NAV_ITEMS.slice(0, 5)} />}
+      {isDesktop ? <Sidebar items={NAV_ITEMS} profileTo="/admin/profil" /> : <BottomNav items={NAV_ITEMS.slice(0, 5)} />}
 
       <main className={isDesktop ? 'main-with-sidebar p-8' : 'main-with-bottom-nav p-4'}>
         <Routes>
@@ -47,6 +48,7 @@ export default function AdminApp() {
           <Route path="/documents"    element={<DocumentsPage />} />
           <Route path="/membres"      element={<AdminMembers />} />
           <Route path="/parametres"   element={<AdminSettings />} />
+          <Route path="/profil"        element={<ProfilePage />} />
         </Routes>
       </main>
     </div>
