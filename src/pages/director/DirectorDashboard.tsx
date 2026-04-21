@@ -1,96 +1,93 @@
-import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { Target, TrendingUp, CheckCircle2, AlertCircle } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
-import { useOrganisation } from '@/hooks/useOrganisation'
-import type { StrategicObjective } from '@/types/database'
+import { Lock, TrendingUp, Target } from 'lucide-react'
+import PageHeader from '@/components/layout/PageHeader'
+import { useDashboardKPIs } from '@/hooks/useDashboardKPIs'
+import { useObjectives } from '@/hooks/usePilotage'
+import type { KpiId } from '@/hooks/useDashboardKPIs'
+
+const DIRECTOR_KPIS: KpiId[] = [
+  'actions_todo', 'actions_in_progress', 'actions_late',
+  'projects_active', 'nc_open', 'processes_health_avg',
+]
+const DIRECTOR_CONFIG = { enabled: DIRECTOR_KPIS, order: DIRECTOR_KPIS }
+
+const STATUS_LABELS = {
+  draft:     { label: 'Brouillon', className: 'badge-neutral' },
+  active:    { label: 'Actif',     className: 'badge-brand' },
+  completed: { label: 'Atteint',   className: 'badge-success' },
+  cancelled: { label: 'Annulé',    className: 'badge bg-slate-100 text-slate-400' },
+}
 
 export default function DirectorDashboard() {
-  const { organisation } = useOrganisation()
-
-  const { data: objectives = [] } = useQuery({
-    queryKey: ['strategic_objectives', organisation?.id],
-    queryFn: async () => {
-      if (!organisation) return []
-      const { data } = await supabase
-        .from('strategic_objectives')
-        .select('*')
-        .eq('organisation_id', organisation.id)
-        .eq('status', 'active')
-        .order('created_at', { ascending: false })
-      return (data ?? []) as StrategicObjective[]
-    },
-    enabled: !!organisation,
-  })
+  const { data: kpis = [], isLoading } = useDashboardKPIs(DIRECTOR_CONFIG)
+  const { data: objectives = [] } = useObjectives()
+  const activeObjectives = objectives.filter(o => o.status === 'active').slice(0, 6)
 
   return (
     <div className="max-w-5xl">
-      <motion.div initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
-        <h1 className="text-2xl font-bold text-slate-900 mb-8">Synthèse Direction</h1>
+      <PageHeader title="Synthèse direction" subtitle="Vue consolidée — lecture seule" />
 
-        {/* Objectifs stratégiques */}
-        <section className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-slate-900">Objectifs stratégiques</h2>
-            <button className="btn-primary text-sm">
-              <Target className="w-4 h-4" />
-              Nouvel objectif
-            </button>
+      <motion.div initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+        {isLoading
+          ? Array.from({ length: 6 }).map((_, i) => <div key={i} className="card animate-pulse h-24" />)
+          : kpis.map(kpi => (
+              <div key={kpi.id} className="card">
+                <p className="text-sm text-slate-500 mb-1">{kpi.label}</p>
+                <p className={`text-3xl font-bold ${kpi.variant === 'danger' && kpi.value > 0 ? 'text-danger' : 'text-slate-900'}`}>
+                  {kpi.value}
+                  {kpi.id === 'processes_health_avg' && <span className="text-base text-slate-400 ml-1">%</span>}
+                </p>
+              </div>
+            ))
+        }
+      </motion.div>
+
+      <motion.div initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.08 }}>
+        <div className="flex items-center gap-2 mb-4">
+          <Target className="w-5 h-5 text-brand-600" />
+          <h2 className="text-base font-semibold text-slate-900">Objectifs stratégiques actifs</h2>
+          <span className="text-xs text-slate-400">({activeObjectives.length})</span>
+        </div>
+
+        {activeObjectives.length === 0 ? (
+          <div className="card text-center py-10">
+            <TrendingUp className="w-10 h-10 text-slate-200 mx-auto mb-3" />
+            <p className="text-slate-500 font-medium">Aucun objectif actif</p>
+            <p className="text-sm text-slate-400 mt-1">Les objectifs apparaîtront ici une fois créés.</p>
           </div>
-
-          {objectives.length === 0 ? (
-            <div className="card text-center py-8">
-              <Target className="w-8 h-8 text-slate-300 mx-auto mb-3" />
-              <p className="text-slate-500">Aucun objectif stratégique actif.</p>
-              <p className="text-sm text-slate-400 mt-1">
-                Définissez vos objectifs pour aligner vos équipes.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {objectives.map((obj) => (
-                <div key={obj.id} className="card-hover cursor-pointer">
+        ) : (
+          <div className="grid gap-3">
+            {activeObjectives.map(obj => {
+              const st = STATUS_LABELS[obj.status]
+              return (
+                <motion.div key={obj.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="card">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      {obj.axis && (
-                        <p className="text-xs text-slate-400 mb-1">{obj.axis}</p>
-                      )}
-                      <p className="font-semibold text-slate-900">{obj.title}</p>
-                      {obj.kpi_label && (
-                        <div className="flex items-center gap-2 mt-2">
-                          <TrendingUp className="w-3 h-3 text-brand-500" />
-                          <span className="text-sm text-slate-600">
-                            {obj.kpi_label}
-                            {obj.kpi_target && ` → ${obj.kpi_target}${obj.kpi_unit ?? ''}`}
-                          </span>
-                        </div>
+                      <div className="flex items-center gap-2 mb-1">
+                        {obj.visibility !== 'public' && <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />}
+                        <span className="text-sm font-semibold text-slate-900">{obj.title}</span>
+                      </div>
+                      {obj.axis && <p className="text-xs text-slate-400 mb-1">{obj.axis}</p>}
+                      {obj.description && <p className="text-sm text-slate-500 line-clamp-2">{obj.description}</p>}
+                    </div>
+                    <span className={st.className}>{st.label}</span>
+                  </div>
+                  {obj.kpi_label && (
+                    <div className="mt-3 pt-3 border-t border-slate-50 flex items-center gap-2">
+                      <TrendingUp className="w-3.5 h-3.5 text-brand-400 shrink-0" />
+                      <span className="text-xs text-slate-500">{obj.kpi_label}</span>
+                      {obj.kpi_target && (
+                        <span className="text-xs font-semibold text-slate-700 ml-auto">
+                          Cible : {obj.kpi_target}{obj.kpi_unit ? ` ${obj.kpi_unit}` : ''}
+                        </span>
                       )}
                     </div>
-                    <span className="badge badge-brand text-xs shrink-0">Actif</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* Placeholder graphiques */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="card h-48 flex items-center justify-center">
-            <div className="text-center text-slate-400">
-              <CheckCircle2 className="w-8 h-8 mx-auto mb-2" />
-              <p className="text-sm">Taux de réalisation actions</p>
-              <p className="text-xs mt-1">Graphique disponible en V1</p>
-            </div>
+                  )}
+                </motion.div>
+              )
+            })}
           </div>
-          <div className="card h-48 flex items-center justify-center">
-            <div className="text-center text-slate-400">
-              <AlertCircle className="w-8 h-8 mx-auto mb-2" />
-              <p className="text-sm">KPIs consolidés</p>
-              <p className="text-xs mt-1">Graphique disponible en V1</p>
-            </div>
-          </div>
-        </div>
+        )}
       </motion.div>
     </div>
   )

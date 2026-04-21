@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Check } from 'lucide-react'
-import { PLANS, calculatePlanPrice } from '@/lib/stripe'
+import { PLANS } from '@/lib/stripe'
 
 const PLAN_FEATURES: Record<string, string[]> = {
   free: [

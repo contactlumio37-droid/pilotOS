@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, LogOut } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -18,6 +18,18 @@ interface SidebarProps {
 
 export default function Sidebar({ items, dark = false }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
+
+  // Sync main content margin via CSS variable
+  useEffect(() => {
+    document.documentElement.style.setProperty('--sidebar-current-width', '210px')
+    return () => { document.documentElement.style.removeProperty('--sidebar-current-width') }
+  }, [])
+
+  function handleToggle() {
+    const next = !collapsed
+    setCollapsed(next)
+    document.documentElement.style.setProperty('--sidebar-current-width', next ? '52px' : '210px')
+  }
 
   const bg = dark ? 'bg-slate-950 border-slate-800' : 'bg-slate-900 border-slate-800'
   const width = collapsed ? 'w-[52px]' : 'w-[210px]'
@@ -77,7 +89,7 @@ export default function Sidebar({ items, dark = false }: SidebarProps) {
         </button>
 
         <button
-          onClick={() => setCollapsed(!collapsed)}
+          onClick={handleToggle}
           className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg text-slate-600 hover:text-slate-400 transition-colors mt-1 ${
             collapsed ? 'justify-center' : ''
           }`}
