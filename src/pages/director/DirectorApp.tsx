@@ -6,6 +6,8 @@ import BottomNav from '@/components/layout/BottomNav'
 import DirectorDashboard from './DirectorDashboard'
 import StrategyPage from '@/pages/shared/StrategyPage'
 import ActionsPage from '@/pages/contributor/ActionsPage'
+import ProcessesPage from '@/pages/shared/ProcessesPage'
+import DocumentsPage from '@/pages/contributor/DocumentsPage'
 
 const NAV_ITEMS = [
   { to: '/direction',           label: 'Synthèse',   icon: LayoutDashboard, end: true },
@@ -28,6 +30,8 @@ export default function DirectorApp() {
           <Route path="/"          element={<DirectorDashboard />} />
           <Route path="/strategie" element={<StrategyPage />} />
           <Route path="/actions"   element={<ActionsPage />} />
+          <Route path="/processus" element={<ProcessesPage />} />
+          <Route path="/documents" element={<DocumentsPage />} />
         </Routes>
       </main>
     </div>
