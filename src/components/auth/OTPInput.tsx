@@ -18,26 +18,25 @@ export default function OTPInput({
 }: OTPInputProps) {
   const inputs = useRef<(HTMLInputElement | null)[]>([])
 
-  const focusNext = (idx: number) => {
+  const focusNext = useCallback((idx: number) => {
     inputs.current[Math.min(idx + 1, length - 1)]?.focus()
-  }
+  }, [length])
 
-  const focusPrev = (idx: number) => {
+  const focusPrev = useCallback((idx: number) => {
     inputs.current[Math.max(idx - 1, 0)]?.focus()
-  }
+  }, [])
 
   const handleChange = useCallback(
     (idx: number, char: string) => {
       const digit = char.replace(/\D/g, '').slice(-1)
       if (!digit) return
-
       const arr = value.split('').slice(0, length)
       while (arr.length < length) arr.push('')
       arr[idx] = digit
       onChange(arr.join(''))
       focusNext(idx)
     },
-    [value, onChange, length],
+    [value, onChange, length, focusNext],
   )
 
   const handleKeyDown = useCallback(
@@ -62,7 +61,7 @@ export default function OTPInput({
         focusNext(idx)
       }
     },
-    [value, onChange, length],
+    [value, onChange, length, focusNext, focusPrev],
   )
 
   const handlePaste = useCallback(

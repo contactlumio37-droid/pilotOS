@@ -133,7 +133,7 @@ export default function IndicatorDrawer({ open, onClose, indicator }: Props) {
         await createIndicator.mutateAsync(payload)
       }
       onClose()
-    } catch {}
+    } catch { /* mutation error handled by React Query state */ }
   }
 
   async function onSubmitValue(data: ValueForm) {
@@ -148,7 +148,7 @@ export default function IndicatorDrawer({ open, onClose, indicator }: Props) {
       })
       resetVal({ value: 0, measured_at: new Date().toISOString().slice(0, 10), note: '' })
       setAddingValue(false)
-    } catch {}
+    } catch { /* mutation error handled by React Query state */ }
   }
 
   const chartData = values.map(v => ({
