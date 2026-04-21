@@ -3,6 +3,7 @@ import { LayoutDashboard, ListChecks, FolderOpen, GitBranch } from 'lucide-react
 import { useBreakpoint } from '@/hooks/useBreakpoint'
 import Sidebar from '@/components/layout/Sidebar'
 import BottomNav from '@/components/layout/BottomNav'
+import FeedbackButton from '@/components/layout/FeedbackButton'
 import DashboardPage from './DashboardPage'
 import ActionsPage from './ActionsPage'
 import ProcessesPage from '@/pages/shared/ProcessesPage'
@@ -37,6 +38,7 @@ export default function ContributorApp() {
           <Route path="/profil" element={<ProfilePage />} />
         </Routes>
       </main>
+      <FeedbackButton />
     </div>
   )
 }

@@ -3,6 +3,7 @@ import { LayoutDashboard, ListChecks, GitBranch, FolderOpen, AlertCircle, BarCha
 import { useBreakpoint } from '@/hooks/useBreakpoint'
 import Sidebar from '@/components/layout/Sidebar'
 import BottomNav from '@/components/layout/BottomNav'
+import FeedbackButton from '@/components/layout/FeedbackButton'
 import ManagerDashboard from './ManagerDashboard'
 import TerrainReportsManager from './TerrainReportsManager'
 import ActionsPage from '@/pages/contributor/ActionsPage'
@@ -42,6 +43,7 @@ export default function ManagerApp() {
           <Route path="/profil"       element={<ProfilePage />} />
         </Routes>
       </main>
+      <FeedbackButton />
     </div>
   )
 }

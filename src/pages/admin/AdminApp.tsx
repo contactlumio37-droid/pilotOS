@@ -6,6 +6,7 @@ import {
 import { useBreakpoint } from '@/hooks/useBreakpoint'
 import Sidebar from '@/components/layout/Sidebar'
 import BottomNav from '@/components/layout/BottomNav'
+import FeedbackButton from '@/components/layout/FeedbackButton'
 import AdminDashboard from './AdminDashboard'
 import AdminMembers from './AdminMembers'
 import AdminSettings from './AdminSettings'
@@ -51,6 +52,7 @@ export default function AdminApp() {
           <Route path="/profil"        element={<ProfilePage />} />
         </Routes>
       </main>
+      <FeedbackButton />
     </div>
   )
 }

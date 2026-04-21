@@ -5,6 +5,7 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import PageHeader from '@/components/layout/PageHeader'
 import ObjectiveDrawer from '@/components/modules/ObjectiveDrawer'
+import CodirDecisionDrawer from '@/components/modules/CodirDecisionDrawer'
 import { useObjectives, useCodirDecisions } from '@/hooks/usePilotage'
 import { useIsAtLeast } from '@/hooks/useRole'
 import type { StrategicObjective } from '@/types/database'
@@ -18,6 +19,7 @@ const STATUS_LABELS = {
 
 export default function StrategyPage() {
   const [objDrawerOpen, setObjDrawerOpen] = useState(false)
+  const [codirDrawerOpen, setCodirDrawerOpen] = useState(false)
   const [selected, setSelected] = useState<StrategicObjective | null>(null)
   const [tab, setTab] = useState<'objectives' | 'codir'>('objectives')
 
@@ -46,13 +48,24 @@ export default function StrategyPage() {
       />
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 bg-slate-100 p-1 rounded-lg w-fit">
-        <TabBtn active={tab === 'objectives'} onClick={() => setTab('objectives')}>
-          <Target className="w-3.5 h-3.5" /> Objectifs ({objectives.length})
-        </TabBtn>
-        <TabBtn active={tab === 'codir'} onClick={() => setTab('codir')}>
-          <MessageSquare className="w-3.5 h-3.5" /> Décisions CODIR ({decisions.length})
-        </TabBtn>
+      <div className="flex items-center gap-4 mb-6">
+        <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
+          <TabBtn active={tab === 'objectives'} onClick={() => setTab('objectives')}>
+            <Target className="w-3.5 h-3.5" /> Objectifs ({objectives.length})
+          </TabBtn>
+          <TabBtn active={tab === 'codir'} onClick={() => setTab('codir')}>
+            <MessageSquare className="w-3.5 h-3.5" /> Décisions CODIR ({decisions.length})
+          </TabBtn>
+        </div>
+        {tab === 'codir' && canCreate && (
+          <button
+            onClick={() => setCodirDrawerOpen(true)}
+            className="btn-primary flex items-center gap-1.5 text-sm ml-auto"
+          >
+            <Plus className="w-4 h-4" />
+            Nouvelle décision
+          </button>
+        )}
       </div>
 
       {/* Objectifs */}
@@ -181,6 +194,10 @@ export default function StrategyPage() {
         open={objDrawerOpen}
         onClose={() => setObjDrawerOpen(false)}
         objective={selected}
+      />
+      <CodirDecisionDrawer
+        open={codirDrawerOpen}
+        onClose={() => setCodirDrawerOpen(false)}
       />
     </div>
   )
