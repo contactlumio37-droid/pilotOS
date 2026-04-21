@@ -2,7 +2,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useOrganisation } from '@/hooks/useOrganisation'
 import { useProfile } from '@/hooks/useProfile'
-import { sendInvitationEmail } from '@/lib/email'
 import type { UserRole } from '@/types/database'
 
 export function useInviteMember() {
@@ -14,36 +13,18 @@ export function useInviteMember() {
     mutationFn: async ({ email, role }: { email: string; role: UserRole }) => {
       if (!organisation) throw new Error('Organisation manquante')
 
-      // Generate invite via Supabase auth (magic link / OTP)
-      const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
-        type: 'invite',
-        email,
-        options: { redirectTo: `${window.location.origin}/onboarding?org=${organisation.id}` },
-      })
-      if (linkError) throw linkError
-
-      const userId = linkData.user.id
-
-      // Create member record pre-linked to org
-      const { error: memberError } = await supabase
-        .from('organisation_members')
-        .upsert({
-          organisation_id: organisation.id,
-          user_id: userId,
+      // Appel à l'Edge Function invite-member (côté serveur, utilise service_role)
+      const { error } = await supabase.functions.invoke('invite-member', {
+        body: {
+          email,
           role,
-          invited_at: new Date().toISOString(),
-          is_active: true,
-        }, { onConflict: 'organisation_id,user_id' })
-      if (memberError) throw memberError
-
-      // Send invitation email via email.ts wrapper
-      const inviteUrl = linkData.properties.action_link
-      await sendInvitationEmail({
-        to: email,
-        inviterName: profile?.full_name ?? 'Un administrateur',
-        orgName: organisation.name,
-        inviteUrl,
+          organisationId: organisation.id,
+          orgName: organisation.name,
+          inviterName: profile?.full_name ?? 'Un administrateur',
+          redirectTo: `${window.location.origin}/onboarding`,
+        },
       })
+      if (error) throw new Error(error.message)
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['members'] }),
   })
