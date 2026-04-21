@@ -75,7 +75,7 @@ function AppRedirect({ shell }: { shell: ReturnType<typeof useAppShell> }) {
     admin: '/admin',
     superadmin: '/superadmin',
   }
-  if (!shell) return <Navigate to="/login" replace />
+  if (!shell) return <Navigate to="/onboarding" replace />
   return <Navigate to={routes[shell]} replace />
 }
 

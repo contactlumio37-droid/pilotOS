@@ -108,6 +108,18 @@ export interface ModuleAccess {
   activated_at: string | null
 }
 
+export interface MemberInvitation {
+  id: string
+  organisation_id: string
+  email: string
+  role: UserRole
+  invited_by: string
+  token: string
+  expires_at: string
+  accepted_at: string | null
+  created_at: string
+}
+
 export interface KpiCatalog {
   id: string
   label: string
