@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, TrendingUp, TrendingDown, Minus, Inbox } from 'lucide-react'
+import { Plus, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { LineChart, Line, ResponsiveContainer, Tooltip } from 'recharts'
@@ -174,12 +174,6 @@ export default function IndicatorsPage() {
               Créer le premier indicateur
             </button>
           )}
-        </div>
-      )}
-
-      {!isLoading && indicators.length === 0 && false && (
-        <div className="card text-center py-12">
-          <Inbox className="w-10 h-10 text-slate-200 mx-auto mb-3" />
         </div>
       )}
 

@@ -93,7 +93,7 @@ export default function NcDrawer({ open, onClose, nc, processes = [], defaultPro
         })
       }
       onClose()
-    } catch {}
+    } catch { /* mutation error handled by React Query state */ }
   }
 
   const isPending = createNC.isPending || updateNC.isPending

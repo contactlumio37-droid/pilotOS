@@ -127,7 +127,7 @@ export default function ProcessDrawer({ open, onClose, process }: Props) {
         })
       }
       onClose()
-    } catch {}
+    } catch { /* mutation error handled by React Query state */ }
   }
 
   const isPending = createProcess.isPending || updateProcess.isPending

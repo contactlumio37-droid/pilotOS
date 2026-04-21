@@ -25,20 +25,24 @@ export default function MFAVerifyPage() {
     }
   }, [mfaVerified, navigate, location.state])
 
-  // Charge la méthode enrollée
-  useEffect(() => {
-    if (!user) return
-    getUserMFAEnrollment(user.id).then((enrollment) => {
-      if (!enrollment) return
-      setMethod(enrollment.method)
-      if (enrollment.method === 'totp' && enrollment.totp_factor_id) {
-        setFactorId(enrollment.totp_factor_id)
-      } else if (enrollment.method === 'email_otp') {
-        // Envoie le code automatiquement à l'arrivée
-        mfa.sendEmailOTPCode()
-      }
-    })
-  }, [user?.id])
+  // Charge la méthode enrollée — dépend uniquement de user.id pour éviter
+  // de boucler sur l'objet mfa (nouvelle référence à chaque render)
+  useEffect(
+    () => {
+      if (!user) return
+      getUserMFAEnrollment(user.id).then((enrollment) => {
+        if (!enrollment) return
+        setMethod(enrollment.method)
+        if (enrollment.method === 'totp' && enrollment.totp_factor_id) {
+          setFactorId(enrollment.totp_factor_id)
+        } else if (enrollment.method === 'email_otp') {
+          mfa.sendEmailOTPCode()
+        }
+      })
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [user?.id],
+  )
 
   async function handleVerify() {
     const ok = await mfa.verify(code, factorId)
@@ -55,10 +59,15 @@ export default function MFAVerifyPage() {
     setTimeout(() => setResent(false), 30_000)
   }
 
-  // Auto-submit quand 6 chiffres saisis
-  useEffect(() => {
-    if (code.length === 6) handleVerify()
-  }, [code])
+  // Auto-submit quand 6 chiffres saisis — handleVerify intentionnellement exclu
+  // (dépend de mfa qui change chaque render, l'inclure causerait des boucles)
+  useEffect(
+    () => {
+      if (code.length === 6) handleVerify()
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [code],
+  )
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
