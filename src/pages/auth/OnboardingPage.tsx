@@ -1,12 +1,13 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, Building2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
+import type { MemberInvitation } from '@/types/database'
 
 const SECTORS = [
   { id: 'sdis', label: 'SDIS / Services secours', emoji: '🚒' },
@@ -26,10 +27,22 @@ const orgSchema = z.object({
 
 type OrgFormData = z.infer<typeof orgSchema>
 
+type PendingInvite = Pick<MemberInvitation, 'token' | 'role'> & {
+  organisation: { name: string } | null
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  admin: 'Administrateur', manager: 'Manager', director: 'Directeur',
+  contributor: 'Contributeur', terrain: 'Terrain', reader: 'Lecteur',
+}
+
 export default function OnboardingPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const [step, setStep] = useState<'org' | 'sector' | 'done'>('org')
+  const [step, setStep] = useState<'loading' | 'invite' | 'org' | 'sector' | 'done'>('loading')
+  const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([])
+  const [accepting, setAccepting] = useState<string | null>(null)
+  const [acceptError, setAcceptError] = useState<string | null>(null)
   const [sector, setSector] = useState<string>('autre')
   const [orgId, setOrgId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -40,14 +53,44 @@ export default function OnboardingPage() {
 
   const name = watch('name')
 
-  // Auto-génère le slug depuis le nom
+  useEffect(() => {
+    if (!user?.email) return
+    supabase
+      .from('member_invitations')
+      .select('token, role, organisation:organisations(name)')
+      .eq('email', user.email)
+      .is('accepted_at', null)
+      .gt('expires_at', new Date().toISOString())
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          setPendingInvites(data as PendingInvite[])
+          setStep('invite')
+        } else {
+          setStep('org')
+        }
+      })
+  }, [user?.email])
+
+  async function acceptInvitation(token: string) {
+    setAccepting(token)
+    setAcceptError(null)
+    const { error: rpcError } = await supabase.rpc('accept_invitation', { p_token: token })
+    if (rpcError) {
+      setAcceptError(rpcError.message)
+      setAccepting(null)
+      return
+    }
+    setStep('done')
+    setTimeout(() => navigate('/app'), 1200)
+  }
+
   function handleNameChange(e: React.ChangeEvent<HTMLInputElement>) {
     const value = e.target.value
     setValue('name', value)
     const slug = value
       .toLowerCase()
       .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[̀-ͯ]/g, '')
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '')
     setValue('slug', slug)
@@ -82,14 +125,12 @@ export default function OnboardingPage() {
   async function applyTemplate() {
     if (!orgId) return
 
-    // Modules par défaut
     await supabase.from('module_access').insert([
       { organisation_id: orgId, module: 'pilotage', is_active: true, activated_at: new Date().toISOString() },
       { organisation_id: orgId, module: 'processus', is_active: true, activated_at: new Date().toISOString() },
       { organisation_id: orgId, module: 'ged', is_active: true, activated_at: new Date().toISOString() },
     ])
 
-    // Dossiers ISO par défaut
     const folders = [
       { name: 'Système de Management', sort_order: 1 },
       { name: 'Processus', sort_order: 2 },
@@ -108,6 +149,14 @@ export default function OnboardingPage() {
     setTimeout(() => navigate('/app'), 1500)
   }
 
+  if (step === 'loading') {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
   if (step === 'done') {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -118,7 +167,7 @@ export default function OnboardingPage() {
         >
           <div className="text-5xl mb-4">🚀</div>
           <h1 className="text-2xl font-bold text-slate-900">Votre espace est prêt !</h1>
-          <p className="text-slate-500 mt-2">Redirection en cours...</p>
+          <p className="text-slate-500 mt-2">Redirection en cours…</p>
         </motion.div>
       </div>
     )
@@ -127,8 +176,59 @@ export default function OnboardingPage() {
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
       <div className="w-full max-w-lg">
-        {/* Étape 1 : Créer l'organisation */}
         <AnimatePresence mode="wait">
+
+          {step === 'invite' && (
+            <motion.div
+              key="invite"
+              initial={{ x: 20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: -20, opacity: 0 }}
+            >
+              <h1 className="text-3xl font-bold text-slate-900 mb-2">Bienvenue sur PilotOS</h1>
+              <p className="text-slate-500 mb-8">
+                {pendingInvites.length === 1
+                  ? 'Vous avez une invitation en attente.'
+                  : `Vous avez ${pendingInvites.length} invitations en attente.`}
+              </p>
+
+              {acceptError && (
+                <div className="bg-red-50 text-red-700 text-sm rounded-lg px-4 py-3 mb-4">
+                  {acceptError}
+                </div>
+              )}
+
+              <div className="space-y-3 mb-6">
+                {pendingInvites.map((inv) => (
+                  <div key={inv.token} className="card flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-brand-100 flex items-center justify-center shrink-0">
+                        <Building2 className="w-5 h-5 text-brand-600" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-900">
+                          {inv.organisation?.name ?? 'Organisation'}
+                        </p>
+                        <p className="text-sm text-slate-500">{ROLE_LABELS[inv.role] ?? inv.role}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => acceptInvitation(inv.token)}
+                      disabled={!!accepting}
+                      className="btn-primary shrink-0"
+                    >
+                      {accepting === inv.token ? 'Acceptation…' : 'Rejoindre'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <button onClick={() => setStep('org')} className="btn-secondary w-full">
+                Créer une nouvelle organisation à la place
+              </button>
+            </motion.div>
+          )}
+
           {step === 'org' && (
             <motion.div
               key="org"
@@ -163,11 +263,7 @@ export default function OnboardingPage() {
                   <label className="label">Identifiant unique (URL)</label>
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-slate-400 shrink-0">pilotos.fr/</span>
-                    <input
-                      {...register('slug')}
-                      className="input"
-                      placeholder="martin-co"
-                    />
+                    <input {...register('slug')} className="input" placeholder="martin-co" />
                   </div>
                   {errors.slug && (
                     <p className="text-xs text-danger mt-1">{errors.slug.message}</p>
@@ -182,7 +278,6 @@ export default function OnboardingPage() {
             </motion.div>
           )}
 
-          {/* Étape 2 : Secteur */}
           {step === 'sector' && (
             <motion.div
               key="sector"
@@ -213,15 +308,13 @@ export default function OnboardingPage() {
                 ))}
               </div>
 
-              <button
-                onClick={applyTemplate}
-                className="btn-primary w-full py-3"
-              >
+              <button onClick={applyTemplate} className="btn-primary w-full py-3">
                 Configurer mon espace
                 <ChevronRight className="w-4 h-4" />
               </button>
             </motion.div>
           )}
+
         </AnimatePresence>
       </div>
     </div>
