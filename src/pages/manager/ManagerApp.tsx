@@ -7,6 +7,9 @@ import ManagerDashboard from './ManagerDashboard'
 import TerrainReportsManager from './TerrainReportsManager'
 import ActionsPage from '@/pages/contributor/ActionsPage'
 import StrategyPage from '@/pages/shared/StrategyPage'
+import ProcessesPage from '@/pages/shared/ProcessesPage'
+import IndicatorsPage from '@/pages/shared/IndicatorsPage'
+import DocumentsPage from '@/pages/contributor/DocumentsPage'
 
 const NAV_ITEMS = [
   { to: '/manager',           label: 'Vue d\'ensemble', icon: LayoutDashboard, end: true },
@@ -29,9 +32,12 @@ export default function ManagerApp() {
       <main className={isDesktop ? 'main-with-sidebar p-8' : 'main-with-bottom-nav p-4'}>
         <Routes>
           <Route path="/"          element={<ManagerDashboard />} />
-          <Route path="/actions"   element={<ActionsPage />} />
-          <Route path="/strategie" element={<StrategyPage />} />
-          <Route path="/terrain"   element={<TerrainReportsManager />} />
+          <Route path="/actions"     element={<ActionsPage />} />
+          <Route path="/strategie"   element={<StrategyPage />} />
+          <Route path="/processus"   element={<ProcessesPage />} />
+          <Route path="/indicateurs" element={<IndicatorsPage />} />
+          <Route path="/terrain"     element={<TerrainReportsManager />} />
+          <Route path="/documents"   element={<DocumentsPage />} />
         </Routes>
       </main>
     </div>

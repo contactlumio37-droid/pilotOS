@@ -5,7 +5,7 @@ import Sidebar from '@/components/layout/Sidebar'
 import BottomNav from '@/components/layout/BottomNav'
 import DashboardPage from './DashboardPage'
 import ActionsPage from './ActionsPage'
-import ProcessesPage from './ProcessesPage'
+import ProcessesPage from '@/pages/shared/ProcessesPage'
 import DocumentsPage from './DocumentsPage'
 
 const NAV_ITEMS = [

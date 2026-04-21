@@ -11,6 +11,10 @@ import AdminMembers from './AdminMembers'
 import AdminSettings from './AdminSettings'
 import ActionsPage from '@/pages/contributor/ActionsPage'
 import StrategyPage from '@/pages/shared/StrategyPage'
+import ProcessesPage from '@/pages/shared/ProcessesPage'
+import IndicatorsPage from '@/pages/shared/IndicatorsPage'
+import DocumentsPage from '@/pages/contributor/DocumentsPage'
+import TerrainReportsManager from '@/pages/manager/TerrainReportsManager'
 
 const NAV_ITEMS = [
   { to: '/admin',             label: 'Tableau de bord', icon: LayoutDashboard, end: true },
@@ -35,10 +39,14 @@ export default function AdminApp() {
       <main className={isDesktop ? 'main-with-sidebar p-8' : 'main-with-bottom-nav p-4'}>
         <Routes>
           <Route path="/"          element={<AdminDashboard />} />
-          <Route path="/actions"   element={<ActionsPage />} />
-          <Route path="/strategie" element={<StrategyPage />} />
-          <Route path="/membres"   element={<AdminMembers />} />
-          <Route path="/parametres" element={<AdminSettings />} />
+          <Route path="/actions"      element={<ActionsPage />} />
+          <Route path="/strategie"    element={<StrategyPage />} />
+          <Route path="/processus"    element={<ProcessesPage />} />
+          <Route path="/indicateurs"  element={<IndicatorsPage />} />
+          <Route path="/terrain"      element={<TerrainReportsManager />} />
+          <Route path="/documents"    element={<DocumentsPage />} />
+          <Route path="/membres"      element={<AdminMembers />} />
+          <Route path="/parametres"   element={<AdminSettings />} />
         </Routes>
       </main>
     </div>
