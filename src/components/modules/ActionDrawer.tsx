@@ -9,6 +9,7 @@ import Drawer from '@/components/ui/Drawer'
 import { OriginBadge, StatusBadge, PriorityBadge } from '@/components/modules/ActionBadges'
 import { useCreateAction, useUpdateAction, useActionComments, useAddComment } from '@/hooks/useActions'
 import { useAiAssist } from '@/hooks/useAiAssist'
+import { useOrganisation } from '@/hooks/useOrganisation'
 import type { ActionWithRelations, ActionInsertPayload } from '@/hooks/useActions'
 import type { ActionStatus, ActionPriority, ActionOrigin } from '@/types/database'
 
@@ -65,6 +66,8 @@ export default function ActionDrawer({ open, onClose, action }: ActionDrawerProp
   const { data: comments = [] } = useActionComments(action?.id ?? null)
   const addComment = useAddComment()
   const ai = useAiAssist()
+  const { organisation } = useOrganisation()
+  const aiEnabled = (organisation as (typeof organisation & { ai_enabled?: boolean }) | null)?.ai_enabled ?? false
 
   const { register, handleSubmit, reset, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -160,8 +163,8 @@ export default function ActionDrawer({ open, onClose, action }: ActionDrawerProp
         </div>
       }
     >
-      {/* IA Fill */}
-      {!isEdit && (
+      {/* IA Fill — uniquement si ai_enabled sur l'org */}
+      {!isEdit && aiEnabled && (
         <div className="mb-6">
           {!showAi ? (
             <button

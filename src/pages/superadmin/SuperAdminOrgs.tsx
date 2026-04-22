@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { Search, Building2, Users, ChevronDown } from 'lucide-react'
+import { Search, Building2, Users, ChevronDown, UserCheck, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import type { Organisation, Plan } from '@/types/database'
@@ -47,11 +47,39 @@ function useToggleOrgActive() {
   })
 }
 
+function useToggleAiEnabled() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, ai_enabled }: { id: string; ai_enabled: boolean }) => {
+      const { error } = await supabase
+        .from('organisations')
+        .update({ ai_enabled, updated_at: new Date().toISOString() })
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['superadmin_orgs'] }),
+  })
+}
+
+function useEnsureOrgAccess() {
+  return useMutation({
+    mutationFn: async (organisationId: string) => {
+      const { data, error } = await supabase.functions.invoke('ensure-org-access', {
+        body: { organisation_id: organisationId },
+      })
+      if (error) throw error
+      return data
+    },
+  })
+}
+
 export default function SuperAdminOrgs() {
   const [search, setSearch] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const updatePlan   = useUpdateOrgPlan()
-  const toggleActive = useToggleOrgActive()
+  const updatePlan      = useUpdateOrgPlan()
+  const toggleActive    = useToggleOrgActive()
+  const toggleAi        = useToggleAiEnabled()
+  const ensureAccess    = useEnsureOrgAccess()
 
   const { data: orgs = [], isLoading } = useQuery({
     queryKey: ['superadmin_orgs'],
@@ -158,7 +186,33 @@ export default function SuperAdminOrgs() {
                       </p>
                     </div>
 
-                    <div className="ml-auto">
+                    <div className="ml-auto flex items-center gap-2 flex-wrap">
+                      {/* Toggle IA */}
+                      <button
+                        onClick={() => toggleAi.mutate({ id: org.id, ai_enabled: !org.ai_enabled })}
+                        title={org.ai_enabled ? 'Désactiver l\'IA' : 'Activer l\'IA'}
+                        className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+                          org.ai_enabled
+                            ? 'border-brand-500 text-brand-400 bg-brand-900/20'
+                            : 'border-slate-600 text-slate-500 hover:border-slate-500'
+                        }`}
+                      >
+                        <Sparkles className="w-3 h-3" />
+                        IA {org.ai_enabled ? 'ON' : 'OFF'}
+                      </button>
+
+                      {/* Accès org (auto-provisioning) */}
+                      <button
+                        onClick={() => ensureAccess.mutate(org.id)}
+                        disabled={ensureAccess.isPending}
+                        title="Accéder à cette organisation en tant que superadmin"
+                        className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-slate-600 text-slate-400 hover:border-brand-500 hover:text-brand-400 transition-colors"
+                      >
+                        <UserCheck className="w-3 h-3" />
+                        Accéder
+                      </button>
+
+                      {/* Activer / désactiver org */}
                       <button
                         onClick={() => toggleActive.mutate({ id: org.id, is_active: !org.is_active })}
                         className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${

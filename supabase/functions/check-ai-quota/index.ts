@@ -35,9 +35,16 @@ serve(async (req) => {
 
     const { data: org } = await supabaseAdmin
       .from('organisations')
-      .select('plan')
+      .select('plan, ai_enabled')
       .eq('id', organisation_id)
       .single()
+
+    // IA désactivée par défaut — le superadmin doit l'activer explicitement
+    if (!org?.ai_enabled) {
+      return new Response(JSON.stringify({ allowed: false, remaining: 0, plan: org?.plan ?? 'free', disabled: true }), {
+        headers: { ...CORS, 'Content-Type': 'application/json' },
+      })
+    }
 
     const plan = org?.plan ?? 'free'
     const limit = PLAN_LIMITS[plan] ?? 5

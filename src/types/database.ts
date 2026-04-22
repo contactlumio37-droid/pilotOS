@@ -63,6 +63,8 @@ export interface Organisation {
   default_kpi_config: Json
   terrain_module_enabled: boolean
   mfa_policy: MfaPolicy
+  /** IA désactivée par défaut — activée manuellement par superadmin (coût Anthropic) */
+  ai_enabled: boolean
   created_at: string
   updated_at: string
 }
