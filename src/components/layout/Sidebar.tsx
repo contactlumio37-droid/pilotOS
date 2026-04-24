@@ -16,9 +16,10 @@ interface SidebarProps {
   items: NavItem[]
   dark?: boolean
   profileTo?: string
+  headerSlot?: (collapsed: boolean) => React.ReactNode
 }
 
-export default function Sidebar({ items, dark = false, profileTo = '/profil' }: SidebarProps) {
+export default function Sidebar({ items, dark = false, profileTo = '/profil', headerSlot }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
 
   useEffect(() => {
@@ -48,6 +49,13 @@ export default function Sidebar({ items, dark = false, profileTo = '/profil' }: 
           <span className="text-white font-display font-bold text-lg">PilotOS</span>
         )}
       </div>
+
+      {/* Header slot (ex: org switcher pour superadmin) */}
+      {headerSlot && (
+        <div className="border-b border-slate-800 px-2 py-2">
+          {headerSlot(collapsed)}
+        </div>
+      )}
 
       {/* Navigation */}
       <nav className="flex-1 py-4 overflow-y-auto">

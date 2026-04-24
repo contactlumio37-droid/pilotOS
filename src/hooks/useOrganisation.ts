@@ -3,6 +3,14 @@ import { supabase } from '@/lib/supabase'
 import type { Organisation, OrganisationMember, ModuleAccess } from '@/types/database'
 import { useAuth } from './useAuth'
 
+// ── Org context (superadmin org-switching) ───────────────────
+
+export const ORG_CONTEXT_KEY = 'pilotos_org_ctx'
+export function setOrgContext(orgId: string): void { sessionStorage.setItem(ORG_CONTEXT_KEY, orgId) }
+export function clearOrgContext(): void { sessionStorage.removeItem(ORG_CONTEXT_KEY) }
+
+// ── Hook ─────────────────────────────────────────────────────
+
 interface OrganisationContext {
   organisation: Organisation | null
   member: OrganisationMember | null
@@ -12,19 +20,22 @@ interface OrganisationContext {
 
 export function useOrganisation(): OrganisationContext {
   const { user } = useAuth()
+  const ctxOrgId = sessionStorage.getItem(ORG_CONTEXT_KEY)
 
   const { data: member, isLoading: memberLoading } = useQuery({
-    queryKey: ['organisation_member', user?.id],
+    queryKey: ['organisation_member', user?.id, ctxOrgId],
     queryFn: async () => {
       if (!user) return null
-      const { data, error } = await supabase
+      let q = supabase
         .from('organisation_members')
         .select('*')
         .eq('user_id', user.id)
         .eq('is_active', true)
-        .single()
+        .order('created_at', { ascending: true })
+      if (ctxOrgId) q = q.eq('organisation_id', ctxOrgId)
+      const { data, error } = await q.limit(1)
       if (error) return null
-      return data as OrganisationMember
+      return (data?.[0] ?? null) as OrganisationMember | null
     },
     enabled: !!user,
   })

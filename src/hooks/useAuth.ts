@@ -35,22 +35,27 @@ export function useAuth(): AuthState {
 
     const mfaVerified = sessionStorage.getItem(MFA_VERIFIED_KEY) === user.id
 
-    // Fetch profile + membership en parallèle
+    // Fetch profile + membership en parallèle (handle multiple memberships for superadmin)
+    const ctxOrgId = sessionStorage.getItem('pilotos_org_ctx')
+    let memberQ = supabase
+      .from('organisation_members')
+      .select('role, organisation:organisations(*)')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .order('created_at', { ascending: true })
+    if (ctxOrgId) memberQ = memberQ.eq('organisation_id', ctxOrgId)
+
     const [profileResult, memberResult] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', user.id).single(),
-      supabase
-        .from('organisation_members')
-        .select('role, organisation:organisations(*)')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .single(),
+      memberQ.limit(1),
     ])
 
     const profile = profileResult.data as Profile | null
-    const member = memberResult.data
-    const rawOrg = member?.organisation
-    const organisation = (Array.isArray(rawOrg) ? rawOrg[0] : rawOrg) as Organisation | null
-    const role = member?.role as UserRole | null
+    const memberRows = memberResult.data as { role: string; organisation: Organisation | Organisation[] }[] | null
+    const memberRow = memberRows?.[0]
+    const rawOrg = memberRow?.organisation
+    const organisation = rawOrg ? (Array.isArray(rawOrg) ? rawOrg[0] : rawOrg) as Organisation : null
+    const role = (memberRow?.role ?? null) as UserRole | null
 
     setState({ user, session, profile, organisation, role, mfaVerified, loading: false })
   }, [])

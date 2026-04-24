@@ -4,9 +4,11 @@ import {
   Users, Settings, BarChart2, Target, AlertCircle,
 } from 'lucide-react'
 import { useBreakpoint } from '@/hooks/useBreakpoint'
+import { ORG_CONTEXT_KEY } from '@/hooks/useOrganisation'
 import Sidebar from '@/components/layout/Sidebar'
 import BottomNav from '@/components/layout/BottomNav'
 import FeedbackButton from '@/components/layout/FeedbackButton'
+import SuperAdminBanner from '@/components/layout/SuperAdminBanner'
 import AdminDashboard from './AdminDashboard'
 import AdminMembers from './AdminMembers'
 import AdminSettings from './AdminSettings'
@@ -33,12 +35,14 @@ const NAV_ITEMS = [
 export default function AdminApp() {
   const breakpoint = useBreakpoint()
   const isDesktop = breakpoint === 'desktop'
+  const hasBanner = !!sessionStorage.getItem(ORG_CONTEXT_KEY)
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <SuperAdminBanner />
       {isDesktop ? <Sidebar items={NAV_ITEMS} profileTo="/admin/profil" /> : <BottomNav items={NAV_ITEMS.slice(0, 5)} />}
 
-      <main className={isDesktop ? 'main-with-sidebar p-8' : 'main-with-bottom-nav p-4'}>
+      <main className={`${isDesktop ? 'main-with-sidebar p-8' : 'main-with-bottom-nav p-4'} ${hasBanner ? 'pt-12' : ''}`}>
         <Routes>
           <Route path="/"          element={<AdminDashboard />} />
           <Route path="/actions"      element={<ActionsPage />} />
