@@ -210,7 +210,7 @@ export async function getUserMFAEnrollment(userId: string): Promise<MfaEnrollmen
     .select('*')
     .eq('user_id', userId)
     .eq('is_active', true)
-    .single()
+    .maybeSingle()
   return data as MfaEnrollment | null
 }
 

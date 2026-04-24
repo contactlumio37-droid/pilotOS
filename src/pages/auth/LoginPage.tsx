@@ -39,13 +39,15 @@ export default function LoginPage() {
 
     const userId = authData.user.id
 
-    // Vérifie si MFA est requis pour cet utilisateur
+    // Vérifie si MFA est requis (utilise le membership avec le rôle le plus élevé)
     const memberResult = await supabase
       .from('organisation_members')
       .select('role, mfa_enabled, organisation:organisations(mfa_policy)')
       .eq('user_id', userId)
       .eq('is_active', true)
-      .single()
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle()
 
     if (memberResult.data) {
       const { role, mfa_enabled, organisation } = memberResult.data

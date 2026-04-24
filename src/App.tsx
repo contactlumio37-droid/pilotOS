@@ -1,12 +1,12 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { useAppShell } from '@/hooks/useRole'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
 import MFARoute from '@/components/auth/MFARoute'
-
 import ImpersonationBanner from '@/components/layout/ImpersonationBanner'
 
-// Pages publiques
+// Pages publiques (petit poids — pas de lazy)
 import LandingPage from '@/pages/public/LandingPage'
 import PricingPage from '@/pages/public/PricingPage'
 import RoadmapPage from '@/pages/public/RoadmapPage'
@@ -20,13 +20,13 @@ import UpdatePasswordPage from '@/pages/auth/UpdatePasswordPage'
 import MFASetupPage from '@/pages/auth/MFASetupPage'
 import MFAVerifyPage from '@/pages/auth/MFAVerifyPage'
 
-// App shells par rôle
-import TerrainApp from '@/pages/terrain/TerrainApp'
-import ContributorApp from '@/pages/contributor/ContributorApp'
-import ManagerApp from '@/pages/manager/ManagerApp'
-import DirectorApp from '@/pages/director/DirectorApp'
-import AdminApp from '@/pages/admin/AdminApp'
-import SuperAdminApp from '@/pages/superadmin/SuperAdminApp'
+// App shells — chargés à la demande selon le rôle
+const TerrainApp     = lazy(() => import('@/pages/terrain/TerrainApp'))
+const ContributorApp = lazy(() => import('@/pages/contributor/ContributorApp'))
+const ManagerApp     = lazy(() => import('@/pages/manager/ManagerApp'))
+const DirectorApp    = lazy(() => import('@/pages/director/DirectorApp'))
+const AdminApp       = lazy(() => import('@/pages/admin/AdminApp'))
+const SuperAdminApp  = lazy(() => import('@/pages/superadmin/SuperAdminApp'))
 
 function AppRouter() {
   const { user, loading, isImpersonating } = useAuth()
@@ -37,38 +37,37 @@ function AppRouter() {
   return (
     <>
       <ImpersonationBanner />
-      {/* Spacer pour compenser le banner fixe quand actif */}
       {isImpersonating && <div className="h-10 shrink-0" />}
       <Routes>
-      {/* Site public */}
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/pricing" element={<PricingPage />} />
-      <Route path="/roadmap" element={<RoadmapPage />} />
+        {/* Site public */}
+        <Route path="/"        element={<LandingPage />} />
+        <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/roadmap" element={<RoadmapPage />} />
 
-      {/* Auth — redirige si déjà connecté */}
-      <Route path="/login" element={user ? <AppRedirect shell={appShell} /> : <LoginPage />} />
-      <Route path="/register" element={user ? <AppRedirect shell={appShell} /> : <RegisterPage />} />
-      <Route path="/reset-password" element={<ResetPasswordPage />} />
-      <Route path="/update-password" element={<UpdatePasswordPage />} />
+        {/* Auth */}
+        <Route path="/login"          element={user ? <AppRedirect shell={appShell} /> : <LoginPage />} />
+        <Route path="/register"       element={user ? <AppRedirect shell={appShell} /> : <RegisterPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/update-password" element={<UpdatePasswordPage />} />
 
-      {/* MFA — disponible uniquement si connecté */}
-      <Route path="/mfa/verify" element={<ProtectedRoute><MFAVerifyPage /></ProtectedRoute>} />
-      <Route path="/mfa/setup" element={<ProtectedRoute><MFASetupPage /></ProtectedRoute>} />
+        {/* MFA */}
+        <Route path="/mfa/verify" element={<ProtectedRoute><MFAVerifyPage /></ProtectedRoute>} />
+        <Route path="/mfa/setup"  element={<ProtectedRoute><MFASetupPage /></ProtectedRoute>} />
 
-      {/* Onboarding */}
-      <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
+        {/* Onboarding */}
+        <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
 
-      {/* Apps par rôle — protégées + vérification MFA */}
-      <Route path="/terrain/*" element={<ProtectedRoute><MFARoute><TerrainApp /></MFARoute></ProtectedRoute>} />
-      <Route path="/app/*" element={<ProtectedRoute><MFARoute><ContributorApp /></MFARoute></ProtectedRoute>} />
-      <Route path="/manager/*" element={<ProtectedRoute><MFARoute><ManagerApp /></MFARoute></ProtectedRoute>} />
-      <Route path="/direction/*" element={<ProtectedRoute><MFARoute><DirectorApp /></MFARoute></ProtectedRoute>} />
-      <Route path="/admin/*" element={<ProtectedRoute><MFARoute><AdminApp /></MFARoute></ProtectedRoute>} />
-      <Route path="/superadmin/*" element={<ProtectedRoute><MFARoute><SuperAdminApp /></MFARoute></ProtectedRoute>} />
+        {/* Apps par rôle — lazy loaded */}
+        <Route path="/terrain/*"    element={<ProtectedRoute><MFARoute><Suspense fallback={<LoadingScreen />}><TerrainApp /></Suspense></MFARoute></ProtectedRoute>} />
+        <Route path="/app/*"        element={<ProtectedRoute><MFARoute><Suspense fallback={<LoadingScreen />}><ContributorApp /></Suspense></MFARoute></ProtectedRoute>} />
+        <Route path="/manager/*"    element={<ProtectedRoute><MFARoute><Suspense fallback={<LoadingScreen />}><ManagerApp /></Suspense></MFARoute></ProtectedRoute>} />
+        <Route path="/direction/*"  element={<ProtectedRoute><MFARoute><Suspense fallback={<LoadingScreen />}><DirectorApp /></Suspense></MFARoute></ProtectedRoute>} />
+        <Route path="/admin/*"      element={<ProtectedRoute><MFARoute><Suspense fallback={<LoadingScreen />}><AdminApp /></Suspense></MFARoute></ProtectedRoute>} />
+        <Route path="/superadmin/*" element={<ProtectedRoute><MFARoute><Suspense fallback={<LoadingScreen />}><SuperAdminApp /></Suspense></MFARoute></ProtectedRoute>} />
 
-      {/* Catch-all */}
-      <Route path="*" element={user ? <AppRedirect shell={appShell} /> : <Navigate to="/" replace />} />
-    </Routes>
+        {/* Catch-all */}
+        <Route path="*" element={user ? <AppRedirect shell={appShell} /> : <Navigate to="/" replace />} />
+      </Routes>
     </>
   )
 }

@@ -16,7 +16,7 @@ export function useModuleAccess(module: Module): boolean {
         .select('is_active')
         .eq('organisation_id', organisation.id)
         .eq('module', module)
-        .single()
+        .maybeSingle()
       return data?.is_active ?? false
     },
     enabled: !!organisation,

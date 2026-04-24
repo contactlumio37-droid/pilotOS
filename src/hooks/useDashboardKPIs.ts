@@ -161,7 +161,8 @@ export function useKpiConfig() {
         .from('organisation_members')
         .select('kpi_config')
         .eq('organisation_id', organisation!.id)
-        .single()
+        .limit(1)
+        .maybeSingle()
       if (error) return DEFAULT_KPI_CONFIG
       const raw = data?.kpi_config as Json
       if (raw && typeof raw === 'object' && !Array.isArray(raw) && 'enabled' in raw) {
