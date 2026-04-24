@@ -100,6 +100,18 @@ function OrgSwitcher({ collapsed }: { collapsed: boolean }) {
 
 // ── App ───────────────────────────────────────────────────────
 
+function StubPage({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="max-w-2xl">
+      <h1 className="text-2xl font-bold text-white mb-2">{title}</h1>
+      <p className="text-slate-400 text-sm mb-8">{description}</p>
+      <div className="bg-slate-800 border border-slate-700 rounded-xl p-8 text-center">
+        <p className="text-slate-500">Cette section est en cours de développement.</p>
+      </div>
+    </div>
+  )
+}
+
 export default function SuperAdminApp() {
   const breakpoint = useBreakpoint()
   const isDesktop = breakpoint === 'desktop'
@@ -122,6 +134,11 @@ export default function SuperAdminApp() {
           <Route path="/organisations"   element={<SuperAdminOrgs />} />
           <Route path="/utilisateurs"    element={<SuperAdminUsers />} />
           <Route path="/feedback"        element={<SuperAdminFeedback />} />
+          <Route path="/roadmap"         element={<StubPage title="Roadmap" description="Gestion publique de la roadmap produit." />} />
+          <Route path="/bounties"        element={<StubPage title="Bounties" description="Programme de récompenses pour les contributions." />} />
+          <Route path="/cms"             element={<StubPage title="CMS Site" description="Édition du contenu de la landing page." />} />
+          <Route path="/blog"            element={<StubPage title="Blog" description="Gestion des articles de blog." />} />
+          <Route path="/newsletter"      element={<StubPage title="Newsletter" description="Gestion des abonnés et envoi de newsletters." />} />
         </Routes>
       </main>
     </div>

@@ -4,6 +4,8 @@ import { useAppShell } from '@/hooks/useRole'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
 import MFARoute from '@/components/auth/MFARoute'
 
+import ImpersonationBanner from '@/components/layout/ImpersonationBanner'
+
 // Pages publiques
 import LandingPage from '@/pages/public/LandingPage'
 import PricingPage from '@/pages/public/PricingPage'
@@ -27,13 +29,17 @@ import AdminApp from '@/pages/admin/AdminApp'
 import SuperAdminApp from '@/pages/superadmin/SuperAdminApp'
 
 function AppRouter() {
-  const { user, loading } = useAuth()
+  const { user, loading, isImpersonating } = useAuth()
   const appShell = useAppShell()
 
   if (loading) return <LoadingScreen />
 
   return (
-    <Routes>
+    <>
+      <ImpersonationBanner />
+      {/* Spacer pour compenser le banner fixe quand actif */}
+      {isImpersonating && <div className="h-10 shrink-0" />}
+      <Routes>
       {/* Site public */}
       <Route path="/" element={<LandingPage />} />
       <Route path="/pricing" element={<PricingPage />} />
@@ -63,6 +69,7 @@ function AppRouter() {
       {/* Catch-all */}
       <Route path="*" element={user ? <AppRedirect shell={appShell} /> : <Navigate to="/" replace />} />
     </Routes>
+    </>
   )
 }
 

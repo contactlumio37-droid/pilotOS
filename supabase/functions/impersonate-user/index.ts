@@ -1,6 +1,7 @@
 // Edge Function : impersonate-user
-// Émet un JWT court (1h) permettant d'agir en tant qu'un autre utilisateur.
-// Écrit dans impersonation_logs (audit immuable).
+// Émet un JWT Supabase-compatible permettant d'agir en tant qu'un autre utilisateur.
+// Utilise SUPABASE_JWT_SECRET → setSession() côté client fonctionne nativement.
+// Écrit dans impersonation_logs (audit immuable) AVANT d'émettre le token.
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { create, getNumericDate } from 'https://deno.land/x/djwt@v3.0.2/mod.ts'
@@ -10,8 +11,7 @@ const CORS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const JWT_SECRET    = Deno.env.get('IMPERSONATION_JWT_SECRET') ?? Deno.env.get('SUPABASE_JWT_SECRET') ?? ''
-const TTL_SECONDS   = 60 * 60 // 1h — volontairement court
+const TTL_SECONDS = 60 * 60 // 1h — court par design
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
@@ -23,7 +23,7 @@ serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } },
     )
 
-    // 1. Identifier l'impersonateur
+    // 1. Identifier l'impersonateur via son Bearer token
     const authHeader = req.headers.get('Authorization') ?? ''
     const { data: { user: impersonator }, error: authError } = await supabaseAdmin.auth.getUser(
       authHeader.replace('Bearer ', ''),
@@ -41,22 +41,33 @@ serve(async (req) => {
       })
     }
 
-    // 2. Vérifier que l'impersonateur a can_impersonate sur cette org
-    const { data: impersonatorMembership } = await supabaseAdmin
-      .from('organisation_members')
-      .select('role, can_impersonate')
-      .eq('user_id', impersonator.id)
-      .eq('organisation_id', organisation_id)
-      .eq('is_active', true)
-      .single()
+    // 2. Autoriser si superadmin global OU can_impersonate dans l'org
+    const [{ data: superadminRow }, { data: orgMembership }] = await Promise.all([
+      supabaseAdmin
+        .from('organisation_members')
+        .select('id')
+        .eq('user_id', impersonator.id)
+        .eq('role', 'superadmin')
+        .eq('is_active', true)
+        .limit(1)
+        .maybeSingle(),
+      supabaseAdmin
+        .from('organisation_members')
+        .select('can_impersonate')
+        .eq('user_id', impersonator.id)
+        .eq('organisation_id', organisation_id)
+        .eq('is_active', true)
+        .maybeSingle(),
+    ])
 
-    if (!impersonatorMembership?.can_impersonate) {
+    const canImpersonate = !!superadminRow || orgMembership?.can_impersonate === true
+    if (!canImpersonate) {
       return new Response(JSON.stringify({ error: 'Permission d\'impersonation refusée' }), {
         status: 403, headers: { ...CORS, 'Content-Type': 'application/json' },
       })
     }
 
-    // 3. Vérifier la cible — ne peut pas impersoner un superadmin
+    // 3. Vérifier la cible — pas de superadmin, pas de self-impersonation
     const { data: targetMembership } = await supabaseAdmin
       .from('organisation_members')
       .select('role, is_billable')
@@ -66,7 +77,7 @@ serve(async (req) => {
       .single()
 
     if (!targetMembership) {
-      return new Response(JSON.stringify({ error: 'Utilisateur cible introuvable dans cette organisation' }), {
+      return new Response(JSON.stringify({ error: 'Cible introuvable dans cette organisation' }), {
         status: 404, headers: { ...CORS, 'Content-Type': 'application/json' },
       })
     }
@@ -75,8 +86,21 @@ serve(async (req) => {
         status: 403, headers: { ...CORS, 'Content-Type': 'application/json' },
       })
     }
+    if (target_user_id === impersonator.id) {
+      return new Response(JSON.stringify({ error: 'Auto-impersonation interdite' }), {
+        status: 400, headers: { ...CORS, 'Content-Type': 'application/json' },
+      })
+    }
 
-    // 4. Écriture audit log (avant d'émettre le token)
+    // 4. Récupérer l'email de la cible (nécessaire pour JWT Supabase-compatible)
+    const { data: { user: targetAuthUser } } = await supabaseAdmin.auth.admin.getUserById(target_user_id)
+    if (!targetAuthUser) {
+      return new Response(JSON.stringify({ error: 'Utilisateur cible introuvable dans auth.users' }), {
+        status: 404, headers: { ...CORS, 'Content-Type': 'application/json' },
+      })
+    }
+
+    // 5. Écriture audit log AVANT d'émettre le token (immuable)
     const { data: logRow, error: logError } = await supabaseAdmin
       .from('impersonation_logs')
       .insert({
@@ -89,13 +113,15 @@ serve(async (req) => {
       })
       .select('id')
       .single()
-
     if (logError) throw logError
 
-    // 5. Émettre le JWT d'impersonation (court, signé séparément)
+    // 6. Émettre un JWT compatible Supabase (signé avec SUPABASE_JWT_SECRET)
+    //    Claims standards requis : aud, role: "authenticated"
+    //    Claims custom : is_impersonating, impersonator_id, session_id
+    const jwtSecret = Deno.env.get('SUPABASE_JWT_SECRET') ?? ''
     const key = await crypto.subtle.importKey(
       'raw',
-      new TextEncoder().encode(JWT_SECRET),
+      new TextEncoder().encode(jwtSecret),
       { name: 'HMAC', hash: 'SHA-256' },
       false,
       ['sign', 'verify'],
@@ -104,13 +130,14 @@ serve(async (req) => {
     const token = await create(
       { alg: 'HS256', typ: 'JWT' },
       {
+        aud:              'authenticated',
         sub:              target_user_id,
-        org_id:           organisation_id,
-        role:             targetMembership.role,
-        is_billable:      targetMembership.is_billable,
+        email:            targetAuthUser.email ?? '',
+        role:             'authenticated',       // rôle Supabase (pas le rôle métier)
         is_impersonating: true,
         impersonator_id:  impersonator.id,
-        session_id:       logRow.id,   // lié à la ligne d'audit
+        impersonator_email: impersonator.email ?? '',
+        session_id:       logRow.id,
         iat:              getNumericDate(0),
         exp:              getNumericDate(TTL_SECONDS),
       },

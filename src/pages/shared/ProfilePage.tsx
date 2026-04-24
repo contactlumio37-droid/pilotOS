@@ -24,7 +24,7 @@ const passwordSchema = z.object({
 type PasswordForm = z.infer<typeof passwordSchema>
 
 export default function ProfilePage() {
-  const { user } = useAuth()
+  const { user, isImpersonating } = useAuth()
   const { data: profile } = useProfile()
   const updateProfile = useUpdateProfile()
   const changePassword = useChangePassword()
@@ -149,11 +149,14 @@ export default function ProfilePage() {
           </form>
         </div>
 
-        {/* Password form */}
-        <div className="card">
+        {/* Password form — désactivé en mode impersonation */}
+        <div className={`card ${isImpersonating ? 'opacity-50 pointer-events-none select-none' : ''}`}>
           <div className="flex items-center gap-2 mb-5">
             <Lock className="w-5 h-5 text-brand-600" />
             <h2 className="font-semibold text-slate-900">Changer le mot de passe</h2>
+            {isImpersonating && (
+              <span className="ml-auto text-xs text-amber-600 font-medium">Désactivé en mode impersonation</span>
+            )}
           </div>
 
           <form onSubmit={hsPwd(onPasswordSubmit)} className="space-y-4">

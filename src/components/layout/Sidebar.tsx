@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, LogOut, UserCircle } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { signOut } from '@/hooks/useAuth'
+import { signOut, useAuth, ADMIN_SESSION_KEY } from '@/hooks/useAuth'
+import { ORG_CONTEXT_KEY } from '@/hooks/useOrganisation'
 import NotificationBell from './NotificationBell'
 
 interface NavItem {
@@ -21,6 +22,8 @@ interface SidebarProps {
 
 export default function Sidebar({ items, dark = false, profileTo = '/profil', headerSlot }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
+  const { isImpersonating } = useAuth()
+  const hasBannerOffset = isImpersonating || !!sessionStorage.getItem(ORG_CONTEXT_KEY) || !!localStorage.getItem(ADMIN_SESSION_KEY)
 
   useEffect(() => {
     document.documentElement.style.setProperty('--sidebar-current-width', '210px')
@@ -35,10 +38,12 @@ export default function Sidebar({ items, dark = false, profileTo = '/profil', he
 
   const bg = dark ? 'bg-slate-950 border-slate-800' : 'bg-slate-900 border-slate-800'
   const width = collapsed ? 'w-[52px]' : 'w-[210px]'
+  const topClass = hasBannerOffset ? 'top-10' : 'top-0'
+  const heightClass = hasBannerOffset ? 'h-[calc(100vh-2.5rem)]' : 'h-full'
 
   return (
     <aside
-      className={`fixed left-0 top-0 h-full z-40 flex flex-col border-r transition-all duration-200 ${bg} ${width}`}
+      className={`fixed left-0 ${topClass} ${heightClass} z-40 flex flex-col border-r transition-all duration-200 ${bg} ${width}`}
     >
       {/* Logo */}
       <div className={`flex items-center gap-3 px-4 h-16 border-b border-slate-800 ${collapsed ? 'justify-center' : ''}`}>

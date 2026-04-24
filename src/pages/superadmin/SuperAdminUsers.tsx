@@ -2,14 +2,14 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { Search, Users } from 'lucide-react'
+import { startImpersonation } from '@/hooks/useAuth'
+import { Search, Users, LogIn } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import type { UserRole } from '@/types/database'
 
 interface UserRow {
   id: string
-  email: string
   full_name: string | null
   role: UserRole
   org_name: string
@@ -36,7 +36,7 @@ function useAllUsers() {
         .from('organisation_members')
         .select(`
           user_id, role, is_active, created_at,
-          profiles!inner(id, full_name),
+          profiles!inner(full_name),
           organisations!inner(id, name)
         `)
         .order('created_at', { ascending: false })
@@ -45,10 +45,9 @@ function useAllUsers() {
 
       return (data ?? []).map(m => {
         const profile = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles
-        const org = Array.isArray(m.organisations) ? m.organisations[0] : m.organisations
+        const org     = Array.isArray(m.organisations) ? m.organisations[0] : m.organisations
         return {
           id:         m.user_id,
-          email:      '',
           full_name:  (profile as { full_name: string | null } | null)?.full_name ?? null,
           role:       m.role as UserRole,
           org_name:   (org as { name: string } | null)?.name ?? '—',
@@ -63,7 +62,9 @@ function useAllUsers() {
 
 export default function SuperAdminUsers() {
   const { data: users = [], isLoading } = useAllUsers()
-  const [search, setSearch] = useState('')
+  const [search, setSearch]     = useState('')
+  const [loadingId, setLoadingId] = useState<string | null>(null)
+  const [error, setError]       = useState<string | null>(null)
 
   const filtered = users.filter(u =>
     !search ||
@@ -72,21 +73,33 @@ export default function SuperAdminUsers() {
     u.role.includes(search.toLowerCase()),
   )
 
-  const total   = users.length
-  const active  = users.filter(u => u.is_active).length
-  const admins  = users.filter(u => ['admin', 'director', 'manager'].includes(u.role)).length
+  const total  = users.length
+  const active = users.filter(u => u.is_active).length
+  const mgrs   = users.filter(u => ['admin', 'director', 'manager'].includes(u.role)).length
+
+  async function handleImpersonate(u: UserRow) {
+    if (u.role === 'superadmin') return
+    setError(null)
+    setLoadingId(u.id)
+    try {
+      await startImpersonation(u.id, u.org_id, 'Impersonation depuis SuperAdmin Users')
+    } catch (e) {
+      setError((e as Error).message)
+      setLoadingId(null)
+    }
+  }
 
   return (
     <div className="max-w-5xl">
       <h1 className="text-2xl font-bold text-white mb-1">Utilisateurs</h1>
-      <p className="text-slate-400 text-sm mb-6">Vue globale de tous les membres</p>
+      <p className="text-slate-400 text-sm mb-6">Vue globale — cliquez sur un membre pour vous connecter en tant que lui.</p>
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         {[
           { label: 'Total membres', value: total },
-          { label: 'Actifs', value: active },
-          { label: 'Managers+', value: admins },
+          { label: 'Actifs',        value: active },
+          { label: 'Managers+',     value: mgrs },
         ].map(s => (
           <div key={s.label} className="bg-slate-800 rounded-xl p-4">
             <p className="text-2xl font-bold text-white">{s.value}</p>
@@ -94,6 +107,12 @@ export default function SuperAdminUsers() {
           </div>
         ))}
       </div>
+
+      {error && (
+        <div className="mb-4 bg-red-900/30 border border-red-700 text-red-300 rounded-lg px-4 py-2 text-sm">
+          {error}
+        </div>
+      )}
 
       {/* Search */}
       <div className="relative mb-4">
@@ -135,16 +154,31 @@ export default function SuperAdminUsers() {
                   {(u.full_name ?? '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
                 </span>
               </div>
+
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-white truncate">{u.full_name ?? '—'}</p>
                 <p className="text-xs text-slate-400 truncate">{u.org_name}</p>
               </div>
+
               <div className="flex items-center gap-2 shrink-0">
                 <span className={`badge ${ROLE_BADGE[u.role]} text-xs`}>{u.role}</span>
                 {!u.is_active && <span className="badge badge-neutral text-xs">inactif</span>}
                 <span className="text-xs text-slate-500 hidden sm:block">
                   {format(new Date(u.created_at), 'd MMM yy', { locale: fr })}
                 </span>
+
+                {/* Login as — désactivé pour superadmin */}
+                {u.role !== 'superadmin' && (
+                  <button
+                    onClick={() => handleImpersonate(u)}
+                    disabled={loadingId === u.id}
+                    title={`Se connecter en tant que ${u.full_name ?? u.id}`}
+                    className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-slate-600 text-slate-400 hover:border-amber-500 hover:text-amber-400 transition-colors disabled:opacity-40 disabled:cursor-wait"
+                  >
+                    <LogIn className="w-3.5 h-3.5" />
+                    {loadingId === u.id ? '…' : 'Login as'}
+                  </button>
+                )}
               </div>
             </motion.div>
           ))}
