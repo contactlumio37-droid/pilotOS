@@ -1,0 +1,2349 @@
+# PilotOS — Document de Cadrage Produit
+> Version 0.4 — Document de référence pour Claude Code
+> Auteur : YL — Date : Avril 2026
+
+---
+
+## 1. Vision Produit
+
+**PilotOS** est une plateforme SaaS modulaire de pilotage opérationnel destinée aux PME, groupes multi-sites et organisations publiques (SDIS, collectivités). Elle centralise la stratégie, les projets, les processus, l'amélioration continue et la gestion documentaire dans un seul outil, accessible sans compétence technique.
+
+### Problème résolu
+Les organisations pilotent avec des outils disparates : Excel pour les plans d'action, PowerPoint pour la stratégie, Qlik/Metabase pour les indicateurs, dossiers réseau pour les documents. Rien n'est relié. Les décisions CODIR ne se traduisent pas en actions traçables. Les revues de processus n'alimentent pas le pilotage. Le terrain ne remonte pas vers la stratégie.
+
+### Proposition de valeur
+> "Une décision prise en CODIR devient une action assignée, suivie, mesurée — sans réunion de suivi."
+> "Un problème signalé sur le terrain devient une action dans le tableau de bord du manager — en 30 secondes."
+
+### Philosophie UX — "Woaw je le veux et je l'utilise"
+- Pensé pour le plus réticent — agent terrain, peu à l'aise avec le digital
+- Zéro surcharge — chaque profil voit uniquement ce dont il a besoin
+- Le terrain guide la stratégie — boucle ascendante, pas seulement descendante
+- Fun et attrayant — la qualité ne doit pas être une corvée
+- Micro-animations et feedback positif — chaque action accomplie est valorisée
+- Langage humain — jamais "Aucun enregistrement trouvé", toujours une invitation à agir
+
+---
+
+## 2. Stack Technique
+
+```
+Frontend     : React (Vite) + TypeScript strict
+Backend/BDD  : Supabase (PostgreSQL + Auth + Storage + API auto)
+Hosting      : Vercel (déploiement automatique depuis GitHub)
+Emails V0    : Gmail SMTP gratuit (Supabase SMTP config)
+Emails V1    : SMTP propre Infomaniak noreply@pilotos.fr
+               (migration dès 2 clients payants)
+Paiement     : Stripe (liens de paiement + webhooks)
+IA           : Anthropic API (claude-sonnet-4-20250514)
+Cartographie : React Flow (éditeur natif) + import BPMN/draw.io
+Migrations   : Supabase CLI → fichiers SQL versionnés dans GitHub
+MFA          : TOTP (Authenticator) + Email OTP via SMTP
+```
+
+### Variables d'environnement
+```env
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
+VITE_STRIPE_PUBLIC_KEY=
+STRIPE_WEBHOOK_SECRET=
+ANTHROPIC_API_KEY=
+SMTP_HOST=smtp.gmail.com          # V0 Gmail
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASS=                        # mot de passe d'application Gmail
+SMTP_FROM=noreply@pilotos.fr      # V1 Infomaniak
+```
+
+### Workflow GitHub → Supabase → Vercel
+```
+Claude Code écrit le code + migrations SQL
+    ↓
+Push sur GitHub
+    ↓
+Supabase détecte supabase/migrations/ → applique automatiquement
+    ↓
+Vercel détecte le push → redéploie le frontend
+    ↓
+Tout est synchronisé sans intervention manuelle
+```
+
+> **Règle absolue** : zéro manipulation manuelle de la base Supabase.
+> Tout changement de schéma = fichier de migration versionné dans GitHub.
+
+### Structure du repo GitHub
+```
+pilotOS/
+  supabase/
+    migrations/
+      20260417_001_init_schema.sql
+      20260417_002_rls_policies.sql
+      ...
+    config.toml
+  src/
+    components/ui/ layout/ modules/
+    pages/
+      public/     # site marketing
+      terrain/ contributor/ manager/ admin/ director/ superadmin/
+    hooks/
+    lib/
+      supabase.ts
+      stripe.ts
+      email.ts    # wrapper SMTP unique — change ici si migration
+      ai.ts       # wrapper Anthropic API
+    types/database.ts
+    utils/
+  .github/workflows/
+    deploy-production.yml
+    deploy-preview.yml
+    ci.yml
+  public/
+  .env.example
+  vercel.json
+  DEPLOYMENT.md
+  BUGS.md
+```
+
+---
+
+## 3. Architecture Multi-Tenant
+
+```
+Superadmin (YL)
+  └── Organisation A
+        ├── Site A1, Site A2
+        └── Utilisateurs (rôles différents par module)
+  └── Organisation B
+        └── ...
+```
+
+### Row Level Security
+- RLS activé sur toutes les tables sans exception
+- Un utilisateur ne voit que les données de son organisation
+- Si un élément est confidentiel il n'existe pas — zéro trace
+- KPIs calculés sur le périmètre visible uniquement
+- Toute action superadmin passe par Edge Function + audit log
+
+---
+
+## 4. Architecture par Profil (UX)
+
+```
+useRole() → 'terrain'      → TerrainApp     (3 écrans max)
+useRole() → 'contributor'  → ContributorApp
+useRole() → 'manager'      → ManagerApp     (switch module)
+useRole() → 'director'     → DirectorApp    (synthèse + stratégie)
+useRole() → 'admin'        → AdminApp
+useRole() → 'superadmin'   → SuperAdminApp
+```
+
+### Profil Terrain — 3 écrans max
+- Signaler : formulaire 3 champs + photo + catégorie icônes
+- Mes remontées : statut temps réel, feedback visible
+- Mes actions : assignées + changement statut rapide
+
+### Profil Directeur
+- Dashboard synthèse (KPIs consolidés)
+- Stratégie & CODIR (crée objectifs, valide orientations)
+- Actions stratégiques (initie et arbitre)
+- Processus (lecture, peut déclencher revue)
+- Documents (CR CODIR, notes direction)
+
+### Switch de module (managers et admins uniquement)
+```
+[Qualité ▾] → Qualité / Sécurité / Vue globale
+```
+
+---
+
+## 5. Responsive — Desktop-First avec Overrides Persistants
+
+### Hiérarchie
+```
+Desktop  ≥ 1024px → BASE (cascade vers le bas)
+Tablette 768-1023px → hérite desktop, peut OVERRIDER
+Mobile   < 768px   → hérite tablette, peut OVERRIDER
+```
+
+### Principe overrides
+- Modifier desktop → cascade automatique
+- Modifier manuellement tablette/mobile → VERROUILLÉ
+- Badge 🔒 sur champs overridés
+- Bouton "↩ Réinitialiser" par champ
+
+### Layout par breakpoint
+```
+Mobile/Tablette < 1024px → bottom nav (3-5 items selon profil)
+Desktop ≥ 1024px         → sidebar rétractable (52px/210px)
+```
+
+### Hook
+```typescript
+function useBreakpoint(): "mobile" | "tablet" | "desktop"
+// mobile < 768 / tablet 768-1023 / desktop >= 1024
+```
+
+---
+
+## 6. Authentification & MFA
+
+### Double auth dès le départ
+```
+Login email + password → MFA → Accès
+```
+
+### MFA par profil
+- Admin/Manager → TOTP + fallback Email OTP
+- Contributeur/Terrain/Directeur → Email OTP
+
+### Configuration org
+```sql
+mfa_policy TEXT DEFAULT 'optional'
+  CHECK (mfa_policy IN ('disabled','optional','required','role_based'))
+```
+
+### Emails auth
+- V0 : Gmail SMTP gratuit
+- V1 : SMTP Infomaniak `noreply@pilotos.fr` (dès 2 clients payants)
+- Architecture MFA en place Sprint 0A, activation selon clients
+
+---
+
+## 7. Visibilité et Confidentialité
+
+### Principe "Need to Know"
+Élément confidentiel = n'existe pas pour non-autorisé. Zéro trace.
+
+```sql
+visibility TEXT DEFAULT 'public'
+  CHECK (visibility IN ('public','managers','restricted','confidential'))
+visibility_user_ids UUID[]
+```
+
+---
+
+## 8. Schéma de Base de Données Complet
+
+### 8.1 Organisations & Utilisateurs
+```sql
+CREATE TABLE organisations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  slug TEXT UNIQUE NOT NULL,
+  logo_url TEXT,
+  plan TEXT DEFAULT 'free'
+    CHECK (plan IN ('free','team','business','pro','enterprise')),
+  seats_included INTEGER DEFAULT 1,
+  seats_extra INTEGER DEFAULT 0,
+  stripe_customer_id TEXT,
+  stripe_subscription_id TEXT,
+  is_active BOOLEAN DEFAULT true,
+  default_kpi_config JSONB DEFAULT '[]',
+  terrain_module_enabled BOOLEAN DEFAULT false,
+  mfa_policy TEXT DEFAULT 'optional'
+    CHECK (mfa_policy IN ('disabled','optional','required','role_based')),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE sites (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organisation_id UUID REFERENCES organisations(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  address TEXT,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE organisation_members (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organisation_id UUID REFERENCES organisations(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  role TEXT DEFAULT 'contributor'
+    CHECK (role IN ('superadmin','admin','manager','contributor',
+                    'terrain','reader','director')),
+  site_id UUID REFERENCES sites(id),
+  invited_by UUID REFERENCES auth.users(id),
+  invited_at TIMESTAMPTZ DEFAULT now(),
+  accepted_at TIMESTAMPTZ,
+  is_active BOOLEAN DEFAULT true,
+  mfa_enabled BOOLEAN DEFAULT false,
+  mfa_enrolled_at TIMESTAMPTZ,
+  kpi_config JSONB DEFAULT '[]',
+  UNIQUE(organisation_id, user_id)
+);
+
+CREATE TABLE profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id),
+  full_name TEXT,
+  avatar_url TEXT,
+  phone TEXT,
+  job_title TEXT,
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE module_access (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organisation_id UUID REFERENCES organisations(id) ON DELETE CASCADE,
+  module TEXT NOT NULL
+    CHECK (module IN ('pilotage','processus','ged','terrain','securite','qse')),
+  is_active BOOLEAN DEFAULT false,
+  activated_at TIMESTAMPTZ,
+  UNIQUE(organisation_id, module)
+);
+```
+
+### 8.2 KPIs & Templates
+```sql
+CREATE TABLE kpi_catalog (
+  id TEXT PRIMARY KEY,
+  label TEXT NOT NULL,
+  description TEXT,
+  module TEXT NOT NULL,
+  min_role TEXT DEFAULT 'contributor',
+  max_per_role JSONB DEFAULT
+    '{"terrain":3,"contributor":5,"manager":8,"admin":12,"director":6}',
+  is_gamification BOOLEAN DEFAULT false
+);
+
+CREATE TABLE templates (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  sector TEXT NOT NULL,
+  type TEXT CHECK (type IN ('process','action','objective','kpi_set','document_tree')),
+  content JSONB NOT NULL,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### 8.3 Pilotage Stratégique
+```sql
+CREATE TABLE strategic_objectives (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organisation_id UUID REFERENCES organisations(id) ON DELETE CASCADE,
+  site_id UUID REFERENCES sites(id),
+  title TEXT NOT NULL,
+  description TEXT,
+  axis TEXT,
+  status TEXT DEFAULT 'draft'
+    CHECK (status IN ('draft','active','completed','cancelled')),
+  owner_id UUID REFERENCES auth.users(id),
+  kpi_label TEXT,
+  kpi_target NUMERIC,
+  kpi_unit TEXT,
+  start_date DATE,
+  end_date DATE,
+  visibility TEXT DEFAULT 'public'
+    CHECK (visibility IN ('public','managers','restricted','confidential')),
+  visibility_user_ids UUID[],
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE codir_decisions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organisation_id UUID REFERENCES organisations(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT,
+  decision_date DATE NOT NULL,
+  author_id UUID REFERENCES auth.users(id),
+  objective_id UUID REFERENCES strategic_objectives(id),
+  visibility TEXT DEFAULT 'managers'
+    CHECK (visibility IN ('public','managers','restricted','confidential')),
+  visibility_user_ids UUID[],
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE projects (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organisation_id UUID REFERENCES organisations(id) ON DELETE CASCADE,
+  site_id UUID REFERENCES sites(id),
+  title TEXT NOT NULL,
+  description TEXT,
+  objective_id UUID REFERENCES strategic_objectives(id),
+  status TEXT DEFAULT 'active'
+    CHECK (status IN ('draft','active','completed','cancelled')),
+  start_date DATE,
+  end_date DATE,
+  visibility TEXT DEFAULT 'public'
+    CHECK (visibility IN ('public','managers','restricted','confidential')),
+  visibility_user_ids UUID[],
+  created_by UUID REFERENCES auth.users(id),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### 8.4 Actions
+```sql
+CREATE TABLE actions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organisation_id UUID REFERENCES organisations(id) ON DELETE CASCADE,
+  project_id UUID REFERENCES projects(id),
+  process_id UUID REFERENCES processes(id),
+  objective_id UUID REFERENCES strategic_objectives(id),
+  terrain_report_id UUID REFERENCES terrain_reports(id),
+  process_review_id UUID REFERENCES process_reviews(id),
+  title TEXT NOT NULL,
+  description TEXT,
+  origin TEXT DEFAULT 'manual'
+    CHECK (origin IN ('manual','process_review','codir','audit',
+                      'incident','kaizen','terrain')),
+  status TEXT DEFAULT 'todo'
+    CHECK (status IN ('todo','in_progress','done','cancelled','late')),
+  priority TEXT DEFAULT 'medium'
+    CHECK (priority IN ('low','medium','high','critical')),
+  due_date DATE,
+  completed_at TIMESTAMPTZ,
+  responsible_id UUID REFERENCES auth.users(id),
+  accountable_id UUID REFERENCES auth.users(id),
+  consulted_ids UUID[],
+  informed_ids UUID[],
+  visibility TEXT DEFAULT 'public'
+    CHECK (visibility IN ('public','managers','restricted','confidential')),
+  visibility_user_ids UUID[],
+  created_by UUID REFERENCES auth.users(id),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE action_comments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  action_id UUID REFERENCES actions(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id),
+  content TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### 8.5 Processus & Amélioration (enrichi ISO 9001)
+```sql
+CREATE TABLE processes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organisation_id UUID REFERENCES organisations(id) ON DELETE CASCADE,
+  site_id UUID REFERENCES sites(id),
+  parent_id UUID REFERENCES processes(id),
+  level TEXT DEFAULT 'process'
+    CHECK (level IN ('process','subprocess','activity')),
+  -- Identification
+  title TEXT NOT NULL,
+  process_code TEXT,               -- ex: P-OPE-001 (modifiable)
+  process_type TEXT DEFAULT 'operational'
+    CHECK (process_type IN ('management','operational','support')),
+  description TEXT,
+  category TEXT,
+  version TEXT DEFAULT 'v1.0',
+  status TEXT DEFAULT 'active'
+    CHECK (status IN ('draft','active','deprecated')),
+  -- Responsables (ISO 9001)
+  owner_id UUID REFERENCES auth.users(id),       -- Pilote principal
+  pilot_id UUID REFERENCES auth.users(id),        -- Pilote processus
+  backup_pilot_id UUID REFERENCES auth.users(id), -- Pilote suppléant
+  -- Description ISO 9001 §7.5
+  purpose TEXT,               -- Finalité
+  scope TEXT,                 -- Périmètre d'application
+  inputs TEXT,                -- Éléments d'entrée
+  outputs TEXT,               -- Éléments de sortie
+  resources TEXT,             -- Ressources nécessaires
+  risks TEXT,                 -- Risques et opportunités §6.1
+  performance_criteria TEXT,  -- Critères de performance
+  -- Revue périodique
+  review_frequency TEXT DEFAULT 'annual'
+    CHECK (review_frequency IN ('monthly','quarterly','annual','biannual')),
+  last_review_date DATE,
+  next_review_date DATE,
+  -- Cartographie
+  health_score INTEGER,
+  diagram_type TEXT CHECK (diagram_type IN ('native','bpmn','drawio')),
+  diagram_data JSONB,
+  -- Visibilité
+  visibility TEXT DEFAULT 'public'
+    CHECK (visibility IN ('public','managers','restricted','confidential')),
+  visibility_user_ids UUID[],
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE process_reviews (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  process_id UUID REFERENCES processes(id) ON DELETE CASCADE,
+  organisation_id UUID REFERENCES organisations(id) ON DELETE CASCADE,
+  review_date DATE NOT NULL,
+  reviewer_id UUID REFERENCES auth.users(id),
+  status TEXT DEFAULT 'draft' CHECK (status IN ('draft','completed')),
+  findings TEXT,
+  conclusions TEXT,
+  next_review_date DATE,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE non_conformities (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organisation_id UUID REFERENCES organisations(id) ON DELETE CASCADE,
+  process_id UUID REFERENCES processes(id),
+  title TEXT NOT NULL,
+  description TEXT,
+  detected_by UUID REFERENCES auth.users(id),
+  detected_at DATE DEFAULT CURRENT_DATE,
+  severity TEXT DEFAULT 'minor'
+    CHECK (severity IN ('minor','major','critical')),
+  status TEXT DEFAULT 'open'
+    CHECK (status IN ('open','in_treatment','closed')),
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE kaizen_plans (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organisation_id UUID REFERENCES organisations(id) ON DELETE CASCADE,
+  process_id UUID REFERENCES processes(id),
+  title TEXT NOT NULL,
+  objective TEXT,
+  estimated_savings_hours INTEGER,
+  status TEXT DEFAULT 'planned'
+    CHECK (status IN ('planned','in_progress','completed')),
+  start_date DATE,
+  end_date DATE,
+  created_by UUID REFERENCES auth.users(id),
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Vue health score
+CREATE VIEW process_health AS
+SELECT id,
+  GREATEST(0,
+    100
+    - (SELECT COUNT(*) FROM non_conformities
+       WHERE process_id = p.id AND status != 'closed') * 10
+    - (SELECT COUNT(*) FROM actions
+       WHERE process_id = p.id AND status = 'late') * 5
+  ) as health_score
+FROM processes p;
+```
+
+### 8.6 Module Terrain
+```sql
+CREATE TABLE terrain_reports (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organisation_id UUID REFERENCES organisations(id) ON DELETE CASCADE,
+  site_id UUID REFERENCES sites(id),
+  reported_by UUID REFERENCES auth.users(id),
+  title TEXT NOT NULL,
+  location TEXT,
+  description TEXT,
+  photo_url TEXT,
+  category TEXT DEFAULT 'other'
+    CHECK (category IN ('safety','quality','equipment','process','other')),
+  status TEXT DEFAULT 'pending'
+    CHECK (status IN ('pending','acknowledged','converted','closed')),
+  acknowledged_by UUID REFERENCES auth.users(id),
+  acknowledged_at TIMESTAMPTZ,
+  action_id UUID REFERENCES actions(id),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### 8.7 Indicateurs
+```sql
+CREATE TABLE indicators (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organisation_id UUID REFERENCES organisations(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  unit TEXT,
+  target_value NUMERIC,
+  warning_threshold NUMERIC,
+  critical_threshold NUMERIC,
+  frequency TEXT DEFAULT 'monthly'
+    CHECK (frequency IN ('daily','weekly','monthly','quarterly','yearly')),
+  linked_to TEXT
+    CHECK (linked_to IN ('objective','process','project','organisation')),
+  linked_id UUID,
+  owner_id UUID REFERENCES auth.users(id),
+  visibility TEXT DEFAULT 'managers'
+    CHECK (visibility IN ('public','managers','restricted','confidential')),
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE indicator_values (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  indicator_id UUID REFERENCES indicators(id) ON DELETE CASCADE,
+  value NUMERIC NOT NULL,
+  measured_at DATE NOT NULL,
+  entered_by UUID REFERENCES auth.users(id),
+  note TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### 8.8 GED (enrichie — versionning + audit ISO)
+```sql
+CREATE TABLE document_folders (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organisation_id UUID REFERENCES organisations(id) ON DELETE CASCADE,
+  parent_id UUID REFERENCES document_folders(id),
+  name TEXT NOT NULL,
+  sort_order INTEGER DEFAULT 0,
+  is_system BOOLEAN DEFAULT false,  -- créé par template secteur
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Arborescence ISO suggérée (seed templates) :
+-- Système de Management / Processus / Procédures et instructions
+-- Réglementaire & Conformité / Audits & Revues / RH
+
+CREATE TABLE documents (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organisation_id UUID REFERENCES organisations(id) ON DELETE CASCADE,
+  folder_id UUID REFERENCES document_folders(id),
+  title TEXT NOT NULL,
+  doc_type TEXT
+    CHECK (doc_type IN ('NS','PROC','CR','FORM','REPORT','INSTRUCTION','OTHER')),
+  -- Source : fichier déposé ou rédigé dans PilotOS
+  source TEXT DEFAULT 'upload'
+    CHECK (source IN ('upload','created')),
+  template_type TEXT
+    CHECK (template_type IN ('procedure','instruction','note','form','report')),
+  content JSONB,           -- contenu structuré si source='created'
+  file_path TEXT,          -- chemin Supabase Storage si source='upload'
+  file_name TEXT,
+  file_size INTEGER,
+  mime_type TEXT,
+  -- Versionning
+  version_major INTEGER DEFAULT 1,
+  version_minor INTEGER DEFAULT 0,
+  version_label TEXT GENERATED ALWAYS AS
+    ('v' || version_major || '.' || version_minor) STORED,
+  previous_version_id UUID REFERENCES documents(id),
+  -- Identification (numéro modifiable)
+  doc_code TEXT,           -- ex: PROC-ACH-001 (suggéré, modifiable)
+  is_master_document BOOLEAN DEFAULT false,
+  -- Statut
+  status TEXT DEFAULT 'draft'
+    CHECK (status IN ('draft','in_review','approved','active','archived','obsolete')),
+  -- Circuit de validation (obligatoire si source='created', optionnel si 'upload')
+  validation_required BOOLEAN DEFAULT false,
+  redactor_id UUID REFERENCES auth.users(id),
+  reviewer_id UUID REFERENCES auth.users(id),
+  approver_id UUID REFERENCES auth.users(id),
+  reviewed_at TIMESTAMPTZ,
+  approved_at TIMESTAMPTZ,
+  effective_date DATE,
+  expiry_date DATE,        -- date de révision planifiée
+  -- Diffusion et émargement
+  distribution_list UUID[],
+  acknowledgment_required BOOLEAN DEFAULT false,
+  -- Rattachements
+  linked_process_id UUID REFERENCES processes(id),
+  linked_action_id UUID REFERENCES actions(id),
+  linked_project_id UUID REFERENCES projects(id),
+  linked_objective_id UUID REFERENCES strategic_objectives(id),
+  -- Visibilité
+  visibility TEXT DEFAULT 'public'
+    CHECK (visibility IN ('public','managers','restricted','confidential')),
+  visibility_user_ids UUID[],
+  uploaded_by UUID REFERENCES auth.users(id),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Historique des versions archivées
+CREATE TABLE document_versions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  document_id UUID REFERENCES documents(id) ON DELETE CASCADE,
+  version_label TEXT NOT NULL,
+  file_path TEXT,
+  content JSONB,
+  change_summary TEXT,
+  archived_at TIMESTAMPTZ DEFAULT now(),
+  archived_by UUID REFERENCES auth.users(id)
+);
+
+-- Émargements (prises de connaissance)
+CREATE TABLE document_acknowledgments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  document_id UUID REFERENCES documents(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id),
+  acknowledged_at TIMESTAMPTZ DEFAULT now(),
+  ip_address TEXT,
+  UNIQUE(document_id, user_id)
+);
+
+-- Vue registre des documents maîtrisés (export audit ISO)
+CREATE VIEW master_document_register AS
+SELECT
+  d.doc_code,
+  df.name as folder,
+  d.title,
+  d.doc_type,
+  d.version_label,
+  d.status,
+  p.full_name as pilot,
+  d.effective_date,
+  d.expiry_date,
+  d.source,
+  d.organisation_id
+FROM documents d
+LEFT JOIN document_folders df ON d.folder_id = df.id
+LEFT JOIN profiles p ON d.redactor_id = p.id
+WHERE d.is_master_document = true
+  AND d.status = 'active'
+ORDER BY df.name, d.title;
+```
+
+### 8.9 Paiement & Abonnements
+```sql
+CREATE TABLE subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organisation_id UUID REFERENCES organisations(id) ON DELETE CASCADE,
+  stripe_subscription_id TEXT UNIQUE,
+  stripe_customer_id TEXT,
+  plan TEXT NOT NULL
+    CHECK (plan IN ('free','team','business','pro','enterprise')),
+  status TEXT DEFAULT 'active'
+    CHECK (status IN ('active','past_due','cancelled','trialing')),
+  seats_included INTEGER DEFAULT 1,
+  seats_extra INTEGER DEFAULT 0,
+  current_period_start TIMESTAMPTZ,
+  current_period_end TIMESTAMPTZ,
+  cancel_at_period_end BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE stripe_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  stripe_event_id TEXT UNIQUE NOT NULL,
+  type TEXT NOT NULL,
+  payload JSONB,
+  processed_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE import_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organisation_id UUID REFERENCES organisations(id) ON DELETE CASCADE,
+  import_type TEXT
+    CHECK (import_type IN ('users','processes','actions','indicators')),
+  file_name TEXT,
+  total_rows INTEGER,
+  success_rows INTEGER,
+  error_rows INTEGER,
+  errors JSONB,
+  imported_by UUID REFERENCES auth.users(id),
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### 8.10 Gamification
+```sql
+CREATE TABLE user_streaks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  organisation_id UUID REFERENCES organisations(id) ON DELETE CASCADE,
+  current_streak INTEGER DEFAULT 0,
+  longest_streak INTEGER DEFAULT 0,
+  last_activity_date DATE,
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(user_id, organisation_id)
+);
+
+CREATE TABLE user_badges (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  organisation_id UUID REFERENCES organisations(id) ON DELETE CASCADE,
+  badge TEXT NOT NULL,
+  earned_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### 8.11 Notifications
+```sql
+CREATE TABLE notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  organisation_id UUID REFERENCES organisations(id) ON DELETE CASCADE,
+  type TEXT NOT NULL,
+  title TEXT NOT NULL,
+  body TEXT,
+  read BOOLEAN DEFAULT false,
+  action_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### 8.12 Administration & Audit RGPD
+```sql
+-- Toute action superadmin est loguée ici
+CREATE TABLE admin_audit_log (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  admin_id UUID REFERENCES auth.users(id),
+  action TEXT NOT NULL,
+  target_type TEXT,  -- 'organisation'|'user'|'subscription'
+  target_id UUID,
+  before_state JSONB,
+  after_state JSONB,
+  ip_address TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### 8.13 IA Usage
+```sql
+CREATE TABLE ai_usage (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organisation_id UUID REFERENCES organisations(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id),
+  feature TEXT NOT NULL,
+  tokens_used INTEGER,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### 8.14 Site Marketing & CMS
+```sql
+CREATE TABLE site_sections (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  page TEXT NOT NULL,
+  section TEXT NOT NULL,
+  desktop_content JSONB NOT NULL,
+  tablet_content JSONB,   -- null = hérite desktop
+  mobile_content JSONB,   -- null = hérite tablet
+  tablet_overrides TEXT[],
+  mobile_overrides TEXT[],
+  sort_order INTEGER DEFAULT 0,
+  is_visible BOOLEAN DEFAULT true,
+  updated_by UUID REFERENCES auth.users(id),
+  updated_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(page, section)
+);
+
+CREATE TABLE blog_posts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  slug TEXT UNIQUE NOT NULL,
+  excerpt TEXT,
+  content TEXT,
+  cover_image_url TEXT,
+  published BOOLEAN DEFAULT false,
+  published_at TIMESTAMPTZ,
+  seo_title TEXT,
+  seo_description TEXT,
+  author_id UUID REFERENCES auth.users(id),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE newsletter_subscribers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email TEXT UNIQUE NOT NULL,
+  confirmed BOOLEAN DEFAULT false,
+  confirmed_at TIMESTAMPTZ,
+  source TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE email_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  to_email TEXT NOT NULL,
+  subject TEXT,
+  type TEXT,
+  status TEXT DEFAULT 'sent',
+  sent_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+### 8.15 Feedback, Roadmap & Bounties
+```sql
+-- Roadmap publique
+CREATE TABLE roadmap_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  description TEXT,
+  category TEXT CHECK (category IN
+    ('feature','improvement','fix','infrastructure')),
+  status TEXT DEFAULT 'planned' CHECK (status IN
+    ('shipped','in_progress','planned','considering','declined')),
+  version_target TEXT,  -- ex: "V1.0"
+  votes INTEGER DEFAULT 0,
+  is_public BOOLEAN DEFAULT true,
+  sort_order INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE roadmap_votes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  item_id UUID REFERENCES roadmap_items(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id),
+  organisation_id UUID REFERENCES organisations(id),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(item_id, user_id)
+);
+
+-- Signalements bugs et suggestions
+CREATE TABLE feedback_reports (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  description TEXT,
+  category TEXT DEFAULT 'bug' CHECK (category IN
+    ('bug','suggestion','question','bounty')),
+  status TEXT DEFAULT 'new' CHECK (status IN
+    ('new','confirmed','in_progress','resolved','wont_fix','duplicate')),
+  priority TEXT DEFAULT 'normal' CHECK (priority IN
+    ('critical','high','normal','low')),
+  -- Contexte technique auto-capturé
+  page_url TEXT,
+  browser TEXT,
+  os TEXT,
+  user_role TEXT,
+  screenshot_url TEXT,
+  -- Déduplication
+  parent_id UUID REFERENCES feedback_reports(id),
+  vote_count INTEGER DEFAULT 1,
+  -- Résolution
+  resolved_in_version TEXT,
+  resolution_note TEXT,
+  -- Auteur
+  reporter_id UUID REFERENCES auth.users(id),
+  organisation_id UUID REFERENCES organisations(id),
+  is_anonymous BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE feedback_votes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  report_id UUID REFERENCES feedback_reports(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(report_id, user_id)
+);
+
+-- Abonnements aux résolutions
+CREATE TABLE feedback_subscribers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  report_id UUID REFERENCES feedback_reports(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(report_id, user_id)
+);
+
+-- Bounties (features financées)
+CREATE TABLE feature_bounties (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  feedback_id UUID REFERENCES feedback_reports(id),
+  title TEXT NOT NULL,
+  description TEXT,
+  amount_target INTEGER NOT NULL,
+  amount_pledged INTEGER DEFAULT 0,
+  status TEXT DEFAULT 'open' CHECK (status IN
+    ('open','funded','in_development','delivered','cancelled')),
+  roadmap_item_id UUID REFERENCES roadmap_items(id),
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE bounty_pledges (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  bounty_id UUID REFERENCES feature_bounties(id) ON DELETE CASCADE,
+  organisation_id UUID REFERENCES organisations(id),
+  amount INTEGER NOT NULL,
+  stripe_payment_intent TEXT,
+  status TEXT DEFAULT 'pending'
+    CHECK (status IN ('pending','paid','refunded')),
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+```
+
+---
+
+## 9. IA Intégrée
+
+### Fonctionnalités V0
+- Rédaction assistée action (langage naturel → RACI + priorité + échéance)
+- Résumé revue processus (constats → findings / conclusions / actions)
+- Rapport CODIR auto (1 clic depuis actions + KPIs du mois)
+- Analyse tendances NC (patterns détectés)
+
+### Limites par plan
+```
+Free  → 5 utilisations/mois
+Team  → 50/mois
+Business → 200/mois
+Pro/Enterprise → Illimité
+```
+
+---
+
+## 10. GED — Règles Métier
+
+### Deux sources distinctes
+```
+source = 'upload'
+  → Fichier externe déposé
+  → Métadonnées obligatoires à la saisie
+  → Validation optionnelle (admin configure)
+  → Statut max "Déposé" sans validation
+  → Dans registre audit : Source = "Fichier externe"
+
+source = 'created'
+  → Rédigé dans PilotOS avec template structuré
+  → Validation obligatoire avant "En vigueur"
+  → Export PDF formaté PilotOS
+  → Dans registre audit : Source = "PilotOS"
+```
+
+### Convention de nommage suggérée (modifiable)
+```
+[TYPE]-[PROCESSUS]-[NNN]-[ANNÉE]
+ex: PROC-ACH-001-2026
+    NS-RH-003-2026
+    CR-CODIR-2026-04
+```
+
+### Numéro de processus
+Suggéré automatiquement selon le type :
+```
+Management  → M-XXX-NNN
+Opérationnel → P-OPE-NNN
+Support      → P-SUP-NNN
+```
+Toujours modifiable par l'utilisateur.
+
+### Templates de rédaction (source='created')
+- Procédure ISO : Objet / Domaine / Références / Définitions / Responsabilités / Description / Enregistrements / Historique
+- Note de service : De/À/CC / Objet / Date d'effet / Corps / Signature
+- Instruction de travail : Objet / Matériel / Étapes numérotées / Points de contrôle / En cas de problème
+
+### Roadmap GED
+- V0 : upload + métadonnées + versionning + circuit 2 étapes + registre audit
+- V1 : éditeur Tiptap + templates structurés + export PDF + circuit 3 étapes
+- V2 : workflow configurable + signatures électroniques (si demande clients)
+
+---
+
+## 11. Templates Métier
+
+Chargés automatiquement à l'onboarding selon le secteur :
+- SDIS / Services secours
+- PME industrielle
+- PME distribution/logistique
+- Santé / médico-social
+- Collectivité territoriale
+
+Chaque template inclut processus types, KPIs, actions types, objectifs exemples, arborescence documentaire ISO.
+
+---
+
+## 12. Modèle de Pricing
+
+| Plan | Sièges | Prix | Déclencheur |
+|------|--------|------|-------------|
+| Free Solo | 1 | 0€ | Veut inviter quelqu'un |
+| Team | 10 | 59€/mois | TPE |
+| Business | 25 | 119€/mois | PME 10-25 |
+| Pro | 50 | 199€/mois | Multi-sites |
+| Enterprise | Illimité | Sur devis | Grand compte |
+| On-premise Beta | Illimité | 500-800€/an | Collectivité |
+| On-premise Standard | Illimité | 2000-5000€/an | Grand compte |
+
+### Sièges supplémentaires
+- Team : +6€/mois/siège
+- Business : +5€/mois/siège
+- Pro : +4€/mois/siège
+
+### Modules optionnels
+- Terrain : +5€/mois sur Team (inclus Business+)
+- Sécurité/QSE : +15€/mois sur Business (inclus Pro+)
+
+### Engagement annuel : -10%
+
+### Free Solo limites
+```
+max_actions=10 / max_processes=3 / max_documents=5
+IA=5/mois / Export PDF=1/mois watermark
+RACI visible mais non assignable
+```
+
+### Gestion Enterprise depuis superadmin
+Interface rapide sans toucher à la BDD directement :
+- Select plan + input sièges + toggles modules
+- Bouton "Appliquer" → Edge Function → audit log
+- Notes internes jamais visibles du client
+
+---
+
+## 13. Rôles & Permissions
+
+| Rôle | Profil UX | KPIs max |
+|------|-----------|----------|
+| superadmin | SuperAdmin | 12 |
+| admin | Admin | 12 |
+| manager | Manager | 8 |
+| director | Director | 6 |
+| contributor | Contributeur | 5 |
+| terrain | Terrain | 3 |
+| reader | Contributeur | 5 |
+
+---
+
+## 14. Onboarding Self-Service
+
+```
+1. Inscription (email + password)
+2. Vérification email (SMTP)
+3. Setup MFA (optionnel en V0)
+4. Création org + choix secteur
+5. Templates métier chargés auto
+6. Choix plan + Stripe (ou Free)
+7. Webhook → activation modules
+8. Wizard selon rôle
+9. Dashboard opérationnel
+```
+
+### Démo instantanée /demo
+- Session anonyme Supabase (RGPD — rien conservé)
+- Organisation seed pré-remplie par secteur
+- Exploration libre sans compte
+- Timer 15 min → invitation inscription
+- Reset automatique toutes les 24h
+
+---
+
+## 15. Feedback, Roadmap & SAV
+
+### Bouton flottant dans l'app
+Bas-droit, toujours accessible :
+```
+💬 → Signaler un bug
+     Suggérer une amélioration
+     Voir la roadmap
+     Proposer une feature (bounty)
+```
+Contexte auto-capturé : page, navigateur, OS, rôle.
+
+### Déduplication
+Avant soumission : recherche bugs similaires existants.
+Si match → "C'est ce bug" (vote++) ou "Non, c'est différent" (nouveau ticket).
+
+### Pages publiques
+```
+pilotos.fr/roadmap  → publique, votes utilisateurs
+pilotos.fr/bugs     → publique, formulaire signalement
+```
+
+### Dashboard superadmin bugs
+```
+Kanban : Nouveau → Confirmé → En cours → Résolu
+Tri par votes / criticité / date
+Actions : grouper doublons, lier sprint, notifier reporters
+Email auto à tous les reporters quand résolu
+```
+
+### Bounties
+Feature demandée → seuil de financement → si atteint → planifié.
+Paiement via Stripe, remboursé si non livré dans les délais.
+
+---
+
+## 16. Déploiement
+
+### Cloud V1
+```
+GitHub → Vercel (auto) + Supabase migrations (auto)
+SMTP Gmail V0 → SMTP Infomaniak V1 (dès 2 clients payants)
+Stripe webhooks via Supabase Edge Functions
+```
+
+### GitHub Actions
+```
+deploy-production.yml → MANUEL (workflow_dispatch)
+deploy-preview.yml    → auto push hors main
+ci.yml                → TypeScript + lint sur PR
+```
+
+### On-Premise V2
+```
+Docker Compose : app (React/Nginx) + Supabase self-hosted
+git clone → cp .env.example .env → docker-compose up
+```
+
+---
+
+## 17. Blog SEO — Articles Prioritaires
+
+1. "GED qualité : comment arrêter le chaos documentaire en PME"
+2. "Processus ISO 9001 : les 5 erreurs de nommage qui coûtent cher en audit"
+3. "Pilotage opérationnel sans Excel : guide PME 10-50 personnes"
+4. "Comment faire remonter le terrain jusqu'au CODIR"
+5. "RACI : pourquoi ça ne marche jamais dans Excel"
+6. "Audit ISO 9001 : les 5 documents que votre auditeur demande en premier"
+
+---
+
+## 18. Conventions de Code
+
+```
+TypeScript strict — zéro "any"
+Composants fonctionnels + hooks
+snake_case tables Supabase / PascalCase composants React
+useBreakpoint() → "mobile" | "tablet" | "desktop"
+email.ts = wrapper unique SMTP (1 seul endroit à changer)
+RLS sur TOUTES les tables
+organisation_id sur TOUTES les tables métier
+visibility sur TOUTES les tables de contenu
+admin_audit_log pour TOUTES les actions superadmin
+```
+
+---
+
+## 19. Notes d'Architecture
+
+1. `origin` dans actions — jamais optionnel
+2. `source` dans documents — upload vs created, règles différentes
+3. `doc_code` processus et documents — suggéré, toujours modifiable
+4. Validation documents — obligatoire si created, optionnelle si upload
+5. SMTP — src/lib/email.ts unique, Gmail V0, Infomaniak V1
+6. MFA — architecture Sprint 0A, activation selon clients
+7. Démo — session anonyme Supabase, reset 24h
+8. Enterprise — superadmin UI → Edge Function → audit log (jamais BDD directe)
+9. Feedback bouton flottant — contexte auto, déduplication avant soumission
+10. Roadmap publique — votes, statuts, version_target visibles sans compte
+11. Bounties — Stripe escrow, remboursement si non livré
+
+---
+
+*Document vivant — v0.4 — Avril 2026*
+
+---
+
+## 20. Héritage Firegrade — Ce qu'on réutilise
+
+> Firegrade était une app de préparation aux concours pompiers (QCM, académie, blog, abonnements).
+> Le stack était Python/FastAPI + MongoDB + React. PilotOS est React + Supabase.
+> On réutilise les IDÉES et PATTERNS, pas le code directement.
+
+### Ce qui est réutilisable tel quel (patterns)
+
+**Gmail SMTP avec connexion persistante**
+Firegrade a un service Gmail propre avec reconnexion automatique et fallback.
+À porter dans `src/lib/email.ts` de PilotOS :
+- Connexion persistante SMTP
+- Retry automatique si déconnexion
+- Fallback direct send si pool échoue
+- Config stockée en BDD (Supabase), pas en dur dans le code
+
+**Page Builder par blocs (Block Catalog)**
+Firegrade a un éditeur de pages drag & drop avec 23 types de blocs :
+hero, text, image, video, columns, form, newsletter, testimonials, faq, etc.
+C'est exactement ce qu'il faut pour le CMS du site pilotos.fr.
+À adapter pour PilotOS : même logique de blocs JSONB dans site_sections.
+Blocs utiles pour PilotOS : hero, text, image, columns, pricing_button,
+testimonials, faq, newsletter, blog_grid, countdown_banner, spacer, divider.
+
+**Block Editor avec historique undo/redo**
+L'éditeur de blocs de Firegrade a :
+- Ctrl+Z / Ctrl+Y natif
+- Historique 50 snapshots en mémoire (ref, pas state = pas de re-render)
+- skipHistoryRef pour éviter les boucles
+Pattern à reproduire identiquement dans le CMS PilotOS.
+
+**SEO par page**
+Firegrade gère le SEO page par page (title, description, og:image, keywords)
+avec une route publique et une route admin.
+Génère aussi le sitemap.xml automatiquement depuis les articles publiés.
+À porter dans PilotOS Sprint 8 — même logique dans site_sections + blog_posts.
+
+**Workflow / Automations**
+Firegrade a un workflow builder visuel (triggers + actions + délais).
+Triggers : inscription, tag ajouté, abonnement, RDV, cours terminé.
+Actions : envoyer email, ajouter tag, attendre, donner accès.
+Pour PilotOS V1 : adapter pour les automations qualité :
+- Trigger : action en retard, NC créée, signalement terrain, revue due
+- Action : envoyer email, créer notification, changer statut
+
+**Design system Firegrade (à s'inspirer)**
+- Typographie : Chivo (titres) + Inter (corps) + JetBrains Mono (mono)
+- Couleurs : Deep Navy #0F172A + Engine Red #DC2626 + Safety Orange #F97316
+- Principes : Clarity under Pressure, Gamified Progress
+- Animations Framer Motion : snappy (0.2-0.4s), pas de slow drifts
+- Glassmorphism sur sticky headers : bg-slate-900/80 backdrop-blur-md
+- Cards : rounded-xl, shadow hover, 2px border actif
+- Espacement généreux : p-6/p-8 sur les cards
+
+**Auth pattern**
+- Token stocké en localStorage (fg_token)
+- Headers helper getHeaders() / postHeaders() — même pattern dans PilotOS
+- ProtectedRoute avec redirect
+
+**AdminPanel pattern**
+Firegrade a un panel admin en onglets (Tabs) avec lazy loading de chaque tab.
+Pattern à reproduire pour le superadmin PilotOS :
+chaque section = composant séparé importé dans le panel principal.
+Tabs : Dashboard / Organisations / Bugs / Roadmap / Bounties / CMS / Blog / Newsletter
+
+**Settings activables par booléen**
+Firegrade active/désactive les modules (blog_enabled, mailing_enabled, rdv_enabled)
+via des settings en BDD avec une route publique /settings/public.
+Même pattern dans PilotOS : module_access + organisations.default_kpi_config.
+
+### Ce qu'on améliore par rapport à Firegrade
+
+**Stack**
+Firegrade : Python/FastAPI + MongoDB — complexe à maintenir seul
+PilotOS : Supabase tout-en-un — beaucoup plus simple, migrations versionnées
+
+**Pages**
+Firegrade avait des pages statiques non modifiables (Pages, Blog files vides)
+PilotOS : 100% CMS headless, tout modifiable depuis le superadmin
+
+**Responsive**
+Firegrade avait des problèmes de responsive signalés dans les tests
+PilotOS : desktop-first avec overrides persistants tablette/mobile,
+useBreakpoint() 3 états, bottom nav sur mobile/tablette uniquement
+
+**Emails**
+Firegrade : Gmail SMTP bien fait mais config manuelle
+PilotOS V0 : Gmail SMTP identique
+PilotOS V1 : SMTP Infomaniak professionnel (migration transparent via email.ts)
+
+### Ce qu'on garde identique
+
+Le concept de **seed data au démarrage** — Firegrade seed les questions et l'admin.
+PilotOS seed : kpi_catalog, templates sectoriels, arborescence ISO, org de démo.
+
+Le pattern **test par itération** — Firegrade a 58 itérations de tests.
+PilotOS : BUGS.md + preview Vercel auto par branche = même discipline.
+
+# PilotOS — Prompts Claude Code
+> Version 0.4 — Un prompt par session. Toujours coller le CONTEXTE en premier.
+
+---
+
+## 🔧 PROMPT CONTEXTE
+> Coller en PREMIER dans chaque session Claude Code, avant tout sprint.
+
+```
+Tu travailles sur PilotOS, SaaS B2B de pilotage opérationnel.
+
+Stack :
+- React + Vite + TypeScript strict
+- Supabase (Auth + PostgreSQL + Storage + API auto)
+- Vercel (hosting, deploy auto GitHub)
+- SMTP Gmail V0 (Supabase SMTP config) → Infomaniak V1 dès 2 clients payants
+- Stripe (paiement + webhooks Supabase Edge Functions)
+- Anthropic API claude-sonnet-4-20250514 (IA assistant)
+- React Router v6, Recharts, React Flow
+
+Règles absolues :
+- Zéro manipulation manuelle Supabase — tout passe par supabase/migrations/
+- Fichiers migration : YYYYMMDD_NNN_description.sql
+- RLS activé sur TOUTES les tables sans exception
+- organisation_id sur TOUTES les tables métier
+- visibility + visibility_user_ids sur TOUTES les tables de contenu
+- admin_audit_log pour TOUTES les actions superadmin
+- TypeScript strict, zéro "any"
+- Composants fonctionnels + hooks uniquement
+- src/lib/email.ts = wrapper SMTP unique (jamais appeler SMTP directement)
+- useBreakpoint() → "mobile" | "tablet" | "desktop" (768/1024px)
+- Desktop-first avec overrides tablette/mobile persistants
+- Après chaque migration : supabase gen types typescript > src/types/database.ts
+
+Profils UX :
+- terrain      → TerrainApp (3 écrans, bottom nav)
+- contributor  → ContributorApp (bottom nav mobile/tablet, sidebar desktop)
+- manager      → ManagerApp (switch module Qualité/Sécurité/Vue globale)
+- director     → DirectorApp (synthèse + stratégie)
+- admin        → AdminApp (tout + paramètres)
+- superadmin   → SuperAdminApp (toutes orgs + CMS + feedback)
+
+Confidentialité :
+- Élément non visible = n'existe pas — zéro trace côté React
+- RLS filtre tout côté base
+- KPIs calculés sur périmètre visible uniquement
+
+Pricing : free(1u) | team(59€/10u) | business(119€/25u) | pro(199€/50u) | enterprise
+
+GED règles :
+- source='upload' → validation optionnelle, statut max "Déposé"
+- source='created' → validation obligatoire avant "En vigueur"
+- doc_code et process_code : suggérés auto, toujours modifiables
+
+Structure repo :
+pilotOS/
+  supabase/migrations/
+  src/
+    components/ui/ layout/ modules/
+    pages/public/ terrain/ contributor/ manager/ admin/ director/ superadmin/
+    hooks/
+    lib/supabase.ts stripe.ts email.ts ai.ts
+    types/database.ts utils/
+  .github/workflows/
+  BUGS.md DEPLOYMENT.md
+```
+
+---
+
+## SPRINT 0A — Init, Auth & MFA
+> Objectif : projet qui tourne, auth + MFA fonctionnels, multi-tenant en place.
+
+```
+Sprint 0A — Init, Auth et MFA PilotOS.
+
+1. Init projet
+   - Vite + React + TypeScript strict
+   - Dépendances : @supabase/supabase-js react-router-dom recharts
+                   reactflow @bpmn-io/bpmn-js papaparse
+                   @anthropic-ai/sdk otplib qrcode
+   - src/lib/supabase.ts
+   - src/lib/email.ts → wrapper SMTP Supabase (Gmail V0)
+     Toujours passer par ce wrapper, jamais appeler Supabase SMTP directement
+   - src/lib/ai.ts → wrapper Anthropic API avec vérification quota ai_usage
+   - vercel.json routing SPA
+   - .env.example complet
+
+2. Migration supabase/migrations/20260417_001_init_schema.sql
+   Tables :
+   - organisations (id, name, slug UNIQUE, logo_url, plan DEFAULT 'free',
+     seats_included DEFAULT 1, seats_extra DEFAULT 0,
+     stripe_customer_id, stripe_subscription_id, is_active DEFAULT true,
+     default_kpi_config JSONB DEFAULT '[]',
+     terrain_module_enabled BOOLEAN DEFAULT false,
+     mfa_policy TEXT DEFAULT 'optional')
+   - sites (id, organisation_id, name, address, is_active)
+   - organisation_members (id, organisation_id, user_id, role, site_id,
+     invited_by, invited_at, accepted_at, is_active,
+     mfa_enabled DEFAULT false, mfa_enrolled_at, kpi_config JSONB DEFAULT '[]')
+     UNIQUE(organisation_id, user_id)
+   - profiles (id→auth.users, full_name, avatar_url, phone, job_title)
+   - module_access (id, organisation_id, module, is_active, activated_at)
+     UNIQUE(organisation_id, module)
+   - kpi_catalog (id TEXT PK, label, description, module, min_role,
+     max_per_role JSONB, is_gamification BOOLEAN)
+   - templates (id, name, sector, type, content JSONB, is_active)
+   - ai_usage (id, organisation_id, user_id, feature, tokens_used, created_at)
+   - admin_audit_log (id, admin_id, action, target_type, target_id,
+     before_state JSONB, after_state JSONB, ip_address, created_at)
+   - notifications (id, user_id, organisation_id, type, title, body,
+     read DEFAULT false, action_url, created_at)
+
+   Seed kpi_catalog (30 KPIs définis dans le cadrage).
+   Seed templates (5 secteurs : SDIS, PME industrie, distribution, santé, collectivité).
+   Chaque template inclut : processus types, arborescence documentaire ISO,
+   KPIs pertinents, actions types, objectifs exemples.
+
+3. Migration supabase/migrations/20260417_002_rls_policies.sql
+   RLS sur toutes les tables.
+   Fonction get_user_role(org_id UUID) → TEXT
+   Policy visibility : filtre public/managers/restricted/confidential
+   Policy admin_audit_log : superadmin uniquement
+
+4. Auth complète
+   - /login : email + password
+   - /register : email + password + full_name + nom org + secteur
+   - À l'inscription :
+     → créer profile
+     → créer organisation
+     → ajouter user comme admin dans organisation_members
+     → activer module 'pilotage' par défaut dans module_access
+     → charger templates selon secteur choisi
+     → envoyer email de bienvenue via src/lib/email.ts
+   - /reset-password, /update-password
+   - Confirmation email via src/lib/email.ts (pas Supabase SMTP natif direct)
+
+5. MFA (architecture complète, activation optionnelle en V0)
+   - /mfa/setup : choix TOTP ou Email OTP
+     TOTP → génère QR code avec otplib + qrcode, enrollment
+     Email OTP → code 6 chiffres envoyé via email.ts, valide 10 min
+   - /mfa/verify : saisie du code
+     Interface mobile : 6 cases séparées touch-friendly (44px min tap)
+   - Hook useMFA() : { required, verified, setup, verify }
+   - Selon mfa_policy de l'org : skip si 'disabled', obligatoire si 'required'
+
+6. Hooks
+   - useAuth() : { session, user, profile, organisation, role, mfaVerified, loading }
+   - useBreakpoint() : "mobile" | "tablet" | "desktop"
+     Listener resize avec cleanup useEffect
+   - useModuleAccess(module) : boolean
+
+7. Routing
+   - <ProtectedRoute> : redirect /login si non connecté
+   - <MFARoute> : redirect /mfa/verify si MFA requis et non vérifié
+   - Routes : /login /register /reset-password /mfa/setup /mfa/verify /onboarding /app/*
+
+8. GitHub Actions
+   .github/workflows/deploy-production.yml :
+   - Trigger : workflow_dispatch avec input "reason" optionnel
+   - Steps : checkout → npm ci → npm run build → vercel --prod
+             → supabase db push (migrations auto)
+   - Secrets requis : VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID
+                      SUPABASE_ACCESS_TOKEN SUPABASE_PROJECT_ID
+
+   .github/workflows/deploy-preview.yml :
+   - Trigger : push branches != main
+   - Steps : build → vercel preview → commenter URL sur PR
+
+   .github/workflows/ci.yml :
+   - Trigger : pull_request vers main
+   - Steps : npm ci → tsc --noEmit → eslint
+   - Bloque le merge si erreurs
+
+   DEPLOYMENT.md à la racine avec procédure deploy manuel.
+   BUGS.md à la racine (vide, à remplir).
+
+9. Régénère src/types/database.ts
+   Arrête-toi ici. Ne crée pas encore le layout.
+```
+
+---
+
+## SPRINT 0B — Layout, Design System & Navigation
+> Objectif : layout 5 profils, 4 thèmes, navigation responsive 3 breakpoints.
+
+```
+Sprint 0B — Layout et Design System PilotOS.
+Sprint 0A terminé et testé.
+
+1. Design system — src/components/ui/
+   CSS variables dans index.css :
+   4 thèmes : slate(dark) / warm(light) / forest(dark) / ocean(light)
+   Variables par thème : --bg --surface --card --accent --accent2
+                         --text --muted --border --success --warning --danger
+
+   Composants :
+   - Button (primary/secondary/ghost/danger, sm/md/lg)
+   - Card (hover optionnel, clickable)
+   - Badge (couleurs sémantiques)
+   - Input, Textarea, Select, Checkbox (touch-friendly 44px)
+   - Modal (overlay + slide-up animation CSS)
+   - Drawer (panneau droit slide-in)
+   - EmptyState (icône + titre + message humain + CTA optionnel)
+   - LoadingSpinner + SkeletonCard (3 variants)
+   - Toast (succès/erreur/info, auto-dismiss 4s)
+   - KpiCard (valeur grande + label + trend coloré)
+   - MfaInput (6 cases séparées, 44px min, auto-focus suivant)
+   - FeedbackButton (bouton flottant bas-droit)
+
+2. Layout — src/components/layout/
+   TopBar :
+   - Logo PilotOS + nom organisation
+   - Switch module [Qualité ▾] → managers/admins uniquement
+   - Streak 🔥 (terrain/contributor/manager/admin)
+   - Avatar → menu contextuel (useBreakpoint pour position) :
+     nom/rôle, notifications (badge rouge), paramètres,
+     sélecteur thème (4 ronds colorés), déconnexion
+   - Bouton ☰ toggle sidebar — desktop uniquement (caché si mobile/tablet)
+
+   Sidebar (desktop ≥ 1024px uniquement) :
+   - Rétractable : 52px icônes / 210px icônes + texte
+   - Items selon profil, indicateur actif bordure gauche accent
+   - Footer : avatar + nom + rôle
+
+   BottomNav (mobile + tablette < 1024px) :
+   Items par profil :
+   - terrain : Signaler(⚑) / Mes remontées(◎) / Mes actions(◈)
+   - contributor : Accueil(◎) / Actions(◈) / Processus(⟳) / Docs(▤)
+   - manager : Dashboard(◎) / Actions(◈) / Processus(⟳) / Docs(▤)
+   - director : Dashboard(◎) / Stratégie(✦) / Actions(◈) / Docs(▤)
+   - admin : Dashboard(◎) / Actions(◈) / Processus(⟳) / Docs(▤) / Param(⚙)
+
+   AppShell :
+   - Compose TopBar + Sidebar/BottomNav + <Outlet>
+   - useRole() + useBreakpoint() déterminent la nav
+   - Ferme tous les menus au changement de route
+
+   FeedbackButton (global, dans AppShell) :
+   - Bouton flottant bas-droit, visible sur toutes les pages /app/*
+   - onClick → modal avec : Signaler bug / Suggérer / Voir roadmap / Bounty
+   - Capture auto : window.location.href, navigator.userAgent, role
+
+3. Routing complet — src/pages/
+   Publiques : / /prix /features /blog /blog/:slug /demo
+               /login /register /reset-password
+               /mfa/setup /mfa/verify /roadmap /bugs
+   Protégées : /app/dashboard /app/strategy /app/actions /app/process
+               /app/documents /app/indicators /app/terrain /app/settings
+               /onboarding
+   Superadmin : /superadmin/* (role=superadmin uniquement)
+
+4. Onboarding wizard /onboarding
+   Étape 1 : Nom org + logo optionnel + secteur
+   → chargement auto des templates du secteur
+   Étape 2 : Modules à activer (toggles)
+   Étape 3 : Plan + paiement (Free = skip, sinon Stripe Checkout)
+   Étape 4 : Inviter équipe ou importer CSV
+   Étape 5 : Écran bienvenue selon rôle
+
+5. Démo instantanée /demo
+   - supabase.auth.signInAnonymously() → session temporaire
+   - Charger organisation de démo pré-remplie (seed données réalistes)
+   - Profil Manager par défaut, query param ?sector=sdis|pme|distribution
+   - Timer 15 min → modal "Créer votre compte pour sauvegarder"
+   - Cron Supabase : reset sessions démo toutes les 24h
+   - Aucune donnée personnelle — RGPD compliant
+
+6. Régénère src/types/database.ts
+```
+
+---
+
+## SPRINT 1 — Module Pilotage + Dashboard configurable
+> Objectif : CRUD objectifs + projets + actions RACI + dashboard KPIs + IA.
+
+```
+Sprint 1 — Module Pilotage PilotOS.
+Sprints 0A et 0B terminés.
+
+1. Migration supabase/migrations/20260418_003_pilotage.sql
+   Tables : strategic_objectives, codir_decisions, projects,
+            actions, action_comments
+   (schéma complet dans cadrage §8.3 et §8.4)
+   RLS avec filtre visibility sur toutes les tables.
+   Trigger SQL : passer status='late' si due_date < CURRENT_DATE
+                 et status NOT IN ('done','cancelled')
+
+2. Hooks
+   - useObjectives(), useProjects(), useActions(filters?)
+   - useDashboardKPIs() : calculs depuis kpi_catalog selon kpi_config user
+   - useAiAssist() : appel src/lib/ai.ts avec vérification quota
+
+3. ManagerDashboard /app/dashboard
+   - Grille KPI cards selon kpi_config (limite par rôle)
+   - Bouton "⚙ Configurer" → Drawer :
+     toggle on/off par KPI disponible pour le rôle
+     drag & drop réordonnancement
+     compteur "X/Y KPIs actifs"
+     bouton "Réinitialiser aux défauts de l'org"
+   - Bloc signalements terrain en attente (si module actif)
+   - Barres progression projets
+   - Actions récentes avec badge origine coloré
+   - Empty states avec messages positifs
+
+   DirectorDashboard /app/dashboard (role=director)
+   - 6 KPIs max, lecture seule
+   - Objectifs stratégiques avec % avancement
+   - Accès à /app/strategy pour créer des objectifs
+
+   ContributorHome /app/dashboard (role=contributor/terrain)
+   - Mes actions du jour (responsible_id = moi)
+   - Select statut inline (todo/in_progress/done)
+   - 5 KPIs max centrés sur moi
+
+4. /app/strategy (manager + admin + director)
+   - Liste objectifs : axis, statut coloré, nb actions, KPI
+   - Badge 🔒 si visibility != 'public'
+   - Drawer création/édition avec champ visibility
+   - Section décisions CODIR
+   - Director : peut créer objectifs et décisions
+
+5. /app/actions
+   - Filtres : statut / priorité / projet / responsable / origine
+   - Badge origine coloré (couleur par type d'origine)
+   - Clic → Drawer détail :
+     RACI complet, commentaires, origine, échéance
+   - Formulaire création :
+     Bouton "✨ Remplir avec l'IA" → input langage naturel
+     → Edge Function Anthropic → pré-remplit titre/RACI/priorité/échéance
+     → vérifier quota ai_usage avant appel, incrémenter après
+
+6. Régénère src/types/database.ts
+```
+
+---
+
+## SPRINT 2A — Module Processus (enrichi ISO 9001)
+> Objectif : hiérarchie processus, champs ISO, pilote processus, revues, KPI.
+
+```
+Sprint 2A — Module Processus PilotOS.
+Sprints 0A, 0B, 1 terminés.
+
+1. Migration supabase/migrations/20260419_004_processus.sql
+   Tables : processes, process_reviews, non_conformities, kaizen_plans
+   (schéma complet dans cadrage §8.5 — inclure TOUS les champs ISO)
+   Vue SQL process_health (cadrage §8.5)
+   RLS sur toutes les tables.
+
+2. Numéro de processus auto-suggéré (modifiable)
+   À la création selon process_type :
+   management   → "M-{CATEGORY}-{NNN}"
+   operational  → "P-OPE-{NNN}"
+   support      → "P-SUP-{NNN}"
+   NNN = prochain numéro libre dans l'org
+   L'utilisateur peut modifier librement le code suggéré.
+
+3. Hooks
+   - useProcesses() : arbre hiérarchique process > subprocess > activity
+   - useProcessDetail(id) : tout en une requête
+   - useProcessReviews(id), useNonConformities(id), useKaizen(id)
+
+4. /app/process (liste)
+   - Cards avec health score coloré, NC, actions, "Détail →"
+   - Pilote du processus visible sur chaque card
+   - Filtres : catégorie, type, santé < 70%, statut
+
+5. /app/process/:id (détail complet)
+   KPIs : santé %, NC ouvertes, actions liées, nb revues
+
+   Onglet Informations (ISO) :
+   - Code processus (modifiable), type, version
+   - Pilote principal + pilote suppléant (select depuis membres org)
+   - Finalité, périmètre, entrées, sorties, ressources, risques
+   - Critères de performance, fréquence de revue
+   - Prochaine revue planifiée avec alerte si dépassée
+
+   Onglet Actions :
+   - Liste actions liées avec RACI + badge origine
+   - Bouton "Ajouter une action"
+
+   Onglet Revues :
+   - Liste revues avec statut, constats, nb actions générées
+   - Formulaire nouvelle revue :
+     Bouton "✨ Rédiger avec l'IA" sur les constats
+     → Edge Function : constats libres → findings/conclusions/actions suggérées
+   - Bouton "Créer une action d'amélioration"
+     → origin='process_review', process_review_id pré-rempli
+
+   Onglet Documents :
+   - Docs rattachés (linked_process_id = ce processus)
+   - Bouton "Rattacher un document"
+
+   Onglet Cartographie :
+   - null → 3 boutons (éditeur natif / import .drawio / import .bpmn)
+   - native → DiagramEditor React Flow
+   - drawio → iframe embed
+   - bpmn → BpmnViewer lecture seule
+   - Bouton "Remplacer" toujours visible
+
+6. KPI dashboard : donut chart % actions par origine (ajouter à Sprint 1)
+   Notification auto au pilote de processus si :
+   - NC critique ouverte sur son processus
+   - Revue en retard
+   - Health score < 50%
+
+7. Régénère src/types/database.ts
+```
+
+---
+
+## SPRINT 2B — Cartographie des processus
+> Objectif : éditeur React Flow + import draw.io et BPMN.
+
+```
+Sprint 2B — Cartographie PilotOS.
+Sprint 2A terminé.
+
+1. Éditeur React Flow natif — src/components/modules/processus/DiagramEditor.tsx
+   Nœuds : Start(cercle vert) / End(cercle rouge) / Task(rect arrondi) /
+            Decision(losange) / Subprocess(rect double bordure) / Swimlane
+   Connecteurs avec labels éditables
+   Toolbar : ajouter nœud / supprimer / zoom+ / zoom- / reset view / export
+   Sauvegarde : bouton → PUT processes.diagram_data JSONB + diagram_type='native'
+   Export PNG : html2canvas sur le canvas React Flow
+
+2. Import draw.io (.drawio, .xml)
+   → stocker XML brut dans diagram_data + diagram_type='drawio'
+   → afficher via iframe https://embed.diagrams.net/?... avec XML encodé
+
+3. Import BPMN (.bpmn)
+   → stocker XML dans diagram_data + diagram_type='bpmn'
+   → rendu via bpmn-js BpmnViewer (lecture seule, pas d'édition)
+
+4. Logique affichage onglet Cartographie :
+   diagram_data null → 3 boutons création/import
+   diagram_type='native' → DiagramEditor (éditable)
+   diagram_type='drawio' → iframe draw.io (éditable via draw.io)
+   diagram_type='bpmn' → BpmnViewer (lecture seule)
+   Toujours : bouton "Remplacer/Modifier"
+```
+
+---
+
+## SPRINT 3 — Module Terrain
+> Objectif : signalement mobile optimisé, suivi, conversion en action.
+
+```
+Sprint 3 — Module Terrain PilotOS.
+Sprints 0A, 0B, 1, 2A terminés.
+
+1. Migration supabase/migrations/20260420_005_terrain.sql
+   Table terrain_reports (schéma cadrage §8.6)
+   Bucket Supabase Storage 'terrain-photos' (privé, RLS)
+   RLS : terrain voit uniquement ses propres reports
+         manager/admin voient tous les reports de leur org
+
+2. TerrainApp — expérience 3 écrans optimisée mobile
+
+   Écran 1 — Signaler (écran d'accueil terrain)
+   - Titre "Quoi ?" — input large, touch-friendly (44px min)
+   - Catégorie — 5 icônes 64px : 🔒 Sécurité / ⚙ Équipement /
+                                  📋 Processus / ✅ Qualité / 💬 Autre
+   - Localisation "Où ?" — texte libre optionnel
+   - Photo — bouton 📷 → input file accept="image/*" capture="environment"
+             → upload Supabase Storage bucket 'terrain-photos'
+   - Bouton "Envoyer →" pleine largeur, 56px hauteur
+   - Animation confirmation : checkmark vert animé CSS +
+     "✓ Signalement envoyé. [Nom manager] a été notifié."
+   - Email auto via email.ts → manager/admin de l'org
+
+   Écran 2 — Mes remontées
+   - Liste chronologique avec statut coloré
+   - pending → "En attente..."
+   - acknowledged → "✓ Pris en charge par [nom]"
+   - converted → "→ Action créée : [titre action]"
+   - closed → "Clôturé"
+   - EmptyState si aucun : message positif
+
+   Écran 3 — Mes actions
+   - Actions où responsible_id = moi
+   - Select statut inline : todo/in_progress/done
+   - Animation confetti si passage à done
+
+3. Vue Manager — bloc terrain dans ManagerDashboard
+   - Liste signalements pending avec timer depuis création
+   - Couleur urgence selon âge (vert<2h / orange<24h / rouge>24h)
+   - Bouton "Prendre en charge" → status=acknowledged
+     → email auto au terrain : "Votre signalement est pris en charge"
+   - Bouton "Créer une action" → Drawer pré-rempli :
+     origin='terrain', terrain_report_id, titre = report.title
+
+4. Régénère src/types/database.ts
+```
+
+---
+
+## SPRINT 4 — GED complète (versionning + audit ISO)
+> Objectif : GED audit-ready avec versionning, arborescence, registre.
+
+```
+Sprint 4 — GED PilotOS.
+Sprints 0A, 0B, 1, 2A, 3 terminés.
+
+1. Migration supabase/migrations/20260421_006_ged.sql
+   Tables : document_folders, documents, document_versions,
+            document_acknowledgments
+   Vue : master_document_register
+   Bucket Supabase Storage 'documents' (privé, RLS)
+   (schéma complet cadrage §8.8)
+
+   Seed arborescence ISO par défaut dans document_folders :
+   - Système de Management (Manuel qualité / Politique et objectifs / Revues direction)
+   - Processus (Management / Opérationnels / Support)
+   - Procédures et instructions (Générales / Instructions travail / Enregistrements)
+   - Réglementaire & Conformité
+   - Audits & Revues
+   - Ressources Humaines
+   is_system=true sur ces dossiers (suppression protégée)
+
+2. Convention de nommage suggérée à l'upload
+   Selon doc_type + processus rattaché + année :
+   PROC → "PROC-[CODE_PROCESSUS]-[NNN]-[ANNÉE]"
+   NS   → "NS-[CATÉGORIE]-[NNN]-[ANNÉE]"
+   CR   → "CR-[CONTEXTE]-[ANNÉE]-[MOIS]"
+   Toujours modifiable par l'utilisateur.
+
+3. /app/documents
+   - Arborescence dossiers (panel gauche, collapsible)
+     Drag & drop documents entre dossiers
+     Créer / renommer / supprimer dossier
+     Dossiers système (is_system=true) : renommables, non supprimables
+   - Liste documents du dossier sélectionné
+     Badge version (v1.0, v2.3...)
+     Badge statut coloré (Brouillon / En révision / En vigueur / Archivé)
+     Badge source (Fichier externe / PilotOS)
+     Pilote du document
+
+   Upload document (source='upload') :
+   - Drag & drop ou sélection fichier
+   - Formulaire métadonnées obligatoires :
+     titre, doc_type, doc_code (suggéré modifiable), version, pilote
+   - Statut initial : "Déposé"
+   - Validation optionnelle (si admin l'a activée dans paramètres)
+
+   Créer document (source='created') — V0 simplifié :
+   - Sélection template type (Procédure / Note / Instruction / Formulaire)
+   - Formulaire structuré selon template
+   - Textarea pour chaque section
+   - Validation obligatoire avant "En vigueur"
+   - Export PDF formaté PilotOS
+
+   Vue document détail :
+   - Infos complètes + circuit de validation avec timeline
+   - Historique des versions (toutes archivées accessibles)
+   - Liste d'émargement avec statuts
+   - Bouton "Nouvelle version" → archive l'actuelle, crée v+1
+
+4. Circuit de validation
+   source='upload' + validation_required=true :
+   Rédacteur → Approbateur (2 étapes)
+   source='created' : obligatoire
+   Rédacteur → Vérificateur → Approbateur (3 étapes)
+   Chaque étape : horodatée, notifiée par email
+
+5. Émargement
+   Si acknowledgment_required=true :
+   - Diffusion à distribution_list
+   - Email avec lien "J'ai pris connaissance"
+   - Click → insert document_acknowledgments
+   - Dashboard pilote : X/Y personnes ont émargé
+   - Relance auto J+3 pour les non-émargeants
+
+6. Registre audit
+   Depuis /app/documents → bouton "Générer registre audit"
+   → requête sur master_document_register
+   → export PDF : tableau de tous les documents maîtrisés
+     (code, titre, type, version, statut, pilote, date MAJ, source)
+   → watermark si plan Free Solo
+
+7. Indicateurs dans /app/indicators
+   Tables : indicators, indicator_values (cadrage §8.7)
+   - Liste avec feux tricolores selon seuils
+   - Clic → détail + LineChart Recharts historique
+   - Drawer création + saisie valeur
+   - Alertes dashboard si valeur < seuil critique
+
+8. Régénère src/types/database.ts
+```
+
+---
+
+## SPRINT 5A — Onboarding & Stripe
+> Objectif : self-service complet, paiement auto, activation modules.
+
+```
+Sprint 5A — Onboarding et Stripe PilotOS.
+Sprints 0A à 4 terminés.
+
+1. Migration supabase/migrations/20260422_007_billing.sql
+   Tables : subscriptions, stripe_events (cadrage §8.9)
+
+2. Wizard /onboarding amélioré
+   Étape 3 — Pricing interactif :
+   - Cards : Free Solo / Team 59€ / Business 119€ / Pro 199€
+   - Sélecteur sièges supplémentaires +/- (calcul temps réel)
+   - Toggle Module Terrain (+5€/mois sur Team)
+   - Toggle engagement annuel (-10%)
+   - Total affiché dynamiquement
+   - Free → skip paiement → /app/dashboard
+   - Payant → Stripe Checkout → retour /app/dashboard
+
+3. Supabase Edge Function : stripe-webhook
+   - Vérifier signature STRIPE_WEBHOOK_SECRET
+   - checkout.session.completed :
+     → update organisations.plan + seats_included
+     → activer modules dans module_access selon plan
+     → insert subscription
+     → envoyer email bienvenue via email.ts
+   - customer.subscription.updated → update subscription
+   - customer.subscription.deleted → repasser en free,
+     désactiver modules payants
+   - Log dans stripe_events
+
+4. /app/settings/billing
+   - Plan actuel, sièges utilisés/dispo
+   - Bouton "Ajouter sièges" → Stripe
+   - Bouton "Changer plan" → Stripe Customer Portal
+   - Emails automatiques :
+     J-7 avant fin période d'essai
+     Confirmation paiement mensuel
+
+5. Régénère src/types/database.ts
+```
+
+---
+
+## SPRINT 5B — Imports CSV & Gamification
+> Objectif : onboarding 100% autonome + système de gamification.
+
+```
+Sprint 5B — Imports CSV et Gamification PilotOS.
+Sprint 5A terminé.
+
+1. Migration supabase/migrations/20260423_008_imports_gamification.sql
+   Tables : import_logs, user_streaks, user_badges (cadrage §8.9 et §8.10)
+
+2. Imports CSV — src/utils/csvImport.ts
+
+   Import utilisateurs (email, full_name, role, site_name) :
+   - Valider emails (regex + unicité)
+   - supabase.auth.admin.inviteUserByEmail() pour chaque user
+   - Assigner rôle + site dans organisation_members
+   - Logger résultats dans import_logs (succès + erreurs par ligne)
+
+   Import processus (title, level, parent_title, category,
+                     owner_email, version, process_code) :
+   - Reconstruire hiérarchie parent→enfant par parent_title
+   - Résoudre owner_email → user_id
+   - Logger dans import_logs
+
+   Import actions (title, project_title, origin, status, priority,
+                   responsible_email, accountable_email, due_date) :
+   - Résoudre emails → user_id
+   - Créer projet si project_title inexistant
+   - Logger dans import_logs
+
+   Interface /app/settings/imports :
+   - Sélection type d'import + upload CSV
+   - Prévisualisation 10 premières lignes avant import
+   - Bouton "Importer" → résultats : X succès / Y erreurs
+   - Détail erreurs par ligne (téléchargeable)
+   - Historique des imports passés
+
+3. Triggers Supabase gamification :
+   Sur actions UPDATE status → 'done' :
+   - Si last_activity_date = today : streak maintenu
+   - Si last_activity_date = yesterday : streak++
+   - Si last_activity_date < yesterday : streak reset à 1
+   - Mettre à jour longest_streak si nouveau record
+   - Vérifier conditions badges :
+     "Semaine parfaite" : 5 jours consécutifs actifs
+     "Mois sans retard" : 0 actions late sur le mois
+     "Terrain actif" : 10 signalements convertis en actions
+
+4. Composants gamification :
+   - StreakBadge : 🔥 + nombre dans TopBar (menu avatar)
+   - BadgeToast : notification animée slide-in en bas-droit
+   - DoneAnimation : micro-animation check vert sur action done
+   - EmptyState positifs : "0 actions en retard ce mois 🎉 Bravo !"
+
+5. Régénère src/types/database.ts
+```
+
+---
+
+## SPRINT 6 — Administration & Superadmin
+> Objectif : gestion org complète + superadmin sans contact direct BDD.
+
+```
+Sprint 6 — Administration PilotOS.
+Sprints 0A à 5 terminés.
+
+1. /app/settings (admin) — onglets
+   Général : nom org, logo (upload Supabase Storage), liste sites CRUD
+   Modules : toggles selon plan, toggle terrain avec description impact
+   MFA : politique org (disabled/optional/required/role_based)
+   Utilisateurs : liste + inviter + modifier rôle/site + désactiver
+                  Import CSV utilisateurs
+   Dashboard : KPIs par défaut de l'org (grille toggle)
+   Abonnement : plan, sièges, facturation (→ Sprint 5A)
+   Imports : historique avec détail erreurs
+
+2. /superadmin (superadmin uniquement)
+   Toutes les actions passent par Supabase Edge Functions
+   → loguées dans admin_audit_log (jamais de UPDATE direct BDD)
+
+   Dashboard :
+   - Métriques globales : orgs actives, MRR estimé, users total, bugs ouverts
+   - Alertes : orgs en past_due, bugs critiques non traités
+
+   /superadmin/organisations :
+   - Liste avec : nom, plan, nb users, MRR, statut, date création
+   - Recherche + filtres
+   - Clic → /superadmin/organisations/:id
+
+   /superadmin/organisations/:id :
+   Panel "Plan & Accès" (interface rapide) :
+   - Select plan : free/team/business/pro/enterprise
+   - Input sièges inclus + sièges extra
+   - Toggles modules : pilotage/processus/ged/terrain/securite/qse
+   - Input date expiration (optionnel)
+   - Textarea notes internes (jamais visible du client)
+   - Bouton "Appliquer" → Edge Function → admin_audit_log
+
+   /superadmin/bugs :
+   - Kanban : Nouveau / Confirmé / En cours / Résolu
+   - Tri par votes (desc) / criticité / date
+   - Clic bug → détail + screenshot + contexte technique
+   - Actions : changer priorité, grouper avec doublon,
+               lier à sprint, marquer résolu
+   - Marquer résolu → email auto à tous feedback_subscribers
+
+   /superadmin/roadmap :
+   - Liste items avec statut, votes, version_target
+   - Créer/éditer/supprimer items
+   - Drag & drop réordonnancement
+   - Toggle is_public
+
+   /superadmin/bounties :
+   - Liste bounties avec montant pledgé vs objectif
+   - Barre de progression financement
+   - Actions : passer en_development / delivered / cancelled
+
+3. Régénère src/types/database.ts
+```
+
+---
+
+## SPRINT 7 — Feedback, Roadmap & Bounties
+> Objectif : système SAV intégré, roadmap publique, feature bounties.
+
+```
+Sprint 7 — Feedback et Roadmap PilotOS.
+Sprints 0A à 6 terminés.
+
+1. Migration supabase/migrations/20260424_009_feedback.sql
+   Tables : roadmap_items, roadmap_votes, feedback_reports,
+            feedback_votes, feedback_subscribers,
+            feature_bounties, bounty_pledges
+   (schéma complet cadrage §8.15)
+   Bucket Supabase Storage 'screenshots' (privé, RLS)
+
+2. Bouton flottant FeedbackButton (déjà dans AppShell Sprint 0B)
+   Modal feedback :
+   Onglet Bug :
+   - Titre (obligatoire)
+   - Description
+   - Screenshot : bouton capture → html2canvas → upload 'screenshots'
+   - Contexte auto : page_url, navigator.userAgent parsé, user_role
+   - Avant soumission : recherche bugs similaires (fulltext sur title)
+     Si résultats → "Ce problème ressemble à :"
+       [C'est ce bug] → feedback_votes++ sur bug existant
+       [Non, c'est différent] → nouveau feedback_reports
+   - Bouton "S'abonner à la résolution" → feedback_subscribers
+
+   Onglet Suggestion :
+   - Titre + description
+   - Avant soumission : recherche suggestions similaires
+   - Soumission → feedback_reports category='suggestion'
+
+   Onglet Bounty :
+   - Titre + description + montant proposé (€)
+   - Soumission → feedback_reports category='bounty'
+                  + feature_bounties si montant > 0
+
+3. Pages publiques
+
+   /roadmap :
+   - Liste items par statut (shipped / in_progress / planned / considering)
+   - Compteur votes par item
+   - Bouton vote si connecté (un vote par user par item)
+   - Badge version_target si défini
+
+   /bugs :
+   - Formulaire signalement (même logique que modal in-app)
+   - Liste bugs publics en cours de résolution
+   - Compteur signalements par bug
+
+4. Page /app/roadmap (dans l'app)
+   - Même contenu que /roadmap mais avec contexte utilisateur
+   - Vote depuis l'app directement
+
+5. Régénère src/types/database.ts
+```
+
+---
+
+## SPRINT 8 — Site Marketing & CMS
+> Objectif : pilotos.fr complet avec CMS headless dans le superadmin.
+
+```
+Sprint 8 — Site Marketing et CMS PilotOS.
+Sprints 0A à 7 terminés.
+
+1. Migration supabase/migrations/20260425_010_cms.sql
+   Tables : site_sections, blog_posts, newsletter_subscribers, email_logs
+   (schéma cadrage §8.14)
+
+2. Pages publiques — src/pages/public/
+
+   / — Landing page
+   Sections depuis site_sections (Supabase temps réel) :
+   Hero / Problème / Solution / Features / Pricing / Témoignages / CTA / Footer
+   Chaque section : desktop_content + tablet_content + mobile_content
+   Rendu : merge(desktop, tablet_overrides) selon breakpoint
+
+   /prix — Pricing interactif React
+   - Cards plans avec simulateur (sélection users + modules = prix dynamique)
+   - Tableau comparatif features
+
+   /features — Fonctionnalités
+
+   /blog — Liste articles publiés
+   /blog/:slug — Article avec SEO meta tags
+
+3. Logique overrides CMS
+   ```typescript
+   function getContent(section, breakpoint) {
+     const base = section.desktop_content;
+     if (breakpoint === 'mobile' && section.mobile_content)
+       return mergeOverrides(base, section.mobile_content,
+                             section.mobile_overrides);
+     if (breakpoint === 'tablet' && section.tablet_content)
+       return mergeOverrides(base, section.tablet_content,
+                             section.tablet_overrides);
+     return base;
+   }
+   ```
+   Un champ dans *_overrides = verrouillé sur ce breakpoint.
+
+4. CMS dans /superadmin/site
+
+   /superadmin/site/pages :
+   - Liste pages éditables
+   - Clic page → liste sections
+
+   /superadmin/site/pages/:page/sections/:section :
+   - Onglets Desktop / Tablette / Mobile
+   - Éditeur champs par section :
+     text, image (upload Storage), link, boolean, color
+   - Champ modifié sur tablette/mobile → badge 🔒 + ajout dans *_overrides
+   - Bouton "↩ Réinitialiser" par champ → retirer de *_overrides
+   - Iframe aperçu redimensionnable (375 / 768 / 1280px)
+   - Bouton "Sauvegarder" → update site_sections
+
+   /superadmin/site/blog :
+   - Liste articles (brouillon/publié)
+   - Éditeur markdown avec prévisualisation split
+   - Champs SEO : seo_title, seo_description, og:image
+   - Planification publication (published_at)
+
+   /superadmin/site/newsletter :
+   - Liste abonnés avec statut confirmation
+   - Bouton "Exporter CSV"
+   - Rédaction email + aperçu
+   - Envoi via email.ts (SMTP)
+
+   /superadmin/site/seo :
+   - Title et description par page
+   - Sitemap.xml généré auto depuis blog_posts publiés
+   - Robots.txt configurable
+
+5. Header et footer éditables via CMS
+   Contenu dans site_sections page='global' section='header'|'footer'
+   Overrides tablette/mobile persistants comme toutes les sections
+
+6. Régénère src/types/database.ts
+```
+
+---
+
+## SPRINT 9 — Module Sécurité/QSE (V2)
+> À développer quand premiers clients Pro/Enterprise demandent explicitement.
+
+```
+Sprint 9 — Module Sécurité QSE PilotOS.
+Sprints 0A à 8 terminés.
+À lancer uniquement si ≥ 3 clients le demandent explicitement.
+
+1. Migration supabase/migrations/20260426_011_securite.sql
+   Tables :
+   - duer_evaluations (unités de travail, risques, cotation, mesures prévention)
+   - prevention_plans (entreprises extérieures, activités, mesures)
+   - incidents (AT, presqu'accidents, déclaration, analyse causes)
+   - safety_visits (planifiées, réalisées, observations)
+   - regulatory_register (obligations, échéances, statuts conformité)
+
+2. Module Sécurité dans switch module (managers/admins)
+   Dashboard sécurité : jours sans incident, AT ouverts, visites planifiées
+   DUER : CRUD unités de travail, risques, cotation, plan prévention
+   Incidents : déclaration rapide terrain, analyse causes, actions correctives
+   Registre réglementaire : obligations, dates limites, alertes
+
+3. Intégration terrain
+   Signalement category='safety' → création automatique incident
+   Notification responsable sécurité
+
+4. KPIs sécurité dans catalogue :
+   days_without_incident, at_open, safety_visits_planned, duer_review_date
+
+5. Régénère src/types/database.ts
+```
+
+---
+
+## NOTES D'UTILISATION
+
+**Ordre strict** : 0A → 0B → 1 → 2A → 2B → 3 → 4 → 5A → 5B → 6 → 7 → 8 → 9
+
+**Début de chaque session Claude Code** :
+1. Coller le PROMPT CONTEXTE complet
+2. Coller le prompt du sprint concerné
+3. Laisser travailler jusqu'à la fin du sprint
+4. Push GitHub → Supabase migrations + Vercel auto
+
+**Deploy manuel production** :
+GitHub → Actions → "Deploy Production" → Run workflow → raison optionnelle
+
+**Après chaque sprint** :
+- Tester sur la preview Vercel auto-générée
+- Logger les bugs dans BUGS.md
+- Ne jamais corriger les bugs pendant le sprint suivant
+- Régénérer src/types/database.ts si oublié
+
+**Migration email V0 → V1** :
+D�s 2 clients payants :
+1. Créer compte Infomaniak + domaine pilotos.fr
+2. Créer noreply@pilotos.fr
+3. Mettre à jour variables SMTP dans Supabase dashboard
+4. Aucun changement de code (email.ts abstrait tout)
+
+**Gestion Enterprise depuis superadmin** :
+Toujours via /superadmin/organisations/:id → Edge Function → admin_audit_log
+Jamais d'UPDATE direct sur la base de données.
+
+---
+
+## NOTES FIREGRADE — Patterns à réutiliser dans chaque sprint
+
+> Ces patterns viennent de Firegrade et sont éprouvés. Les intégrer dès le Sprint 0.
+
+### Gmail SMTP persistant (src/lib/email.ts)
+```typescript
+// Pattern Firegrade : connexion persistante + retry + fallback
+// Config stockée dans Supabase (pas en dur)
+// Même interface quelle que soit la config SMTP (Gmail V0 / Infomaniak V1)
+export async function sendEmail(to, subject, html): Promise<boolean>
+export async function sendBulkEmails(recipients, subject, html): Promise<{sent, failed}>
+```
+
+### Block Editor CMS (Sprint 8)
+```typescript
+// Pattern Firegrade : historique undo/redo sans re-render
+// useRef pour l'historique (pas useState)
+// skipHistoryRef pour éviter les boucles
+// Ctrl+Z / Ctrl+Y natif via addEventListener
+
+// Blocs à porter pour PilotOS :
+const PILOTOS_BLOCKS = [
+  'hero', 'text', 'image', 'image_text', 'video',
+  'columns', 'button', 'form', 'newsletter',
+  'testimonials', 'faq', 'blog_grid',
+  'pricing_button', 'countdown_banner',
+  'spacer', 'divider', 'html'
+]
+```
+
+### AdminPanel pattern (Sprint 6)
+```typescript
+// Pattern Firegrade : onglets avec composants séparés
+// Chaque tab = composant indépendant
+// Tab actif via query param (?tab=bugs)
+// Lazy : ne charge que quand l'onglet est actif
+```
+
+### Settings publics
+```typescript
+// Pattern Firegrade : /api/settings/public sans auth
+// Retourne l'état des modules activés
+// Supabase : Edge Function publique sur /functions/v1/public-settings
+```
+
+### Seed au démarrage
+```sql
+-- Pattern Firegrade : seed si la table est vide
+-- Dans supabase/migrations/ : fichier de seed séparé
+-- 20260417_003_seed_data.sql
+-- Seed : kpi_catalog, templates, demo_org, document_folders ISO
+```
+
+### Design (à appliquer dans le design system Sprint 0B)
+```css
+/* Firegrade typography */
+--font-heading: 'Chivo', sans-serif;  /* titres, tracking -0.02em */
+--font-body: 'Inter', sans-serif;     /* corps, 16px min */
+--font-mono: 'JetBrains Mono', monospace; /* timers, codes */
+
+/* Animations : snappy, pas de slow drifts */
+/* Page load : opacity 0→1, y 10→0, duration 0.4s */
+/* Card hover : y -5px, duration 0.2s */
+/* Glassmorphism header : bg/80 backdrop-blur-md border-b border-white/10 */
+```
