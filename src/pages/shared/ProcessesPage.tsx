@@ -1,14 +1,16 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, Activity, AlertTriangle, Lightbulb, CheckCircle2, Clock } from 'lucide-react'
+import { Plus, Activity, AlertTriangle, Lightbulb, CheckCircle2, Clock, ClipboardCheck } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import PageHeader from '@/components/layout/PageHeader'
 import ProcessDrawer from '@/components/modules/ProcessDrawer'
 import NcDrawer from '@/components/modules/NcDrawer'
+import KaizenDrawer from '@/components/modules/KaizenDrawer'
+import ProcessReviewDrawer from '@/components/modules/ProcessReviewDrawer'
 import { useProcesses, useNonConformities, useKaizenPlans } from '@/hooks/useProcesses'
 import { useIsAtLeast } from '@/hooks/useRole'
-import type { Process, ProcessType, NcSeverity, NcStatus, KaizenStatus } from '@/types/database'
+import type { Process, ProcessType, NcSeverity, NcStatus, KaizenStatus, KaizenPlan } from '@/types/database'
 
 // ── Labels & styles ──────────────────────────────────────────
 
@@ -76,13 +78,16 @@ function HealthBar({ score }: { score: number }) {
 
 // ── Page ─────────────────────────────────────────────────────
 
-type Tab = 'processes' | 'nc' | 'kaizen'
+type Tab = 'processes' | 'nc' | 'kaizen' | 'reviews'
 
 export default function ProcessesPage() {
   const [tab, setTab]               = useState<Tab>('processes')
-  const [processOpen, setProcessOpen] = useState(false)
-  const [ncOpen, setNcOpen]         = useState(false)
+  const [processOpen, setProcessOpen]   = useState(false)
+  const [ncOpen, setNcOpen]             = useState(false)
+  const [kaizenOpen, setKaizenOpen]     = useState(false)
+  const [reviewOpen, setReviewOpen]     = useState(false)
   const [selectedProcess, setSelectedProcess] = useState<Process | null>(null)
+  const [selectedKaizen, setSelectedKaizen]   = useState<KaizenPlan | null>(null)
 
   const canEdit   = useIsAtLeast('manager')
   const canCreate = useIsAtLeast('manager')
@@ -105,12 +110,14 @@ export default function ProcessesPage() {
     setProcessOpen(true)
   }
   function openCreateProcess() { setSelectedProcess(null); setProcessOpen(true) }
+  function openEditKaizen(k: KaizenPlan) { setSelectedKaizen(k); setKaizenOpen(true) }
+  function openCreateKaizen() { setSelectedKaizen(null); setKaizenOpen(true) }
 
   return (
     <div className="max-w-4xl">
       <PageHeader
         title="Processus"
-        subtitle="Cartographie, non-conformités et plans Kaizen"
+        subtitle="Cartographie, non-conformités, Kaizen et revues"
         actions={
           canCreate ? (
             <div className="flex gap-2">
@@ -124,13 +131,23 @@ export default function ProcessesPage() {
                   <Plus className="w-4 h-4" /> Nouveau processus
                 </button>
               )}
+              {tab === 'kaizen' && (
+                <button onClick={openCreateKaizen} className="btn-primary flex items-center gap-1.5 text-sm">
+                  <Plus className="w-4 h-4" /> Nouveau Kaizen
+                </button>
+              )}
+              {tab === 'reviews' && (
+                <button onClick={() => setReviewOpen(true)} className="btn-primary flex items-center gap-1.5 text-sm">
+                  <Plus className="w-4 h-4" /> Démarrer une revue
+                </button>
+              )}
             </div>
           ) : undefined
         }
       />
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 bg-slate-100 p-1 rounded-lg w-fit">
+      <div className="flex gap-1 mb-6 bg-slate-100 p-1 rounded-lg w-fit flex-wrap">
         <TabBtn active={tab === 'processes'} onClick={() => setTab('processes')}>
           <Activity className="w-3.5 h-3.5" /> Processus ({processes.length})
         </TabBtn>
@@ -141,6 +158,9 @@ export default function ProcessesPage() {
         </TabBtn>
         <TabBtn active={tab === 'kaizen'} onClick={() => setTab('kaizen')}>
           <Lightbulb className="w-3.5 h-3.5" /> Kaizen ({kaizens.length})
+        </TabBtn>
+        <TabBtn active={tab === 'reviews'} onClick={() => setTab('reviews')}>
+          <ClipboardCheck className="w-3.5 h-3.5" /> Revues
         </TabBtn>
       </div>
 
@@ -262,7 +282,10 @@ export default function ProcessesPage() {
           {!kaizenLoading && kaizens.length > 0 && (
             <div className="grid gap-3">
               {kaizens.map(k => (
-                <motion.div key={k.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="card">
+                <motion.div key={k.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}
+                  onClick={() => canEdit && openEditKaizen(k)}
+                  className={`card ${canEdit ? 'card-hover cursor-pointer' : ''}`}
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <span className="text-sm font-semibold text-slate-900">{k.title}</span>
@@ -288,6 +311,20 @@ export default function ProcessesPage() {
         </>
       )}
 
+      {/* ── Revues de processus ── */}
+      {tab === 'reviews' && (
+        <EmptyState
+          icon={<ClipboardCheck className="w-10 h-10 text-slate-200 mx-auto mb-3" />}
+          title="Démarrez votre première revue de processus"
+          subtitle="Documentez vos constats, conclusions et planifiez la prochaine revue."
+          cta={canCreate ? (
+            <button onClick={() => setReviewOpen(true)} className="btn-primary mt-4 text-sm">
+              Démarrer une revue
+            </button>
+          ) : undefined}
+        />
+      )}
+
       {/* Drawers */}
       <ProcessDrawer
         open={processOpen}
@@ -297,6 +334,16 @@ export default function ProcessesPage() {
       <NcDrawer
         open={ncOpen}
         onClose={() => setNcOpen(false)}
+        processes={processes.map(p => ({ id: p.id, title: p.title }))}
+      />
+      <KaizenDrawer
+        open={kaizenOpen}
+        onClose={() => setKaizenOpen(false)}
+        kaizen={selectedKaizen}
+      />
+      <ProcessReviewDrawer
+        open={reviewOpen}
+        onClose={() => setReviewOpen(false)}
         processes={processes.map(p => ({ id: p.id, title: p.title }))}
       />
     </div>

@@ -5,6 +5,7 @@ import type {
   Process, ProcessInsert,
   NonConformity, NcSeverity, NcStatus,
   KaizenPlan, KaizenStatus,
+  ProcessReview,
 } from '@/types/database'
 
 // ── Processes ────────────────────────────────────────────────
@@ -194,5 +195,24 @@ export function useUpdateKaizen() {
       return data as KaizenPlan
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['kaizen_plans'] }),
+  })
+}
+
+// ── Process reviews ──────────────────────────────────────────
+
+export function useProcessReviews(processId?: string) {
+  const { organisation } = useAuth()
+  return useQuery({
+    queryKey: ['process_reviews', organisation?.id, processId],
+    enabled: !!organisation,
+    queryFn: async () => {
+      let q = supabase.from('process_reviews').select('*')
+        .eq('organisation_id', organisation!.id)
+        .order('review_date', { ascending: false })
+      if (processId) q = q.eq('process_id', processId)
+      const { data, error } = await q
+      if (error) throw error
+      return data as ProcessReview[]
+    },
   })
 }
