@@ -1,7 +1,11 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Check } from 'lucide-react'
+import { Check, Loader2 } from 'lucide-react'
 import { PLANS } from '@/lib/stripe'
+import type { PlanKey } from '@/lib/stripe'
+import { useAuth } from '@/hooks/useAuth'
+import { useStripeCheckout } from '@/hooks/useStripeCheckout'
 
 const PLAN_FEATURES: Record<string, string[]> = {
   free: [
@@ -39,6 +43,51 @@ const PLAN_FEATURES: Record<string, string[]> = {
     'API access',
     'SLA 99.9%',
   ],
+}
+
+function PlanCTA({ planKey, isPopular }: { planKey: PlanKey | 'free'; isPopular: boolean }) {
+  const { user } = useAuth()
+  const { checkout, loading } = useStripeCheckout()
+  const [pending, setPending] = useState(false)
+
+  const btnClass = `block text-center py-2.5 rounded-lg font-medium text-sm transition-colors disabled:opacity-60 ${
+    isPopular
+      ? 'bg-brand-600 text-white hover:bg-brand-700'
+      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+  }`
+
+  if (planKey === 'free') {
+    return (
+      <Link to="/register" className={btnClass}>
+        Commencer gratuitement
+      </Link>
+    )
+  }
+
+  if (!user) {
+    return (
+      <Link to={`/register?plan=${planKey}`} className={btnClass}>
+        Démarrer l&apos;essai
+      </Link>
+    )
+  }
+
+  async function handleClick() {
+    setPending(true)
+    await checkout(planKey as PlanKey)
+    setPending(false)
+  }
+
+  return (
+    <button
+      onClick={handleClick}
+      disabled={loading || pending}
+      className={btnClass + ' w-full flex items-center justify-center gap-2'}
+    >
+      {(loading || pending) && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+      Démarrer l&apos;essai
+    </button>
+  )
 }
 
 export default function PricingPage() {
@@ -115,16 +164,7 @@ export default function PricingPage() {
                   ))}
                 </ul>
 
-                <Link
-                  to="/register"
-                  className={`block text-center py-2.5 rounded-lg font-medium text-sm transition-colors ${
-                    isPopular
-                      ? 'bg-brand-600 text-white hover:bg-brand-700'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
-                >
-                  {planKey === 'free' ? 'Commencer gratuitement' : 'Démarrer l\'essai'}
-                </Link>
+                <PlanCTA planKey={planKey} isPopular={isPopular} />
               </motion.div>
             )
           })}
