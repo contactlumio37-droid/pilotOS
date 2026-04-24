@@ -3,11 +3,17 @@ import type { User, Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import type { Profile, Organisation, UserRole } from '@/types/database'
 
-// ── Clés storage ─────────────────────────────────────────────
-const MFA_VERIFIED_KEY    = 'pilotos_mfa_verified'
+// ── Storage keys ──────────────────────────────────────────────
+const MFA_VERIFIED_KEY     = 'pilotos_mfa_verified'
 export const ADMIN_SESSION_KEY = 'pilotos_admin_session'
 
-// ── JWT decoder (pas de dépendance externe) ──────────────────
+// ── Role hierarchy (highest = picked first) ───────────────────
+const ROLE_WEIGHT: Record<string, number> = {
+  superadmin: 100, admin: 80, director: 70,
+  manager: 60, contributor: 40, reader: 20, terrain: 10,
+}
+
+// ── JWT decoder (no external dependency) ─────────────────────
 function decodeJwt(token: string): Record<string, unknown> | null {
   try {
     const b64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
@@ -18,17 +24,17 @@ function decodeJwt(token: string): Record<string, unknown> | null {
 // ── Types ─────────────────────────────────────────────────────
 
 export interface AuthState {
-  user:                    User | null
-  session:                 Session | null
-  profile:                 Profile | null
-  organisation:            Organisation | null
-  role:                    UserRole | null
-  mfaVerified:             boolean
-  isImpersonating:         boolean
-  impersonatorId:          string | null
-  impersonatorEmail:       string | null
-  impersonationExpiresAt:  Date | null
-  loading:                 boolean
+  user:                   User | null
+  session:                Session | null
+  profile:                Profile | null
+  organisation:           Organisation | null
+  role:                   UserRole | null
+  mfaVerified:            boolean
+  isImpersonating:        boolean
+  impersonatorId:         string | null
+  impersonatorEmail:      string | null
+  impersonationExpiresAt: Date | null
+  loading:                boolean
 }
 
 // ── Hook ─────────────────────────────────────────────────────
@@ -52,35 +58,48 @@ export function useAuth(): AuthState {
 
     const mfaVerified = sessionStorage.getItem(MFA_VERIFIED_KEY) === user.id
 
-    // Détecter l'impersonation depuis les claims JWT
-    const claims = session ? decodeJwt(session.access_token) : null
-    const isImpersonating    = claims?.is_impersonating === true
-    const impersonatorId     = (claims?.impersonator_id as string) ?? null
-    const impersonatorEmail  = (claims?.impersonator_email as string) ?? null
-    const expClaim           = claims?.exp as number | undefined
+    // Detect impersonation from JWT custom claims
+    const claims            = session ? decodeJwt(session.access_token) : null
+    const isImpersonating   = claims?.is_impersonating === true
+    const impersonatorId    = (claims?.impersonator_id    as string) ?? null
+    const impersonatorEmail = (claims?.impersonator_email as string) ?? null
+    const expClaim          = claims?.exp as number | undefined
     const impersonationExpiresAt = expClaim ? new Date(expClaim * 1000) : null
 
-    // Handle multiple memberships (superadmin can belong to several orgs)
-    const ctxOrgId = sessionStorage.getItem('pilotos_org_ctx')
-    let memberQ = supabase
+    // ── Fetch profile (maybeSingle → null instead of 406) ────
+    const profileResult = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    // ── Fetch all active memberships, pick highest-privilege ──
+    // IMPORTANT: never filter by pilotos_org_ctx here.
+    // useAuth determines WHO the user is (role + default org).
+    // useOrganisation handles org context switching.
+    const memberResult = await supabase
       .from('organisation_members')
       .select('role, organisation:organisations(*)')
       .eq('user_id', user.id)
       .eq('is_active', true)
-      .order('created_at', { ascending: true })
-    if (ctxOrgId) memberQ = memberQ.eq('organisation_id', ctxOrgId)
+      .limit(10)
 
-    const [profileResult, memberResult] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', user.id).single(),
-      memberQ.limit(1),
-    ])
+    const profile  = profileResult.data as Profile | null
+    const allRows  = (memberResult.data ?? []) as Array<{
+      role: string
+      organisation: Organisation | Organisation[]
+    }>
 
-    const profile     = profileResult.data as Profile | null
-    const memberRows  = memberResult.data as { role: string; organisation: Organisation | Organisation[] }[] | null
-    const memberRow   = memberRows?.[0]
+    // Always use the highest-privilege membership as the primary identity
+    const memberRow = [...allRows].sort(
+      (a, b) => (ROLE_WEIGHT[b.role] ?? 0) - (ROLE_WEIGHT[a.role] ?? 0),
+    )[0]
+
     const rawOrg      = memberRow?.organisation
-    const organisation = rawOrg ? (Array.isArray(rawOrg) ? rawOrg[0] : rawOrg) as Organisation : null
-    const role        = (memberRow?.role ?? null) as UserRole | null
+    const organisation = rawOrg
+      ? (Array.isArray(rawOrg) ? rawOrg[0] : rawOrg) as Organisation
+      : null
+    const role = (memberRow?.role ?? null) as UserRole | null
 
     setState({
       user, session, profile, organisation, role, mfaVerified,
@@ -119,13 +138,12 @@ export async function startImpersonation(
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) throw new Error('Aucune session active')
 
-  // Sauvegarder la session admin
+  // Backup admin session before swapping
   localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify({
     access_token:  session.access_token,
     refresh_token: session.refresh_token,
   }))
 
-  // Appeler l'Edge Function
   const { data, error } = await supabase.functions.invoke('impersonate-user', {
     body: { target_user_id: targetUserId, organisation_id: organisationId, reason },
   })
@@ -135,9 +153,8 @@ export async function startImpersonation(
     throw new Error(data?.error ?? error?.message ?? 'Impersonation échouée')
   }
 
-  // Swapper la session
+  // Swap session — RLS will now enforce target user's permissions
   await supabase.auth.setSession({ access_token: data.token, refresh_token: '' })
-  // Forcer un rechargement complet pour que le routing se réinitialise
   window.location.href = '/app'
 }
 
@@ -150,6 +167,7 @@ export async function stopImpersonation(): Promise<void> {
       access_token: string
       refresh_token: string
     }
+    // Restore admin session (Supabase will auto-refresh if access_token expired)
     await supabase.auth.setSession({ access_token, refresh_token })
   } else {
     await supabase.auth.signOut()
@@ -157,7 +175,7 @@ export async function stopImpersonation(): Promise<void> {
   window.location.href = '/superadmin'
 }
 
-// ── Auth helpers ──────────────────────────────────────────────
+// ── Standard auth helpers ─────────────────────────────────────
 
 export function setMfaVerified(userId: string): void {
   sessionStorage.setItem(MFA_VERIFIED_KEY, userId)

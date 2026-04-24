@@ -3,8 +3,7 @@ import { supabase } from '@/lib/supabase'
 import type { Organisation, OrganisationMember, ModuleAccess } from '@/types/database'
 import { useAuth } from './useAuth'
 
-// ── Org context (superadmin org-switching) ───────────────────
-
+// ── Org context (superadmin org-switching) ────────────────────
 export const ORG_CONTEXT_KEY = 'pilotos_org_ctx'
 export function setOrgContext(orgId: string): void { sessionStorage.setItem(ORG_CONTEXT_KEY, orgId) }
 export function clearOrgContext(): void { sessionStorage.removeItem(ORG_CONTEXT_KEY) }
@@ -24,39 +23,60 @@ export function useOrganisation(): OrganisationContext {
 
   const { data: member, isLoading: memberLoading } = useQuery({
     queryKey: ['organisation_member', user?.id, ctxOrgId],
+    enabled: !!user,
     queryFn: async () => {
       if (!user) return null
-      let q = supabase
+
+      // When org context is active, try that org first
+      if (ctxOrgId) {
+        const { data: ctxRows } = await supabase
+          .from('organisation_members')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('organisation_id', ctxOrgId)
+          .eq('is_active', true)
+          .limit(1)
+        // If found, use it — otherwise fall through to default
+        if (ctxRows?.[0]) return ctxRows[0] as OrganisationMember
+      }
+
+      // Default: oldest membership (the user's own original org)
+      const { data, error } = await supabase
         .from('organisation_members')
         .select('*')
         .eq('user_id', user.id)
         .eq('is_active', true)
         .order('created_at', { ascending: true })
-      if (ctxOrgId) q = q.eq('organisation_id', ctxOrgId)
-      const { data, error } = await q.limit(1)
-      if (error) return null
+        .limit(1)
+      if (error) {
+        console.error('[useOrganisation] membership query failed:', error)
+        return null
+      }
       return (data?.[0] ?? null) as OrganisationMember | null
     },
-    enabled: !!user,
   })
 
   const { data: organisation, isLoading: orgLoading } = useQuery({
     queryKey: ['organisation', member?.organisation_id],
+    enabled: !!member,
     queryFn: async () => {
       if (!member) return null
       const { data, error } = await supabase
         .from('organisations')
         .select('*')
         .eq('id', member.organisation_id)
-        .single()
-      if (error) return null
-      return data as Organisation
+        .maybeSingle()
+      if (error) {
+        console.error('[useOrganisation] org query failed:', error)
+        return null
+      }
+      return data as Organisation | null
     },
-    enabled: !!member,
   })
 
   const { data: modules = [] } = useQuery({
     queryKey: ['module_access', member?.organisation_id],
+    enabled: !!member,
     queryFn: async () => {
       if (!member) return []
       const { data, error } = await supabase
@@ -64,10 +84,12 @@ export function useOrganisation(): OrganisationContext {
         .select('*')
         .eq('organisation_id', member.organisation_id)
         .eq('is_active', true)
-      if (error) return []
+      if (error) {
+        console.error('[useOrganisation] modules query failed:', error)
+        return []
+      }
       return data as ModuleAccess[]
     },
-    enabled: !!member,
   })
 
   return {
