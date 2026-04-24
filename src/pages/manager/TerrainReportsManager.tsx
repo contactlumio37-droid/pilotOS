@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { MapPin, Check, ArrowRight, X } from 'lucide-react'
+import { MapPin, Check, ArrowRight, X, ShieldAlert } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useOrganisation } from '@/hooks/useOrganisation'
 import { useAuth } from '@/hooks/useAuth'
@@ -90,6 +90,36 @@ export default function TerrainReportsManager() {
   const createAction = useCreateAction()
   const [convertingReport, setConvertingReport] = useState<TerrainReport | null>(null)
 
+  const createIncident = useMutation({
+    mutationFn: async (report: TerrainReport) => {
+      const { error } = await supabase.from('incidents').insert({
+        organisation_id:  organisation!.id,
+        incident_type:    'dangerous_situation',
+        title:            report.title,
+        description:      report.description ?? null,
+        occurred_at:      report.created_at,
+        location:         report.location ?? null,
+        declared_by:      user?.id ?? null,
+        terrain_report_id: report.id,
+        status:           'open',
+        visibility:       'confidential',
+      })
+      if (error) throw error
+      // Mark report as acknowledged if still pending
+      if (report.status === 'pending') {
+        await supabase.from('terrain_reports').update({
+          status:          'acknowledged',
+          acknowledged_by: user?.id,
+          acknowledged_at: new Date().toISOString(),
+        }).eq('id', report.id)
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['terrain_reports_manager'] })
+      queryClient.invalidateQueries({ queryKey: ['incidents'] })
+    },
+  })
+
   const { data: reports = [], isLoading } = useQuery({
     queryKey: ['terrain_reports_manager', organisation?.id],
     queryFn: async () => {
@@ -171,7 +201,7 @@ export default function TerrainReportsManager() {
                     report={report}
                     borderClass="border-l-warning"
                     actions={
-                      <div className="flex gap-2 shrink-0">
+                      <div className="flex gap-2 shrink-0 flex-wrap">
                         <button
                           onClick={() => acknowledge.mutate(report.id)}
                           className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1"
@@ -179,6 +209,16 @@ export default function TerrainReportsManager() {
                           <Check className="w-3 h-3" />
                           Prendre en compte
                         </button>
+                        {report.category === 'safety' && (
+                          <button
+                            onClick={() => createIncident.mutate(report)}
+                            disabled={createIncident.isPending}
+                            className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1 text-amber-700 border-amber-300 hover:bg-amber-50"
+                          >
+                            <ShieldAlert className="w-3 h-3" />
+                            Déclarer incident
+                          </button>
+                        )}
                         <button
                           onClick={() => setConvertingReport(report)}
                           className="btn-primary text-xs py-1.5 px-3 flex items-center gap-1"

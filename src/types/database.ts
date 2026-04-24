@@ -662,3 +662,111 @@ export interface OrganisationMemberWithProfile extends OrganisationMember {
 export interface DocumentWithFolder extends Document {
   folder?: Pick<DocumentFolder, 'id' | 'name'> | null
 }
+
+// ============================================================
+// Sprint 9 — Module Sécurité / QSE
+// ============================================================
+
+export interface DuerEvaluation {
+  id: string
+  organisation_id: string
+  site_id: string | null
+  work_unit: string
+  hazard: string
+  risk_description: string
+  probability: number
+  severity: number
+  risk_score: number
+  prevention_measures: string | null
+  residual_risk: number | null
+  responsible_id: string | null
+  review_date: string | null
+  status: 'active' | 'archived' | 'under_review'
+  visibility: string
+  visibility_user_ids: string[]
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface PreventionPlan {
+  id: string
+  organisation_id: string
+  site_id: string | null
+  external_company: string
+  activity: string
+  start_date: string
+  end_date: string | null
+  prevention_measures: string | null
+  inspector_id: string | null
+  status: 'draft' | 'active' | 'completed' | 'cancelled'
+  visibility: string
+  visibility_user_ids: string[]
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface Incident {
+  id: string
+  organisation_id: string
+  site_id: string | null
+  ref: string | null
+  incident_type: 'accident' | 'near_miss' | 'dangerous_situation' | 'first_aid'
+  title: string
+  description: string | null
+  occurred_at: string
+  location: string | null
+  victim_id: string | null
+  declared_by: string | null
+  root_causes: string | null
+  contributing_factors: string | null
+  action_id: string | null
+  terrain_report_id: string | null
+  status: 'open' | 'under_analysis' | 'action_in_progress' | 'closed'
+  closed_at: string | null
+  closed_by: string | null
+  visibility: string
+  visibility_user_ids: string[]
+  created_at: string
+  updated_at: string
+}
+
+export interface SafetyVisit {
+  id: string
+  organisation_id: string
+  site_id: string | null
+  visit_type: 'planned' | 'unannounced' | 'audit' | 'inspection'
+  planned_at: string
+  conducted_at: string | null
+  inspector_id: string | null
+  scope: string | null
+  observations: string | null
+  action_count: number
+  action_id: string | null
+  status: 'planned' | 'completed' | 'cancelled'
+  visibility: string
+  visibility_user_ids: string[]
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface RegulatoryItem {
+  id: string
+  organisation_id: string
+  obligation: string
+  legal_reference: string | null
+  category: 'inspection' | 'training' | 'document' | 'equipment' | 'other'
+  frequency: string | null
+  due_date: string | null
+  last_done_at: string | null
+  responsible_id: string | null
+  status: 'ok' | 'due_soon' | 'overdue' | 'na'
+  notes: string | null
+  visibility: string
+  visibility_user_ids: string[]
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
