@@ -103,11 +103,12 @@ export async function awardBadge(
 
   if (existing) return
 
-  await supabase.from('user_badges').insert({
+  const { error } = await supabase.from('user_badges').insert({
     user_id:         userId,
     organisation_id: organisationId,
     badge,
   })
+  if (error) console.error('✗ [awardBadge]', badge, error.message)
 }
 
 // Check conditions and award any earned badges — call after significant user actions
