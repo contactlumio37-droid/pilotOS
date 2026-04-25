@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { Calendar, ArrowRight } from 'lucide-react'
@@ -21,6 +22,7 @@ const STATUS_LABELS: Record<Action['status'], string> = {
 export default function TerrainMyActionsPage() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
+  const [updateError, setUpdateError] = useState<string | null>(null)
 
   const { data: actions = [], isLoading } = useQuery({
     queryKey: ['my_actions', user?.id],
@@ -40,18 +42,33 @@ export default function TerrainMyActionsPage() {
 
   const updateStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: Action['status'] }) => {
-      const { error } = await supabase
+      console.log('→ [TerrainUpdateStatus]', { userId: user?.id, id, status })
+      const { data, error } = await supabase
         .from('actions')
         .update({
           status,
           ...(status === 'done' ? { completed_at: new Date().toISOString() } : {}),
         })
         .eq('id', id)
-      if (error) throw error
+        .select()
+        .maybeSingle()
+      if (error) {
+        console.error('✗ [TerrainUpdateStatus]', error.message)
+        throw error
+      }
+      if (!data) {
+        const err = new Error('Action introuvable ou accès refusé par la politique de sécurité')
+        console.error('✗ [TerrainUpdateStatus] 0 rows', err.message)
+        throw err
+      }
+      console.log('✓ [TerrainUpdateStatus] enregistré', data)
+      return data as Action
     },
     onSuccess: () => {
+      setUpdateError(null)
       queryClient.invalidateQueries({ queryKey: ['my_actions'] })
     },
+    onError: (err: Error) => setUpdateError(err.message),
   })
 
   if (isLoading) {
@@ -79,6 +96,12 @@ export default function TerrainMyActionsPage() {
   return (
     <div className="max-w-lg mx-auto p-4 pt-8">
       <h1 className="text-2xl font-bold text-slate-900 mb-6">Mes actions</h1>
+
+      {updateError && (
+        <div className="mb-4 bg-red-50 text-red-700 text-sm rounded-xl px-4 py-3">
+          {updateError}
+        </div>
+      )}
 
       <div className="space-y-3">
         {actions.map((action, i) => {

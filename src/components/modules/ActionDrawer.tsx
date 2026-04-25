@@ -206,6 +206,20 @@ export default function ActionDrawer({ open, onClose, action }: ActionDrawerProp
         </div>
       )}
 
+      {(createAction.isError || updateAction.isError) && (
+        <div className="mb-4 bg-red-50 text-red-700 text-sm rounded-xl px-4 py-3">
+          {(createAction.error as Error | null)?.message
+            ?? (updateAction.error as Error | null)?.message
+            ?? 'Une erreur est survenue. Réessayez.'}
+        </div>
+      )}
+
+      {addComment.isError && (
+        <div className="mb-2 bg-red-50 text-red-700 text-xs rounded-lg px-3 py-2">
+          {(addComment.error as Error | null)?.message ?? 'Erreur lors de l\'ajout du commentaire.'}
+        </div>
+      )}
+
       <form id="action-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         {/* Titre */}
         <div>

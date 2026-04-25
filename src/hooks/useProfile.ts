@@ -26,13 +26,22 @@ export function useUpdateProfile() {
   const { user } = useAuth()
   return useMutation({
     mutationFn: async (payload: Partial<Pick<Profile, 'full_name' | 'phone' | 'job_title' | 'avatar_url'>>) => {
+      console.log('→ [UpdateProfile]', { userId: user?.id, payload })
+      if (!user?.id) {
+        console.warn('✗ [UpdateProfile] utilisateur non authentifié')
+        throw new Error('Utilisateur non authentifié')
+      }
       const { data, error } = await supabase
         .from('profiles')
         .update({ ...payload, updated_at: new Date().toISOString() })
-        .eq('id', user!.id)
+        .eq('id', user.id)
         .select()
         .single()
-      if (error) throw error
+      if (error) {
+        console.error('✗ [UpdateProfile]', error.message)
+        throw error
+      }
+      console.log('✓ [UpdateProfile] enregistré', data)
       return data as Profile
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['profile'] }),
@@ -42,8 +51,13 @@ export function useUpdateProfile() {
 export function useChangePassword() {
   return useMutation({
     mutationFn: async (newPassword: string) => {
+      console.log('→ [ChangePassword]')
       const { error } = await supabase.auth.updateUser({ password: newPassword })
-      if (error) throw error
+      if (error) {
+        console.error('✗ [ChangePassword]', error.message)
+        throw error
+      }
+      console.log('✓ [ChangePassword] mot de passe modifié')
     },
   })
 }

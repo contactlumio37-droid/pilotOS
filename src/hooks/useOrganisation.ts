@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import type { Organisation, OrganisationMember, ModuleAccess } from '@/types/database'
@@ -5,8 +6,17 @@ import { useAuth } from './useAuth'
 
 // ── Org context (superadmin org-switching) ────────────────────
 export const ORG_CONTEXT_KEY = 'pilotos_org_ctx'
-export function setOrgContext(orgId: string): void { sessionStorage.setItem(ORG_CONTEXT_KEY, orgId) }
-export function clearOrgContext(): void { sessionStorage.removeItem(ORG_CONTEXT_KEY) }
+const ORG_CONTEXT_EVENT = 'pilotos-org-changed'
+
+export function setOrgContext(orgId: string): void {
+  sessionStorage.setItem(ORG_CONTEXT_KEY, orgId)
+  window.dispatchEvent(new Event(ORG_CONTEXT_EVENT))
+}
+
+export function clearOrgContext(): void {
+  sessionStorage.removeItem(ORG_CONTEXT_KEY)
+  window.dispatchEvent(new Event(ORG_CONTEXT_EVENT))
+}
 
 // ── Hook ─────────────────────────────────────────────────────
 
@@ -19,7 +29,15 @@ interface OrganisationContext {
 
 export function useOrganisation(): OrganisationContext {
   const { user } = useAuth()
-  const ctxOrgId = sessionStorage.getItem(ORG_CONTEXT_KEY)
+  const [ctxOrgId, setCtxOrgId] = useState<string | null>(
+    () => sessionStorage.getItem(ORG_CONTEXT_KEY),
+  )
+
+  useEffect(() => {
+    const sync = () => setCtxOrgId(sessionStorage.getItem(ORG_CONTEXT_KEY))
+    window.addEventListener(ORG_CONTEXT_EVENT, sync)
+    return () => window.removeEventListener(ORG_CONTEXT_EVENT, sync)
+  }, [])
 
   const { data: member, isLoading: memberLoading } = useQuery({
     queryKey: ['organisation_member', user?.id, ctxOrgId],

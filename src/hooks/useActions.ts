@@ -132,6 +132,7 @@ export function useCreateAction() {
 
   return useMutation({
     mutationFn: async (payload: ActionInsertPayload) => {
+      console.log('→ [CreateAction]', { userId: user?.id, organisationId: organisation?.id, payload })
       const { data, error } = await supabase
         .from('actions')
         .insert({
@@ -144,7 +145,11 @@ export function useCreateAction() {
         })
         .select()
         .single()
-      if (error) throw error
+      if (error) {
+        console.error('✗ [CreateAction]', error.message)
+        throw error
+      }
+      console.log('✓ [CreateAction] enregistré', data)
       return data as Action
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: [ACTIONS_KEY] }),
@@ -156,11 +161,24 @@ export function useUpdateAction() {
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Action> & { id: string }) => {
-      const { error } = await supabase
+      console.log('→ [UpdateAction]', { id, updates })
+      const { data, error } = await supabase
         .from('actions')
         .update(updates)
         .eq('id', id)
-      if (error) throw error
+        .select()
+        .maybeSingle()
+      if (error) {
+        console.error('✗ [UpdateAction]', error.message)
+        throw error
+      }
+      if (!data) {
+        const err = new Error('Action introuvable ou accès refusé par la politique de sécurité')
+        console.error('✗ [UpdateAction] 0 rows', err.message)
+        throw err
+      }
+      console.log('✓ [UpdateAction] enregistré', data)
+      return data as Action
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: [ACTIONS_KEY] }),
   })
@@ -172,10 +190,15 @@ export function useAddComment() {
 
   return useMutation({
     mutationFn: async ({ actionId, content }: { actionId: string; content: string }) => {
+      console.log('→ [AddComment]', { userId: user?.id, actionId })
       const { error } = await supabase
         .from('action_comments')
         .insert({ action_id: actionId, user_id: user!.id, content })
-      if (error) throw error
+      if (error) {
+        console.error('✗ [AddComment]', error.message)
+        throw error
+      }
+      console.log('✓ [AddComment] enregistré')
     },
     onSuccess: (_data, variables) =>
       qc.invalidateQueries({ queryKey: ['action-comments', variables.actionId] }),
