@@ -166,7 +166,15 @@ export default function DuerPage() {
                       <button onClick={() => setDrawer(item)} className="btn-secondary py-1.5 px-2">
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
-                      <button onClick={() => deleteDuer.mutate(item.id)} className="btn-secondary py-1.5 px-2 text-slate-400 hover:text-danger-600">
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`Archiver "${item.hazard}" ? Cette évaluation sera masquée de la liste active.`)) {
+                            deleteDuer.mutate(item.id)
+                          }
+                        }}
+                        disabled={deleteDuer.isPending}
+                        className="btn-secondary py-1.5 px-2 text-slate-400 hover:text-danger-600 disabled:opacity-50"
+                      >
                         <Archive className="w-3.5 h-3.5" />
                       </button>
                     </div>

@@ -187,25 +187,28 @@ export default function AdminSettings() {
           <div className="flex items-center gap-3 mb-4">
             <Bell className="w-5 h-5 text-brand-600" />
             <h2 className="font-semibold text-slate-900">Notifications</h2>
+            <span className="badge badge-neutral text-xs">Bientôt disponible</span>
           </div>
-          <div className="space-y-3 text-sm text-slate-600">
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" defaultChecked className="rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
-              <span>Actions en retard (rappel quotidien)</span>
-            </label>
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" defaultChecked className="rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
-              <span>Nouveaux signalements terrain</span>
-            </label>
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" defaultChecked className="rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
-              <span>Revues de processus à venir (J-7)</span>
-            </label>
-            <label className="flex items-center gap-3 cursor-pointer">
-              <input type="checkbox" className="rounded border-slate-300 text-brand-600 focus:ring-brand-500" />
-              <span>Résumé hebdomadaire par email</span>
-            </label>
+          <div className="space-y-3 text-sm text-slate-400">
+            {[
+              'Actions en retard (rappel quotidien)',
+              'Nouveaux signalements terrain',
+              'Revues de processus à venir (J-7)',
+              'Résumé hebdomadaire par email',
+            ].map(label => (
+              <label key={label} className="flex items-center gap-3 cursor-not-allowed">
+                <input
+                  type="checkbox"
+                  disabled
+                  className="rounded border-slate-200 text-slate-300 focus:ring-0"
+                />
+                <span>{label}</span>
+              </label>
+            ))}
           </div>
+          <p className="text-xs text-slate-400 mt-4">
+            La configuration des notifications par membre sera disponible dans une prochaine version.
+          </p>
         </div>
 
         {/* Billing */}

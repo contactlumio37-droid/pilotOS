@@ -47,28 +47,47 @@ function DocumentRow({ doc, onClick }: { doc: Document; onClick: () => void }) {
 }
 
 interface CreateFolderFormProps {
-  onConfirm: (name: string) => void
+  onConfirm: (name: string) => Promise<void>
   onCancel: () => void
 }
 
 function CreateFolderForm({ onConfirm, onCancel }: CreateFolderFormProps) {
   const [name, setName] = useState('')
+  const [isPending, setIsPending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function submit(n: string) {
+    if (!n) return
+    setError(null)
+    setIsPending(true)
+    try {
+      await onConfirm(n)
+    } catch {
+      setError('Erreur lors de la création du dossier.')
+      setIsPending(false)
+    }
+  }
+
   return (
-    <div className="flex items-center gap-2 mb-4">
-      <input
-        autoFocus
-        value={name}
-        onChange={e => setName(e.target.value)}
-        onKeyDown={e => { if (e.key === 'Enter') onConfirm(name.trim()); if (e.key === 'Escape') onCancel() }}
-        placeholder="Nom du dossier"
-        className="input flex-1"
-      />
-      <button onClick={() => onConfirm(name.trim())} disabled={!name.trim()} className="btn-primary">
-        Créer
-      </button>
-      <button onClick={onCancel} className="btn-secondary">
-        <X className="w-4 h-4" />
-      </button>
+    <div className="mb-4">
+      <div className="flex items-center gap-2">
+        <input
+          autoFocus
+          value={name}
+          onChange={e => setName(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') submit(name.trim()); if (e.key === 'Escape') onCancel() }}
+          placeholder="Nom du dossier"
+          className="input flex-1"
+          disabled={isPending}
+        />
+        <button onClick={() => submit(name.trim())} disabled={!name.trim() || isPending} className="btn-primary">
+          {isPending ? 'Création…' : 'Créer'}
+        </button>
+        <button onClick={onCancel} className="btn-secondary" disabled={isPending}>
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+      {error && <p className="text-xs text-danger mt-1">{error}</p>}
     </div>
   )
 }
@@ -109,6 +128,7 @@ export default function DocumentsPage() {
     await createFolder.mutateAsync({ name, parent_id: activeFolderId ?? null })
     setShowNewFolder(false)
   }
+
 
   const currentFolder = folders.find(f => f.id === activeFolderId)
   const subFolders = folders.filter(f => f.parent_id === activeFolderId)

@@ -73,6 +73,31 @@ function useEnsureOrgAccess() {
   })
 }
 
+function PlanSelect({ org, updatePlan }: { org: OrgWithMemberCount; updatePlan: ReturnType<typeof useUpdateOrgPlan> }) {
+  const [localPlan, setLocalPlan] = useState<Plan>(org.plan)
+  return (
+    <select
+      value={localPlan}
+      disabled={updatePlan.isPending}
+      onChange={async e => {
+        const newPlan = e.target.value as Plan
+        const prev = localPlan
+        setLocalPlan(newPlan)
+        try {
+          await updatePlan.mutateAsync({ id: org.id, plan: newPlan })
+        } catch {
+          setLocalPlan(prev)
+        }
+      }}
+      className="text-sm bg-slate-700 border border-slate-600 text-white rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:opacity-50"
+    >
+      {PLANS.map(p => (
+        <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
+      ))}
+    </select>
+  )
+}
+
 export default function SuperAdminOrgs() {
   const [search, setSearch] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -161,15 +186,7 @@ export default function SuperAdminOrgs() {
                   <div className="px-6 pb-4 pt-1 border-t border-slate-700 flex items-center gap-4 flex-wrap">
                     <div>
                       <p className="text-xs text-slate-500 mb-1">Plan</p>
-                      <select
-                        defaultValue={org.plan}
-                        onChange={e => updatePlan.mutate({ id: org.id, plan: e.target.value as Plan })}
-                        className="text-sm bg-slate-700 border border-slate-600 text-white rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                      >
-                        {PLANS.map(p => (
-                          <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>
-                        ))}
-                      </select>
+                      <PlanSelect org={org} updatePlan={updatePlan} />
                     </div>
 
                     <div>
@@ -190,8 +207,9 @@ export default function SuperAdminOrgs() {
                       {/* Toggle IA */}
                       <button
                         onClick={() => toggleAi.mutate({ id: org.id, ai_enabled: !org.ai_enabled })}
+                        disabled={toggleAi.isPending}
                         title={org.ai_enabled ? 'Désactiver l\'IA' : 'Activer l\'IA'}
-                        className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+                        className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-50 ${
                           org.ai_enabled
                             ? 'border-brand-500 text-brand-400 bg-brand-900/20'
                             : 'border-slate-600 text-slate-500 hover:border-slate-500'
@@ -215,7 +233,8 @@ export default function SuperAdminOrgs() {
                       {/* Activer / désactiver org */}
                       <button
                         onClick={() => toggleActive.mutate({ id: org.id, is_active: !org.is_active })}
-                        className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+                        disabled={toggleActive.isPending}
+                        className={`text-xs px-3 py-1.5 rounded-lg border transition-colors disabled:opacity-50 ${
                           org.is_active
                             ? 'border-red-700 text-red-400 hover:bg-red-900/30'
                             : 'border-green-700 text-green-400 hover:bg-green-900/30'

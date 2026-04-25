@@ -61,6 +61,12 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {updateAction.isError && (
+          <div className="bg-danger-light text-danger text-xs rounded-lg px-3 py-2 mb-3">
+            Erreur lors de la mise à jour du statut. Veuillez réessayer.
+          </div>
+        )}
+
         {!isLoading && actions.length > 0 && (
           <div className="divide-y divide-slate-50">
             {actions.map(action => (
@@ -76,8 +82,9 @@ export default function DashboardPage() {
                 </div>
                 <select
                   value={action.status}
+                  disabled={updateAction.isPending}
                   onChange={e => updateAction.mutate({ id: action.id, status: e.target.value as ActionStatus })}
-                  className={`text-xs font-medium border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 ${STATUS_COLOR[action.status]}`}
+                  className={`text-xs font-medium border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:opacity-50 ${STATUS_COLOR[action.status]}`}
                 >
                   {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>

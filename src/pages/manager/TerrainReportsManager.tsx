@@ -35,9 +35,10 @@ interface ConvertModalProps {
   onClose: () => void
   onConfirm: (title: string) => void
   isPending: boolean
+  error?: string | null
 }
 
-function ConvertModal({ report, onClose, onConfirm, isPending }: ConvertModalProps) {
+function ConvertModal({ report, onClose, onConfirm, isPending, error }: ConvertModalProps) {
   const [title, setTitle] = useState(report.title)
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
@@ -56,6 +57,12 @@ function ConvertModal({ report, onClose, onConfirm, isPending }: ConvertModalPro
         <p className="text-sm text-slate-500 mb-4">
           Une action sera créée à partir de ce signalement. Vous pouvez modifier son titre.
         </p>
+
+        {error && (
+          <div className="bg-danger-light text-danger text-sm rounded-lg px-4 py-3 mb-4">
+            {error}
+          </div>
+        )}
 
         <div className="mb-4">
           <label className="label">Titre de l'action</label>
@@ -89,6 +96,7 @@ export default function TerrainReportsManager() {
   const queryClient = useQueryClient()
   const createAction = useCreateAction()
   const [convertingReport, setConvertingReport] = useState<TerrainReport | null>(null)
+  const [convertError, setConvertError] = useState<string | null>(null)
 
   const createIncident = useMutation({
     mutationFn: async (report: TerrainReport) => {
@@ -151,22 +159,28 @@ export default function TerrainReportsManager() {
   })
 
   async function handleConvert(report: TerrainReport, actionTitle: string) {
-    const action = await createAction.mutateAsync({
-      title: actionTitle,
-      description: report.description ?? undefined,
-      origin: 'terrain',
-      status: 'todo',
-      priority: 'medium',
-    })
+    setConvertError(null)
+    try {
+      const action = await createAction.mutateAsync({
+        title: actionTitle,
+        description: report.description ?? undefined,
+        origin: 'terrain',
+        status: 'todo',
+        priority: 'medium',
+      })
 
-    // Mark report as converted + link to action
-    await supabase
-      .from('terrain_reports')
-      .update({ status: 'converted', action_id: action.id })
-      .eq('id', report.id)
+      const { error } = await supabase
+        .from('terrain_reports')
+        .update({ status: 'converted', action_id: action.id })
+        .eq('id', report.id)
 
-    queryClient.invalidateQueries({ queryKey: ['terrain_reports_manager'] })
-    setConvertingReport(null)
+      if (error) throw error
+
+      queryClient.invalidateQueries({ queryKey: ['terrain_reports_manager'] })
+      setConvertingReport(null)
+    } catch {
+      setConvertError("Erreur lors de la conversion. L'action a peut-être été créée — vérifiez le module Actions.")
+    }
   }
 
   const pending  = reports.filter(r => r.status === 'pending')
@@ -220,7 +234,7 @@ export default function TerrainReportsManager() {
                           </button>
                         )}
                         <button
-                          onClick={() => setConvertingReport(report)}
+                          onClick={() => { setConvertError(null); setConvertingReport(report) }}
                           className="btn-primary text-xs py-1.5 px-3 flex items-center gap-1"
                         >
                           <ArrowRight className="w-3 h-3" />
@@ -242,7 +256,7 @@ export default function TerrainReportsManager() {
                     borderClass="border-l-brand-400"
                     actions={
                       <button
-                        onClick={() => setConvertingReport(report)}
+                        onClick={() => { setConvertError(null); setConvertingReport(report) }}
                         className="btn-primary text-xs py-1.5 px-3 shrink-0 flex items-center gap-1"
                       >
                         <ArrowRight className="w-3 h-3" />
@@ -283,9 +297,10 @@ export default function TerrainReportsManager() {
       {convertingReport && (
         <ConvertModal
           report={convertingReport}
-          onClose={() => setConvertingReport(null)}
+          onClose={() => { setConvertingReport(null); setConvertError(null) }}
           onConfirm={title => handleConvert(convertingReport, title)}
           isPending={createAction.isPending}
+          error={convertError}
         />
       )}
     </div>

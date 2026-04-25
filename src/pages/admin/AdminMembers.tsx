@@ -106,6 +106,35 @@ export default function AdminMembers() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['members', organisation?.id] }),
   })
 
+  function RoleSelect({ member }: { member: MemberWithProfile }) {
+    const [localRole, setLocalRole] = useState<UserRole>(member.role as UserRole)
+    const [error, setError] = useState(false)
+    return (
+      <div>
+        <select
+          value={localRole}
+          disabled={updateRoleMutation.isPending}
+          onChange={async e => {
+            const newRole = e.target.value as UserRole
+            const prev = localRole
+            setLocalRole(newRole)
+            setError(false)
+            try {
+              await updateRoleMutation.mutateAsync({ memberId: member.id, role: newRole })
+            } catch {
+              setLocalRole(prev)
+              setError(true)
+            }
+          }}
+          className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 text-slate-700 disabled:opacity-50"
+        >
+          {INVITABLE_ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+        </select>
+        {error && <p className="text-xs text-danger mt-1">Erreur — réessayez</p>}
+      </div>
+    )
+  }
+
   const deactivateMutation = useMutation({
     mutationFn: async (memberId: string) => {
       const { error } = await supabase
@@ -237,13 +266,7 @@ export default function AdminMembers() {
                       {member.role === 'superadmin' ? (
                         <span className="badge badge-danger">Super Admin</span>
                       ) : (
-                        <select
-                          defaultValue={member.role}
-                          onChange={e => updateRoleMutation.mutate({ memberId: member.id, role: e.target.value as UserRole })}
-                          className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 text-slate-700"
-                        >
-                          {INVITABLE_ROLES.map(r => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
-                        </select>
+                        <RoleSelect member={member} />
                       )}
                     </td>
                     <td className="px-6 py-4">
