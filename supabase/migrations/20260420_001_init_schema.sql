@@ -10,7 +10,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- ============================================================
 -- Organisations
 -- ============================================================
-CREATE TABLE organisations (
+CREATE TABLE IF NOT EXISTS organisations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   slug TEXT UNIQUE NOT NULL,
@@ -35,7 +35,7 @@ ALTER TABLE organisations ENABLE ROW LEVEL SECURITY;
 -- ============================================================
 -- Sites
 -- ============================================================
-CREATE TABLE sites (
+CREATE TABLE IF NOT EXISTS sites (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organisation_id UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
@@ -49,7 +49,7 @@ ALTER TABLE sites ENABLE ROW LEVEL SECURITY;
 -- ============================================================
 -- Profils utilisateurs (extension auth.users)
 -- ============================================================
-CREATE TABLE profiles (
+CREATE TABLE IF NOT EXISTS profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   full_name TEXT,
   avatar_url TEXT,
@@ -63,7 +63,7 @@ ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 -- ============================================================
 -- Membres d'organisation
 -- ============================================================
-CREATE TABLE organisation_members (
+CREATE TABLE IF NOT EXISTS organisation_members (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organisation_id UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -85,7 +85,7 @@ ALTER TABLE organisation_members ENABLE ROW LEVEL SECURITY;
 -- ============================================================
 -- Accès modules par organisation
 -- ============================================================
-CREATE TABLE module_access (
+CREATE TABLE IF NOT EXISTS module_access (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organisation_id UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
   module TEXT NOT NULL
@@ -108,6 +108,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS organisations_updated_at ON organisations;
 CREATE TRIGGER organisations_updated_at
   BEFORE UPDATE ON organisations
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -128,6 +129,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION handle_new_user();

@@ -3,7 +3,7 @@
 -- ============================================================
 -- Actions (plan d'actions transversal)
 -- ============================================================
-CREATE TABLE actions (
+CREATE TABLE IF NOT EXISTS actions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organisation_id UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
   project_id UUID REFERENCES projects(id),
@@ -35,20 +35,21 @@ CREATE TABLE actions (
 
 ALTER TABLE actions ENABLE ROW LEVEL SECURITY;
 
+DROP TRIGGER IF EXISTS actions_updated_at ON actions;
 CREATE TRIGGER actions_updated_at
   BEFORE UPDATE ON actions
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- Indexation pour les requêtes fréquentes
-CREATE INDEX actions_organisation_id_idx ON actions(organisation_id);
-CREATE INDEX actions_responsible_id_idx ON actions(responsible_id);
-CREATE INDEX actions_status_idx ON actions(status);
-CREATE INDEX actions_due_date_idx ON actions(due_date);
+CREATE INDEX IF NOT EXISTS actions_organisation_id_idx ON actions(organisation_id);
+CREATE INDEX IF NOT EXISTS actions_responsible_id_idx ON actions(responsible_id);
+CREATE INDEX IF NOT EXISTS actions_status_idx ON actions(status);
+CREATE INDEX IF NOT EXISTS actions_due_date_idx ON actions(due_date);
 
 -- ============================================================
 -- Commentaires sur actions
 -- ============================================================
-CREATE TABLE action_comments (
+CREATE TABLE IF NOT EXISTS action_comments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   action_id UUID NOT NULL REFERENCES actions(id) ON DELETE CASCADE,
   user_id UUID REFERENCES auth.users(id),

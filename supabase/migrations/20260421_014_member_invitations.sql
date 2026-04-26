@@ -2,7 +2,7 @@
 -- Permet aux admins d'inviter des utilisateurs par email.
 -- L'invitation est acceptée via accept_invitation() au premier login.
 
-CREATE TABLE member_invitations (
+CREATE TABLE IF NOT EXISTS member_invitations (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organisation_id UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
   email           TEXT NOT NULL,

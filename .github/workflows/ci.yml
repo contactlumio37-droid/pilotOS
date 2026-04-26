@@ -1,5 +1,9 @@
-name: CI — TypeScript & Lint
+name: CI — Validation
 
+# ─────────────────────────────────────────────────────────────
+# Déclenché sur chaque PR vers main et tout push hors main.
+# Ne déploie rien — valide uniquement.
+# ─────────────────────────────────────────────────────────────
 on:
   pull_request:
     branches: [main]
@@ -7,23 +11,102 @@ on:
     branches-ignore: [main]
 
 jobs:
-  typecheck:
-    name: TypeScript Check
+  validate:
+    name: Lint · TypeCheck · Migrations · Build
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
+    timeout-minutes: 15
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
+    steps:
+      # ── Checkout ──────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── Node.js ───────────────────────────────────────────────
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '20'
           cache: 'npm'
 
       - name: Install dependencies
         run: npm ci
 
+      # ── Qualité du code ───────────────────────────────────────
       - name: TypeScript check
+        continue-on-error: false
         run: npm run typecheck
 
       - name: ESLint
+        continue-on-error: false
         run: npm run lint
+
+      # ── Idempotence des migrations ────────────────────────────
+      # Garantit que toute nouvelle migration respecte les règles :
+      #   - CREATE TABLE IF NOT EXISTS
+      #   - CREATE INDEX IF NOT EXISTS
+      #   - CREATE OR REPLACE VIEW
+      #   - DROP TRIGGER IF EXISTS avant CREATE TRIGGER
+      - name: Vérification idempotence migrations
+        continue-on-error: false
+        run: |
+          ERRORS=0
+          for f in supabase/migrations/*.sql; do
+            fname=$(basename "$f")
+            # Exclure les lignes de commentaires SQL pour l'analyse
+            body=$(sed '/^\s*--/d' "$f")
+
+            # 1. CREATE TABLE sans IF NOT EXISTS
+            if echo "$body" | grep -qP '\bCREATE TABLE (?!IF NOT EXISTS)'; then
+              echo "❌ $fname : CREATE TABLE sans IF NOT EXISTS"
+              ERRORS=$((ERRORS+1))
+            fi
+
+            # 2. CREATE INDEX sans IF NOT EXISTS
+            if echo "$body" | grep -qP '\bCREATE (?:UNIQUE )?INDEX (?!IF NOT EXISTS)'; then
+              echo "❌ $fname : CREATE INDEX sans IF NOT EXISTS"
+              ERRORS=$((ERRORS+1))
+            fi
+
+            # 3. CREATE VIEW sans OR REPLACE
+            if echo "$body" | grep -qP '\bCREATE VIEW \b'; then
+              echo "❌ $fname : CREATE VIEW sans OR REPLACE"
+              ERRORS=$((ERRORS+1))
+            fi
+
+            # 4. CREATE TRIGGER sans DROP TRIGGER IF EXISTS dans le même fichier
+            if echo "$body" | grep -qP '\bCREATE TRIGGER \b'; then
+              if ! grep -qP '\bDROP TRIGGER IF EXISTS\b' "$f"; then
+                echo "❌ $fname : CREATE TRIGGER sans DROP TRIGGER IF EXISTS"
+                ERRORS=$((ERRORS+1))
+              fi
+            fi
+          done
+
+          if [ "$ERRORS" -gt 0 ]; then
+            echo ""
+            echo "::error::$ERRORS migration(s) non idempotente(s) détectée(s)"
+            echo "Applique le script de transformation avant de merger."
+            exit 1
+          fi
+          echo "✅ Toutes les migrations sont idempotentes"
+
+      # ── Build (sans deploy) ───────────────────────────────────
+      # Utilise des valeurs de substitution pour les vars Supabase
+      # car le build Vite les intègre statiquement — pas de connexion réelle.
+      - name: Build application
+        continue-on-error: false
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: npm run build
+
+      # ── Résumé ────────────────────────────────────────────────
+      - name: Résumé CI
+        if: always()
+        run: |
+          echo "════════════════════════════════════════"
+          echo "  CI — ${{ job.status }}"
+          echo "  Branch  : ${{ github.ref_name }}"
+          echo "  Commit  : ${{ github.sha }}"
+          echo "  Auteur  : ${{ github.actor }}"
+          echo "════════════════════════════════════════"

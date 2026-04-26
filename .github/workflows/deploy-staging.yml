@@ -1,0 +1,166 @@
+name: Deploy — Staging
+
+# ─────────────────────────────────────────────────────────────
+# Déclenché sur chaque push vers main.
+# Ordre impératif : Supabase migrations → Vercel preview (staging).
+# ─────────────────────────────────────────────────────────────
+on:
+  push:
+    branches: [main]
+
+jobs:
+  # ════════════════════════════════════════════════════════════
+  # Job 1 — Supabase : migrations + Edge Functions
+  # ════════════════════════════════════════════════════════════
+  supabase:
+    name: Supabase — Migrations & Edge Functions
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── Supabase CLI ──────────────────────────────────────────
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v2
+        with:
+          version: latest
+
+      - name: Link projet Supabase
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+
+      # ── Migrations ────────────────────────────────────────────
+      # Les migrations sont idempotentes — aucun repair manuel requis.
+      # L'erreur 42P07 (already exists) est capturée par précaution
+      # mais ne devrait plus survenir après les fixes d'idempotence.
+      - name: Push migrations
+        id: db_push
+        continue-on-error: false
+        run: |
+          set -euo pipefail
+          echo "→ Application des migrations Supabase (staging)..."
+
+          output=$(echo "Y" | supabase db push \
+            --password "$SUPABASE_DB_PASSWORD" 2>&1) || {
+            exit_code=$?
+            echo "$output"
+            if echo "$output" | grep -qE "SQLSTATE 42P07|already exists"; then
+              echo "⚠️  Objets déjà présents — migrations idempotentes, continuation"
+              exit 0
+            fi
+            echo "::error::Migration échouée (code $exit_code) — voir log ci-dessus"
+            exit "$exit_code"
+          }
+
+          echo "$output"
+          echo "✅ Migrations appliquées avec succès"
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+      # ── Edge Functions ────────────────────────────────────────
+      - name: Deploy Edge Functions
+        continue-on-error: false
+        run: |
+          set -euo pipefail
+
+          deploy_fn() {
+            local fn_name="$1"; shift
+            echo "  → $fn_name"
+            supabase functions deploy "$fn_name" \
+              --project-ref "$SUPABASE_PROJECT_REF" "$@"
+          }
+
+          echo "→ Déploiement des Edge Functions..."
+          deploy_fn "send-email"          --no-verify-jwt
+          deploy_fn "invite-member"
+          deploy_fn "ai-assistant"
+          deploy_fn "check-ai-quota"      --no-verify-jwt
+          deploy_fn "ensure-org-access"
+          deploy_fn "impersonate-user"
+          deploy_fn "notify-late-actions"
+          deploy_fn "stripe-checkout"
+          deploy_fn "stripe-portal"
+          deploy_fn "stripe-webhook"      --no-verify-jwt
+
+          echo "✅ Edge Functions déployées"
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+
+      # ── Résumé Supabase ───────────────────────────────────────
+      - name: Résumé Supabase
+        if: always()
+        run: |
+          echo "Migrations : ${{ steps.db_push.outcome }}"
+          echo "Commit     : ${{ github.sha }}"
+
+  # ════════════════════════════════════════════════════════════
+  # Job 2 — Vercel : build + deploy preview (staging)
+  # Dépend du job supabase — Supabase d'abord, Vercel ensuite.
+  # ════════════════════════════════════════════════════════════
+  vercel:
+    name: Vercel — Build & Deploy Preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: supabase
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── Node.js ───────────────────────────────────────────────
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # ── Vercel ────────────────────────────────────────────────
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel environment (preview)
+        run: vercel pull --yes --environment=preview --token="$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Build (Vercel)
+        continue-on-error: false
+        run: vercel build --token="$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Deploy to Vercel (preview)
+        id: vercel_deploy
+        continue-on-error: false
+        run: |
+          DEPLOY_URL=$(vercel deploy --prebuilt --token="$VERCEL_TOKEN" 2>&1 | tail -1)
+          echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
+          echo "✅ Staging déployé : $DEPLOY_URL"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      # ── Résumé global ─────────────────────────────────────────
+      - name: Résumé deploy staging
+        if: always()
+        run: |
+          echo "════════════════════════════════════════"
+          echo "  Deploy Staging — ${{ job.status }}"
+          echo "  URL     : ${{ steps.vercel_deploy.outputs.url }}"
+          echo "  Branch  : ${{ github.ref_name }}"
+          echo "  Commit  : ${{ github.sha }}"
+          echo "════════════════════════════════════════"

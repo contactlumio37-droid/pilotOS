@@ -3,7 +3,7 @@
 -- ============================================================
 -- Catalogue KPIs
 -- ============================================================
-CREATE TABLE kpi_catalog (
+CREATE TABLE IF NOT EXISTS kpi_catalog (
   id TEXT PRIMARY KEY,
   label TEXT NOT NULL,
   description TEXT,
@@ -22,7 +22,7 @@ CREATE POLICY "kpi_catalog_read_all" ON kpi_catalog
 -- ============================================================
 -- Templates sectoriels
 -- ============================================================
-CREATE TABLE templates (
+CREATE TABLE IF NOT EXISTS templates (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   sector TEXT NOT NULL,
@@ -64,7 +64,8 @@ INSERT INTO kpi_catalog (id, label, description, module, min_role, is_gamificati
 -- Gamification
 ('streak_current', 'Série en cours', 'Nombre de jours consécutifs d''activité', 'pilotage', 'contributor', true),
 ('badges_earned', 'Badges obtenus', 'Nombre de badges gagnés', 'pilotage', 'contributor', true),
-('actions_completed_week', 'Actions complétées (semaine)', 'Actions terminées cette semaine', 'pilotage', 'terrain', true);
+('actions_completed_week', 'Actions complétées (semaine)', 'Actions terminées cette semaine', 'pilotage', 'terrain', true)
+ON CONFLICT DO NOTHING;
 
 -- ============================================================
 -- Seed : Templates sectoriels

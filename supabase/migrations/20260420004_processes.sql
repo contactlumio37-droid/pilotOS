@@ -4,7 +4,7 @@
 -- ============================================================
 -- Processus
 -- ============================================================
-CREATE TABLE processes (
+CREATE TABLE IF NOT EXISTS processes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organisation_id UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
   site_id UUID REFERENCES sites(id),
@@ -52,6 +52,7 @@ CREATE TABLE processes (
 
 ALTER TABLE processes ENABLE ROW LEVEL SECURITY;
 
+DROP TRIGGER IF EXISTS processes_updated_at ON processes;
 CREATE TRIGGER processes_updated_at
   BEFORE UPDATE ON processes
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -59,7 +60,7 @@ CREATE TRIGGER processes_updated_at
 -- ============================================================
 -- Revues de processus
 -- ============================================================
-CREATE TABLE process_reviews (
+CREATE TABLE IF NOT EXISTS process_reviews (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   process_id UUID NOT NULL REFERENCES processes(id) ON DELETE CASCADE,
   organisation_id UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
@@ -77,7 +78,7 @@ ALTER TABLE process_reviews ENABLE ROW LEVEL SECURITY;
 -- ============================================================
 -- Non-conformités
 -- ============================================================
-CREATE TABLE non_conformities (
+CREATE TABLE IF NOT EXISTS non_conformities (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organisation_id UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
   process_id UUID REFERENCES processes(id),
@@ -97,7 +98,7 @@ ALTER TABLE non_conformities ENABLE ROW LEVEL SECURITY;
 -- ============================================================
 -- Plans Kaizen
 -- ============================================================
-CREATE TABLE kaizen_plans (
+CREATE TABLE IF NOT EXISTS kaizen_plans (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organisation_id UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
   process_id UUID REFERENCES processes(id),
@@ -117,7 +118,7 @@ ALTER TABLE kaizen_plans ENABLE ROW LEVEL SECURITY;
 -- ============================================================
 -- Signalements terrain (SANS FK vers actions — ajouté migration 006)
 -- ============================================================
-CREATE TABLE terrain_reports (
+CREATE TABLE IF NOT EXISTS terrain_reports (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organisation_id UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
   site_id UUID REFERENCES sites(id),
@@ -139,6 +140,7 @@ CREATE TABLE terrain_reports (
 
 ALTER TABLE terrain_reports ENABLE ROW LEVEL SECURITY;
 
+DROP TRIGGER IF EXISTS terrain_reports_updated_at ON terrain_reports;
 CREATE TRIGGER terrain_reports_updated_at
   BEFORE UPDATE ON terrain_reports
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();

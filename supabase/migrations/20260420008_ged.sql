@@ -3,7 +3,7 @@
 -- ============================================================
 -- Dossiers documentaires
 -- ============================================================
-CREATE TABLE document_folders (
+CREATE TABLE IF NOT EXISTS document_folders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organisation_id UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
   parent_id UUID REFERENCES document_folders(id),
@@ -15,13 +15,13 @@ CREATE TABLE document_folders (
 
 ALTER TABLE document_folders ENABLE ROW LEVEL SECURITY;
 
-CREATE INDEX document_folders_organisation_id_idx ON document_folders(organisation_id);
-CREATE INDEX document_folders_parent_id_idx ON document_folders(parent_id);
+CREATE INDEX IF NOT EXISTS document_folders_organisation_id_idx ON document_folders(organisation_id);
+CREATE INDEX IF NOT EXISTS document_folders_parent_id_idx ON document_folders(parent_id);
 
 -- ============================================================
 -- Documents
 -- ============================================================
-CREATE TABLE documents (
+CREATE TABLE IF NOT EXISTS documents (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organisation_id UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
   folder_id UUID REFERENCES document_folders(id),
@@ -78,18 +78,19 @@ CREATE TABLE documents (
 
 ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
 
+DROP TRIGGER IF EXISTS documents_updated_at ON documents;
 CREATE TRIGGER documents_updated_at
   BEFORE UPDATE ON documents
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
-CREATE INDEX documents_organisation_id_idx ON documents(organisation_id);
-CREATE INDEX documents_folder_id_idx ON documents(folder_id);
-CREATE INDEX documents_status_idx ON documents(status);
+CREATE INDEX IF NOT EXISTS documents_organisation_id_idx ON documents(organisation_id);
+CREATE INDEX IF NOT EXISTS documents_folder_id_idx ON documents(folder_id);
+CREATE INDEX IF NOT EXISTS documents_status_idx ON documents(status);
 
 -- ============================================================
 -- Historique des versions
 -- ============================================================
-CREATE TABLE document_versions (
+CREATE TABLE IF NOT EXISTS document_versions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
   version_label TEXT NOT NULL,
@@ -105,7 +106,7 @@ ALTER TABLE document_versions ENABLE ROW LEVEL SECURITY;
 -- ============================================================
 -- Émargements (prises de connaissance)
 -- ============================================================
-CREATE TABLE document_acknowledgments (
+CREATE TABLE IF NOT EXISTS document_acknowledgments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES auth.users(id),
@@ -119,7 +120,7 @@ ALTER TABLE document_acknowledgments ENABLE ROW LEVEL SECURITY;
 -- ============================================================
 -- Vue : registre des documents maîtrisés (export audit ISO)
 -- ============================================================
-CREATE VIEW master_document_register AS
+CREATE OR REPLACE VIEW master_document_register AS
 SELECT
   d.doc_code,
   df.name AS folder,
