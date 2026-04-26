@@ -75,6 +75,7 @@ $$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
 -- ============================================================
 -- Organisations
 -- ============================================================
+DROP POLICY IF EXISTS "organisations_member_read" ON organisations;
 CREATE POLICY "organisations_member_read" ON organisations
   FOR SELECT USING (
     is_superadmin()
@@ -86,6 +87,7 @@ CREATE POLICY "organisations_member_read" ON organisations
     )
   );
 
+DROP POLICY IF EXISTS "organisations_admin_update" ON organisations;
 CREATE POLICY "organisations_admin_update" ON organisations
   FOR UPDATE USING (
     is_superadmin()
@@ -95,6 +97,7 @@ CREATE POLICY "organisations_admin_update" ON organisations
 -- ============================================================
 -- Sites
 -- ============================================================
+DROP POLICY IF EXISTS "sites_member_read" ON sites;
 CREATE POLICY "sites_member_read" ON sites
   FOR SELECT USING (
     is_superadmin()
@@ -106,6 +109,7 @@ CREATE POLICY "sites_member_read" ON sites
     )
   );
 
+DROP POLICY IF EXISTS "sites_admin_write" ON sites;
 CREATE POLICY "sites_admin_write" ON sites
   FOR ALL USING (
     is_superadmin()
@@ -115,9 +119,11 @@ CREATE POLICY "sites_admin_write" ON sites
 -- ============================================================
 -- Profils
 -- ============================================================
+DROP POLICY IF EXISTS "profiles_own_read_update" ON profiles;
 CREATE POLICY "profiles_own_read_update" ON profiles
   FOR ALL USING (id = auth.uid());
 
+DROP POLICY IF EXISTS "profiles_org_member_read" ON profiles;
 CREATE POLICY "profiles_org_member_read" ON profiles
   FOR SELECT USING (
     EXISTS (
@@ -132,14 +138,17 @@ CREATE POLICY "profiles_org_member_read" ON profiles
 -- ============================================================
 -- Membres organisation
 -- ============================================================
+DROP POLICY IF EXISTS "members_own_read" ON organisation_members;
 CREATE POLICY "members_own_read" ON organisation_members
   FOR SELECT USING (user_id = auth.uid() OR is_superadmin());
 
+DROP POLICY IF EXISTS "members_org_manager_read" ON organisation_members;
 CREATE POLICY "members_org_manager_read" ON organisation_members
   FOR SELECT USING (
     is_manager_or_above(organisation_id)
   );
 
+DROP POLICY IF EXISTS "members_admin_write" ON organisation_members;
 CREATE POLICY "members_admin_write" ON organisation_members
   FOR ALL USING (
     is_superadmin()
@@ -149,6 +158,7 @@ CREATE POLICY "members_admin_write" ON organisation_members
 -- ============================================================
 -- Module access
 -- ============================================================
+DROP POLICY IF EXISTS "module_access_member_read" ON module_access;
 CREATE POLICY "module_access_member_read" ON module_access
   FOR SELECT USING (
     is_superadmin()
@@ -160,12 +170,14 @@ CREATE POLICY "module_access_member_read" ON module_access
     )
   );
 
+DROP POLICY IF EXISTS "module_access_superadmin_write" ON module_access;
 CREATE POLICY "module_access_superadmin_write" ON module_access
   FOR ALL USING (is_superadmin());
 
 -- ============================================================
 -- Objectifs stratégiques
 -- ============================================================
+DROP POLICY IF EXISTS "objectives_read" ON strategic_objectives;
 CREATE POLICY "objectives_read" ON strategic_objectives
   FOR SELECT USING (
     is_superadmin()
@@ -180,6 +192,7 @@ CREATE POLICY "objectives_read" ON strategic_objectives
     )
   );
 
+DROP POLICY IF EXISTS "objectives_manager_write" ON strategic_objectives;
 CREATE POLICY "objectives_manager_write" ON strategic_objectives
   FOR ALL USING (
     is_superadmin()
@@ -189,6 +202,7 @@ CREATE POLICY "objectives_manager_write" ON strategic_objectives
 -- ============================================================
 -- Décisions CODIR
 -- ============================================================
+DROP POLICY IF EXISTS "codir_decisions_read" ON codir_decisions;
 CREATE POLICY "codir_decisions_read" ON codir_decisions
   FOR SELECT USING (
     is_superadmin()
@@ -203,6 +217,7 @@ CREATE POLICY "codir_decisions_read" ON codir_decisions
     )
   );
 
+DROP POLICY IF EXISTS "codir_decisions_director_write" ON codir_decisions;
 CREATE POLICY "codir_decisions_director_write" ON codir_decisions
   FOR ALL USING (
     is_superadmin()
@@ -212,6 +227,7 @@ CREATE POLICY "codir_decisions_director_write" ON codir_decisions
 -- ============================================================
 -- Projets
 -- ============================================================
+DROP POLICY IF EXISTS "projects_read" ON projects;
 CREATE POLICY "projects_read" ON projects
   FOR SELECT USING (
     is_superadmin()
@@ -226,6 +242,7 @@ CREATE POLICY "projects_read" ON projects
     )
   );
 
+DROP POLICY IF EXISTS "projects_manager_write" ON projects;
 CREATE POLICY "projects_manager_write" ON projects
   FOR ALL USING (
     is_superadmin()
@@ -235,6 +252,7 @@ CREATE POLICY "projects_manager_write" ON projects
 -- ============================================================
 -- Processus
 -- ============================================================
+DROP POLICY IF EXISTS "processes_read" ON processes;
 CREATE POLICY "processes_read" ON processes
   FOR SELECT USING (
     is_superadmin()
@@ -249,6 +267,7 @@ CREATE POLICY "processes_read" ON processes
     )
   );
 
+DROP POLICY IF EXISTS "processes_manager_write" ON processes;
 CREATE POLICY "processes_manager_write" ON processes
   FOR ALL USING (
     is_superadmin()
@@ -258,6 +277,7 @@ CREATE POLICY "processes_manager_write" ON processes
 -- ============================================================
 -- Revues de processus
 -- ============================================================
+DROP POLICY IF EXISTS "process_reviews_read" ON process_reviews;
 CREATE POLICY "process_reviews_read" ON process_reviews
   FOR SELECT USING (
     is_superadmin()
@@ -269,6 +289,7 @@ CREATE POLICY "process_reviews_read" ON process_reviews
     )
   );
 
+DROP POLICY IF EXISTS "process_reviews_manager_write" ON process_reviews;
 CREATE POLICY "process_reviews_manager_write" ON process_reviews
   FOR ALL USING (
     is_superadmin()
@@ -278,6 +299,7 @@ CREATE POLICY "process_reviews_manager_write" ON process_reviews
 -- ============================================================
 -- Non-conformités
 -- ============================================================
+DROP POLICY IF EXISTS "nc_member_read" ON non_conformities;
 CREATE POLICY "nc_member_read" ON non_conformities
   FOR SELECT USING (
     is_superadmin()
@@ -289,6 +311,7 @@ CREATE POLICY "nc_member_read" ON non_conformities
     )
   );
 
+DROP POLICY IF EXISTS "nc_contributor_write" ON non_conformities;
 CREATE POLICY "nc_contributor_write" ON non_conformities
   FOR ALL USING (
     is_superadmin()
@@ -304,6 +327,7 @@ CREATE POLICY "nc_contributor_write" ON non_conformities
 -- ============================================================
 -- Kaizen
 -- ============================================================
+DROP POLICY IF EXISTS "kaizen_member_read" ON kaizen_plans;
 CREATE POLICY "kaizen_member_read" ON kaizen_plans
   FOR SELECT USING (
     is_superadmin()
@@ -315,6 +339,7 @@ CREATE POLICY "kaizen_member_read" ON kaizen_plans
     )
   );
 
+DROP POLICY IF EXISTS "kaizen_manager_write" ON kaizen_plans;
 CREATE POLICY "kaizen_manager_write" ON kaizen_plans
   FOR ALL USING (
     is_superadmin()
@@ -324,6 +349,7 @@ CREATE POLICY "kaizen_manager_write" ON kaizen_plans
 -- ============================================================
 -- Actions
 -- ============================================================
+DROP POLICY IF EXISTS "actions_read" ON actions;
 CREATE POLICY "actions_read" ON actions
   FOR SELECT USING (
     is_superadmin()
@@ -338,6 +364,7 @@ CREATE POLICY "actions_read" ON actions
     )
   );
 
+DROP POLICY IF EXISTS "actions_write" ON actions;
 CREATE POLICY "actions_write" ON actions
   FOR ALL USING (
     is_superadmin()
@@ -353,6 +380,7 @@ CREATE POLICY "actions_write" ON actions
 -- ============================================================
 -- Commentaires actions
 -- ============================================================
+DROP POLICY IF EXISTS "action_comments_read" ON action_comments;
 CREATE POLICY "action_comments_read" ON action_comments
   FOR SELECT USING (
     EXISTS (
@@ -364,12 +392,14 @@ CREATE POLICY "action_comments_read" ON action_comments
     )
   );
 
+DROP POLICY IF EXISTS "action_comments_own_write" ON action_comments;
 CREATE POLICY "action_comments_own_write" ON action_comments
   FOR ALL USING (user_id = auth.uid() OR is_superadmin());
 
 -- ============================================================
 -- Signalements terrain
 -- ============================================================
+DROP POLICY IF EXISTS "terrain_reports_read" ON terrain_reports;
 CREATE POLICY "terrain_reports_read" ON terrain_reports
   FOR SELECT USING (
     is_superadmin()
@@ -387,6 +417,7 @@ CREATE POLICY "terrain_reports_read" ON terrain_reports
     )
   );
 
+DROP POLICY IF EXISTS "terrain_reports_write" ON terrain_reports;
 CREATE POLICY "terrain_reports_write" ON terrain_reports
   FOR ALL USING (
     is_superadmin()
@@ -401,6 +432,7 @@ CREATE POLICY "terrain_reports_write" ON terrain_reports
 -- ============================================================
 -- Indicateurs
 -- ============================================================
+DROP POLICY IF EXISTS "indicators_read" ON indicators;
 CREATE POLICY "indicators_read" ON indicators
   FOR SELECT USING (
     is_superadmin()
@@ -415,6 +447,7 @@ CREATE POLICY "indicators_read" ON indicators
     )
   );
 
+DROP POLICY IF EXISTS "indicators_manager_write" ON indicators;
 CREATE POLICY "indicators_manager_write" ON indicators
   FOR ALL USING (
     is_superadmin()
@@ -424,6 +457,7 @@ CREATE POLICY "indicators_manager_write" ON indicators
 -- ============================================================
 -- Valeurs indicateurs
 -- ============================================================
+DROP POLICY IF EXISTS "indicator_values_read" ON indicator_values;
 CREATE POLICY "indicator_values_read" ON indicator_values
   FOR SELECT USING (
     EXISTS (
@@ -435,6 +469,7 @@ CREATE POLICY "indicator_values_read" ON indicator_values
     )
   );
 
+DROP POLICY IF EXISTS "indicator_values_write" ON indicator_values;
 CREATE POLICY "indicator_values_write" ON indicator_values
   FOR ALL USING (
     EXISTS (
@@ -450,6 +485,7 @@ CREATE POLICY "indicator_values_write" ON indicator_values
 -- ============================================================
 -- GED : dossiers
 -- ============================================================
+DROP POLICY IF EXISTS "folders_member_read" ON document_folders;
 CREATE POLICY "folders_member_read" ON document_folders
   FOR SELECT USING (
     is_superadmin()
@@ -461,6 +497,7 @@ CREATE POLICY "folders_member_read" ON document_folders
     )
   );
 
+DROP POLICY IF EXISTS "folders_manager_write" ON document_folders;
 CREATE POLICY "folders_manager_write" ON document_folders
   FOR ALL USING (
     is_superadmin()
@@ -470,6 +507,7 @@ CREATE POLICY "folders_manager_write" ON document_folders
 -- ============================================================
 -- GED : documents
 -- ============================================================
+DROP POLICY IF EXISTS "documents_read" ON documents;
 CREATE POLICY "documents_read" ON documents
   FOR SELECT USING (
     is_superadmin()
@@ -484,6 +522,7 @@ CREATE POLICY "documents_read" ON documents
     )
   );
 
+DROP POLICY IF EXISTS "documents_write" ON documents;
 CREATE POLICY "documents_write" ON documents
   FOR ALL USING (
     is_superadmin()
@@ -499,6 +538,7 @@ CREATE POLICY "documents_write" ON documents
 -- ============================================================
 -- GED : versions et émargements
 -- ============================================================
+DROP POLICY IF EXISTS "doc_versions_read" ON document_versions;
 CREATE POLICY "doc_versions_read" ON document_versions
   FOR SELECT USING (
     EXISTS (
@@ -510,9 +550,11 @@ CREATE POLICY "doc_versions_read" ON document_versions
     )
   );
 
+DROP POLICY IF EXISTS "doc_acknowledgments_own" ON document_acknowledgments;
 CREATE POLICY "doc_acknowledgments_own" ON document_acknowledgments
   FOR ALL USING (user_id = auth.uid() OR is_superadmin());
 
+DROP POLICY IF EXISTS "doc_acknowledgments_manager_read" ON document_acknowledgments;
 CREATE POLICY "doc_acknowledgments_manager_read" ON document_acknowledgments
   FOR SELECT USING (
     EXISTS (
@@ -528,24 +570,28 @@ CREATE POLICY "doc_acknowledgments_manager_read" ON document_acknowledgments
 -- ============================================================
 -- Subscriptions
 -- ============================================================
+DROP POLICY IF EXISTS "subscriptions_own_org_read" ON subscriptions;
 CREATE POLICY "subscriptions_own_org_read" ON subscriptions
   FOR SELECT USING (
     is_superadmin()
     OR get_user_role(organisation_id) IN ('admin')
   );
 
+DROP POLICY IF EXISTS "subscriptions_superadmin_write" ON subscriptions;
 CREATE POLICY "subscriptions_superadmin_write" ON subscriptions
   FOR ALL USING (is_superadmin());
 
 -- ============================================================
 -- Stripe events — superadmin uniquement
 -- ============================================================
+DROP POLICY IF EXISTS "stripe_events_superadmin" ON stripe_events;
 CREATE POLICY "stripe_events_superadmin" ON stripe_events
   FOR ALL USING (is_superadmin());
 
 -- ============================================================
 -- Import logs
 -- ============================================================
+DROP POLICY IF EXISTS "import_logs_admin_read" ON import_logs;
 CREATE POLICY "import_logs_admin_read" ON import_logs
   FOR SELECT USING (
     is_superadmin()
@@ -555,9 +601,11 @@ CREATE POLICY "import_logs_admin_read" ON import_logs
 -- ============================================================
 -- Gamification
 -- ============================================================
+DROP POLICY IF EXISTS "streaks_own" ON user_streaks;
 CREATE POLICY "streaks_own" ON user_streaks
   FOR ALL USING (user_id = auth.uid() OR is_superadmin());
 
+DROP POLICY IF EXISTS "badges_own" ON user_badges;
 CREATE POLICY "badges_own" ON user_badges
   FOR SELECT USING (
     user_id = auth.uid()
@@ -568,18 +616,21 @@ CREATE POLICY "badges_own" ON user_badges
 -- ============================================================
 -- Notifications
 -- ============================================================
+DROP POLICY IF EXISTS "notifications_own" ON notifications;
 CREATE POLICY "notifications_own" ON notifications
   FOR ALL USING (user_id = auth.uid());
 
 -- ============================================================
 -- Admin audit log — superadmin uniquement
 -- ============================================================
+DROP POLICY IF EXISTS "audit_log_superadmin" ON admin_audit_log;
 CREATE POLICY "audit_log_superadmin" ON admin_audit_log
   FOR ALL USING (is_superadmin());
 
 -- ============================================================
 -- AI usage
 -- ============================================================
+DROP POLICY IF EXISTS "ai_usage_admin_read" ON ai_usage;
 CREATE POLICY "ai_usage_admin_read" ON ai_usage
   FOR SELECT USING (
     is_superadmin()
@@ -587,6 +638,7 @@ CREATE POLICY "ai_usage_admin_read" ON ai_usage
     OR get_user_role(organisation_id) IN ('admin')
   );
 
+DROP POLICY IF EXISTS "ai_usage_write" ON ai_usage;
 CREATE POLICY "ai_usage_write" ON ai_usage
   FOR INSERT WITH CHECK (
     EXISTS (
@@ -600,30 +652,36 @@ CREATE POLICY "ai_usage_write" ON ai_usage
 -- ============================================================
 -- Newsletter (insertion publique, lecture superadmin)
 -- ============================================================
+DROP POLICY IF EXISTS "newsletter_insert_public" ON newsletter_subscribers;
 CREATE POLICY "newsletter_insert_public" ON newsletter_subscribers
   FOR INSERT WITH CHECK (true);
 
+DROP POLICY IF EXISTS "newsletter_superadmin_read" ON newsletter_subscribers;
 CREATE POLICY "newsletter_superadmin_read" ON newsletter_subscribers
   FOR SELECT USING (is_superadmin());
 
 -- ============================================================
 -- Email logs — superadmin
 -- ============================================================
+DROP POLICY IF EXISTS "email_logs_superadmin" ON email_logs;
 CREATE POLICY "email_logs_superadmin" ON email_logs
   FOR ALL USING (is_superadmin());
 
 -- ============================================================
 -- Roadmap votes
 -- ============================================================
+DROP POLICY IF EXISTS "roadmap_votes_own" ON roadmap_votes;
 CREATE POLICY "roadmap_votes_own" ON roadmap_votes
   FOR ALL USING (user_id = auth.uid() OR is_superadmin());
 
+DROP POLICY IF EXISTS "roadmap_votes_read" ON roadmap_votes;
 CREATE POLICY "roadmap_votes_read" ON roadmap_votes
   FOR SELECT USING (true);
 
 -- ============================================================
 -- Feedback reports (rapports publics + propres)
 -- ============================================================
+DROP POLICY IF EXISTS "feedback_reports_read" ON feedback_reports;
 CREATE POLICY "feedback_reports_read" ON feedback_reports
   FOR SELECT USING (
     is_superadmin()
@@ -631,27 +689,33 @@ CREATE POLICY "feedback_reports_read" ON feedback_reports
     OR (is_anonymous = false AND status NOT IN ('wont_fix'))
   );
 
+DROP POLICY IF EXISTS "feedback_reports_insert" ON feedback_reports;
 CREATE POLICY "feedback_reports_insert" ON feedback_reports
   FOR INSERT WITH CHECK (true);
 
+DROP POLICY IF EXISTS "feedback_reports_superadmin_write" ON feedback_reports;
 CREATE POLICY "feedback_reports_superadmin_write" ON feedback_reports
   FOR UPDATE USING (is_superadmin());
 
 -- ============================================================
 -- Feedback votes et abonnés
 -- ============================================================
+DROP POLICY IF EXISTS "feedback_votes_own" ON feedback_votes;
 CREATE POLICY "feedback_votes_own" ON feedback_votes
   FOR ALL USING (user_id = auth.uid() OR is_superadmin());
 
+DROP POLICY IF EXISTS "feedback_votes_read" ON feedback_votes;
 CREATE POLICY "feedback_votes_read" ON feedback_votes
   FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "feedback_subscribers_own" ON feedback_subscribers;
 CREATE POLICY "feedback_subscribers_own" ON feedback_subscribers
   FOR ALL USING (user_id = auth.uid() OR is_superadmin());
 
 -- ============================================================
 -- Bounty pledges
 -- ============================================================
+DROP POLICY IF EXISTS "bounty_pledges_own_read" ON bounty_pledges;
 CREATE POLICY "bounty_pledges_own_read" ON bounty_pledges
   FOR SELECT USING (
     is_superadmin()
@@ -661,9 +725,11 @@ CREATE POLICY "bounty_pledges_own_read" ON bounty_pledges
 -- ============================================================
 -- Site sections — écriture superadmin uniquement
 -- ============================================================
+DROP POLICY IF EXISTS "site_sections_superadmin_write" ON site_sections;
 CREATE POLICY "site_sections_superadmin_write" ON site_sections
   FOR ALL USING (is_superadmin());
 
 -- Blog — écriture superadmin uniquement
+DROP POLICY IF EXISTS "blog_posts_superadmin_write" ON blog_posts;
 CREATE POLICY "blog_posts_superadmin_write" ON blog_posts
   FOR ALL USING (is_superadmin());

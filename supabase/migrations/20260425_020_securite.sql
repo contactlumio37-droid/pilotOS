@@ -233,12 +233,19 @@ CREATE POLICY "reg_register_write" ON regulatory_register FOR ALL TO authenticat
 
 -- ============================================================
 -- KPI CATALOGUE — Sécurité
+-- Étend kpi_catalog avec les colonnes optionnelles du module sécurité.
+-- ADD COLUMN IF NOT EXISTS : idempotent si déjà présentes.
 -- ============================================================
-INSERT INTO kpi_catalog (name, label, description, unit, module, role_min, is_active) VALUES
+ALTER TABLE kpi_catalog ADD COLUMN IF NOT EXISTS unit      TEXT;
+ALTER TABLE kpi_catalog ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+
+-- Colonnes utilisées : id (PK TEXT), label, description, unit, module, min_role, is_active
+-- Mapping depuis l'ancienne nomenclature : name→id, role_min→min_role
+INSERT INTO kpi_catalog (id, label, description, unit, module, min_role, is_active) VALUES
   ('days_without_incident',    'Jours sans incident',        'Nombre de jours depuis le dernier incident/AT déclaré',       'days',    'securite', 'manager', true),
   ('at_open',                  'AT ouverts',                 'Nombre d''accidents du travail non clôturés',                  'count',   'securite', 'manager', true),
-  ('near_miss_open',           'Presqu''accidents ouverts',  'Situations dangereuses et presqu''accidents non traités',      'count',   'manager',  'manager', true),
+  ('near_miss_open',           'Presqu''accidents ouverts',  'Situations dangereuses et presqu''accidents non traités',      'count',   'securite', 'manager', true),
   ('safety_visits_planned',    'Visites planifiées',         'Visites de sécurité prévues dans les 30 prochains jours',      'count',   'securite', 'manager', true),
   ('duer_review_date',         'Révision DUER',              'Date de la prochaine révision du Document Unique',             'date',    'securite', 'manager', true),
   ('regulatory_overdue',       'Obligations en retard',      'Obligations réglementaires dont la date limite est dépassée',  'count',   'securite', 'manager', true)
-ON CONFLICT (name) DO NOTHING;
+ON CONFLICT (id) DO NOTHING;
