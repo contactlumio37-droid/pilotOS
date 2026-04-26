@@ -57,7 +57,7 @@ jobs:
         run: |
           set +e
 
-          output=$(supabase db push --password ${{ secrets.SUPABASE_DB_PASSWORD }} --debug 2>&1)
+          output=$(echo "Y" | supabase db push --password ${{ secrets.SUPABASE_DB_PASSWORD }} --debug --non-interactive 2>&1)
           exit_code=$?
 
           echo "$output"

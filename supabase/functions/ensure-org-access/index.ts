@@ -2,7 +2,7 @@
 // Auto-provisionne un superadmin dans une org comme support non-facturé.
 // Appelée quand un superadmin accède à une org pour la première fois.
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',

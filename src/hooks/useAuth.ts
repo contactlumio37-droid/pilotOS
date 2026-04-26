@@ -79,7 +79,7 @@ export function useAuth(): AuthState {
     // useOrganisation handles org context switching.
     const memberResult = await supabase
       .from('organisation_members')
-      .select('role, organisation:organisations(*)')
+      .select('role, organisation_id, site_id, kpi_config, organisation:organisations(*)')
       .eq('user_id', user.id)
       .eq('is_active', true)
       .limit(10)
@@ -87,13 +87,24 @@ export function useAuth(): AuthState {
     const profile  = profileResult.data as Profile | null
     const allRows  = (memberResult.data ?? []) as Array<{
       role: string
+      organisation_id: string
+      site_id: string | null
+      kpi_config: unknown
       organisation: Organisation | Organisation[]
     }>
+
+    if (memberResult.error) {
+      console.error('Membership non trouvé pour', user.id, memberResult.error)
+    }
 
     // Always use the highest-privilege membership as the primary identity
     const memberRow = [...allRows].sort(
       (a, b) => (ROLE_WEIGHT[b.role] ?? 0) - (ROLE_WEIGHT[a.role] ?? 0),
     )[0]
+
+    if (!memberRow) {
+      console.warn('Membership non trouvé pour', user.id, '— utilisateur en cours d\'onboarding ?')
+    }
 
     const rawOrg      = memberRow?.organisation
     const organisation = rawOrg
