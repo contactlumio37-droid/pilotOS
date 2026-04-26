@@ -3,7 +3,7 @@
 -- ============================================================
 -- CMS : sections du site marketing (desktop-first)
 -- ============================================================
-CREATE TABLE site_sections (
+CREATE TABLE IF NOT EXISTS site_sections (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   page TEXT NOT NULL,
   section TEXT NOT NULL,
@@ -28,7 +28,7 @@ CREATE POLICY "site_sections_public_read" ON site_sections
 -- ============================================================
 -- Blog
 -- ============================================================
-CREATE TABLE blog_posts (
+CREATE TABLE IF NOT EXISTS blog_posts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
   slug TEXT UNIQUE NOT NULL,
@@ -46,6 +46,7 @@ CREATE TABLE blog_posts (
 
 ALTER TABLE blog_posts ENABLE ROW LEVEL SECURITY;
 
+DROP TRIGGER IF EXISTS blog_posts_updated_at ON blog_posts;
 CREATE TRIGGER blog_posts_updated_at
   BEFORE UPDATE ON blog_posts
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -57,7 +58,7 @@ CREATE POLICY "blog_posts_public_read" ON blog_posts
 -- ============================================================
 -- Newsletter
 -- ============================================================
-CREATE TABLE newsletter_subscribers (
+CREATE TABLE IF NOT EXISTS newsletter_subscribers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email TEXT UNIQUE NOT NULL,
   confirmed BOOLEAN DEFAULT false,
@@ -71,7 +72,7 @@ ALTER TABLE newsletter_subscribers ENABLE ROW LEVEL SECURITY;
 -- ============================================================
 -- Logs email
 -- ============================================================
-CREATE TABLE email_logs (
+CREATE TABLE IF NOT EXISTS email_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   to_email TEXT NOT NULL,
   subject TEXT,
@@ -85,7 +86,7 @@ ALTER TABLE email_logs ENABLE ROW LEVEL SECURITY;
 -- ============================================================
 -- Roadmap publique
 -- ============================================================
-CREATE TABLE roadmap_items (
+CREATE TABLE IF NOT EXISTS roadmap_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
   description TEXT,
@@ -102,6 +103,7 @@ CREATE TABLE roadmap_items (
 
 ALTER TABLE roadmap_items ENABLE ROW LEVEL SECURITY;
 
+DROP TRIGGER IF EXISTS roadmap_items_updated_at ON roadmap_items;
 CREATE TRIGGER roadmap_items_updated_at
   BEFORE UPDATE ON roadmap_items
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -113,7 +115,7 @@ CREATE POLICY "roadmap_items_public_read" ON roadmap_items
 -- ============================================================
 -- Votes roadmap
 -- ============================================================
-CREATE TABLE roadmap_votes (
+CREATE TABLE IF NOT EXISTS roadmap_votes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   item_id UUID NOT NULL REFERENCES roadmap_items(id) ON DELETE CASCADE,
   user_id UUID REFERENCES auth.users(id),
@@ -127,7 +129,7 @@ ALTER TABLE roadmap_votes ENABLE ROW LEVEL SECURITY;
 -- ============================================================
 -- Signalements bugs et suggestions
 -- ============================================================
-CREATE TABLE feedback_reports (
+CREATE TABLE IF NOT EXISTS feedback_reports (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
   description TEXT,
@@ -159,6 +161,7 @@ CREATE TABLE feedback_reports (
 
 ALTER TABLE feedback_reports ENABLE ROW LEVEL SECURITY;
 
+DROP TRIGGER IF EXISTS feedback_reports_updated_at ON feedback_reports;
 CREATE TRIGGER feedback_reports_updated_at
   BEFORE UPDATE ON feedback_reports
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -166,7 +169,7 @@ CREATE TRIGGER feedback_reports_updated_at
 -- ============================================================
 -- Votes feedback
 -- ============================================================
-CREATE TABLE feedback_votes (
+CREATE TABLE IF NOT EXISTS feedback_votes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   report_id UUID NOT NULL REFERENCES feedback_reports(id) ON DELETE CASCADE,
   user_id UUID REFERENCES auth.users(id),
@@ -179,7 +182,7 @@ ALTER TABLE feedback_votes ENABLE ROW LEVEL SECURITY;
 -- ============================================================
 -- Abonnés aux résolutions
 -- ============================================================
-CREATE TABLE feedback_subscribers (
+CREATE TABLE IF NOT EXISTS feedback_subscribers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   report_id UUID NOT NULL REFERENCES feedback_reports(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES auth.users(id),
@@ -192,7 +195,7 @@ ALTER TABLE feedback_subscribers ENABLE ROW LEVEL SECURITY;
 -- ============================================================
 -- Bounties (features financées)
 -- ============================================================
-CREATE TABLE feature_bounties (
+CREATE TABLE IF NOT EXISTS feature_bounties (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   feedback_id UUID REFERENCES feedback_reports(id),
   title TEXT NOT NULL,
@@ -213,7 +216,7 @@ CREATE POLICY "feature_bounties_public_read" ON feature_bounties
 -- ============================================================
 -- Pledges bounties
 -- ============================================================
-CREATE TABLE bounty_pledges (
+CREATE TABLE IF NOT EXISTS bounty_pledges (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   bounty_id UUID NOT NULL REFERENCES feature_bounties(id) ON DELETE CASCADE,
   organisation_id UUID REFERENCES organisations(id),

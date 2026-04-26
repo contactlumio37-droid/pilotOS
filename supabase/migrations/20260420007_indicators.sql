@@ -3,7 +3,7 @@
 -- ============================================================
 -- Indicateurs
 -- ============================================================
-CREATE TABLE indicators (
+CREATE TABLE IF NOT EXISTS indicators (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organisation_id UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
@@ -25,12 +25,12 @@ CREATE TABLE indicators (
 
 ALTER TABLE indicators ENABLE ROW LEVEL SECURITY;
 
-CREATE INDEX indicators_organisation_id_idx ON indicators(organisation_id);
+CREATE INDEX IF NOT EXISTS indicators_organisation_id_idx ON indicators(organisation_id);
 
 -- ============================================================
 -- Valeurs d'indicateurs
 -- ============================================================
-CREATE TABLE indicator_values (
+CREATE TABLE IF NOT EXISTS indicator_values (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   indicator_id UUID NOT NULL REFERENCES indicators(id) ON DELETE CASCADE,
   value NUMERIC NOT NULL,
@@ -42,5 +42,5 @@ CREATE TABLE indicator_values (
 
 ALTER TABLE indicator_values ENABLE ROW LEVEL SECURITY;
 
-CREATE INDEX indicator_values_indicator_id_idx ON indicator_values(indicator_id);
-CREATE INDEX indicator_values_measured_at_idx ON indicator_values(measured_at);
+CREATE INDEX IF NOT EXISTS indicator_values_indicator_id_idx ON indicator_values(indicator_id);
+CREATE INDEX IF NOT EXISTS indicator_values_measured_at_idx ON indicator_values(measured_at);

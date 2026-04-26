@@ -3,7 +3,7 @@
 -- ============================================================
 -- Abonnements Stripe
 -- ============================================================
-CREATE TABLE subscriptions (
+CREATE TABLE IF NOT EXISTS subscriptions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organisation_id UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
   stripe_subscription_id TEXT UNIQUE,
@@ -23,6 +23,7 @@ CREATE TABLE subscriptions (
 
 ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
 
+DROP TRIGGER IF EXISTS subscriptions_updated_at ON subscriptions;
 CREATE TRIGGER subscriptions_updated_at
   BEFORE UPDATE ON subscriptions
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -30,7 +31,7 @@ CREATE TRIGGER subscriptions_updated_at
 -- ============================================================
 -- Événements Stripe (idempotence webhooks)
 -- ============================================================
-CREATE TABLE stripe_events (
+CREATE TABLE IF NOT EXISTS stripe_events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   stripe_event_id TEXT UNIQUE NOT NULL,
   type TEXT NOT NULL,
@@ -43,7 +44,7 @@ ALTER TABLE stripe_events ENABLE ROW LEVEL SECURITY;
 -- ============================================================
 -- Logs d'imports
 -- ============================================================
-CREATE TABLE import_logs (
+CREATE TABLE IF NOT EXISTS import_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organisation_id UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
   import_type TEXT
@@ -62,7 +63,7 @@ ALTER TABLE import_logs ENABLE ROW LEVEL SECURITY;
 -- ============================================================
 -- Gamification : streaks
 -- ============================================================
-CREATE TABLE user_streaks (
+CREATE TABLE IF NOT EXISTS user_streaks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   organisation_id UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
@@ -78,7 +79,7 @@ ALTER TABLE user_streaks ENABLE ROW LEVEL SECURITY;
 -- ============================================================
 -- Gamification : badges
 -- ============================================================
-CREATE TABLE user_badges (
+CREATE TABLE IF NOT EXISTS user_badges (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   organisation_id UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
@@ -91,7 +92,7 @@ ALTER TABLE user_badges ENABLE ROW LEVEL SECURITY;
 -- ============================================================
 -- Notifications in-app
 -- ============================================================
-CREATE TABLE notifications (
+CREATE TABLE IF NOT EXISTS notifications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   organisation_id UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
@@ -105,13 +106,13 @@ CREATE TABLE notifications (
 
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
-CREATE INDEX notifications_user_id_idx ON notifications(user_id);
-CREATE INDEX notifications_read_idx ON notifications(read);
+CREATE INDEX IF NOT EXISTS notifications_user_id_idx ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS notifications_read_idx ON notifications(read);
 
 -- ============================================================
 -- Audit log superadmin (RGPD)
 -- ============================================================
-CREATE TABLE admin_audit_log (
+CREATE TABLE IF NOT EXISTS admin_audit_log (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   admin_id UUID REFERENCES auth.users(id),
   action TEXT NOT NULL,
@@ -128,7 +129,7 @@ ALTER TABLE admin_audit_log ENABLE ROW LEVEL SECURITY;
 -- ============================================================
 -- Usage IA
 -- ============================================================
-CREATE TABLE ai_usage (
+CREATE TABLE IF NOT EXISTS ai_usage (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organisation_id UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
   user_id UUID REFERENCES auth.users(id),

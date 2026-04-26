@@ -3,7 +3,7 @@
 -- ============================================================
 -- Objectifs stratégiques
 -- ============================================================
-CREATE TABLE strategic_objectives (
+CREATE TABLE IF NOT EXISTS strategic_objectives (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organisation_id UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
   site_id UUID REFERENCES sites(id),
@@ -27,6 +27,7 @@ CREATE TABLE strategic_objectives (
 
 ALTER TABLE strategic_objectives ENABLE ROW LEVEL SECURITY;
 
+DROP TRIGGER IF EXISTS strategic_objectives_updated_at ON strategic_objectives;
 CREATE TRIGGER strategic_objectives_updated_at
   BEFORE UPDATE ON strategic_objectives
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -34,7 +35,7 @@ CREATE TRIGGER strategic_objectives_updated_at
 -- ============================================================
 -- Décisions CODIR
 -- ============================================================
-CREATE TABLE codir_decisions (
+CREATE TABLE IF NOT EXISTS codir_decisions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organisation_id UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
@@ -53,7 +54,7 @@ ALTER TABLE codir_decisions ENABLE ROW LEVEL SECURITY;
 -- ============================================================
 -- Projets
 -- ============================================================
-CREATE TABLE projects (
+CREATE TABLE IF NOT EXISTS projects (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organisation_id UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
   site_id UUID REFERENCES sites(id),
@@ -74,6 +75,7 @@ CREATE TABLE projects (
 
 ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
 
+DROP TRIGGER IF EXISTS projects_updated_at ON projects;
 CREATE TRIGGER projects_updated_at
   BEFORE UPDATE ON projects
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
