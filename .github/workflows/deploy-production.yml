@@ -52,17 +52,22 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
-      # ✅ FIX ICI (gestion duplication migration)
+      # ✅ VERSION MODIFIÉE
       - name: Push migrations
         run: |
           set +e
 
-          output=$(echo "Y" | supabase db push --password ${{ secrets.SUPABASE_DB_PASSWORD }} --debug 2>&1)
+          # Réparer la version orpheline 20260420
+          supabase migration repair --status reverted 20260420 \
+            --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
+
+          # Pousser toutes les migrations
+          output=$(echo "Y" | supabase db push --password ${{ secrets.DB_PASSWORD }} 2>&1)
           exit_code=$?
 
           echo "$output"
 
-          # Si migration déjà appliquée (erreur 23505 schema_migrations), on continue
+          # Ignore erreur duplication schema_migrations
           echo "$output" | grep -q "23505.*schema_migrations" && {
             echo "Migration déjà appliquée → continuation du déploiement"
             exit 0
