@@ -52,17 +52,17 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
-      # ✅ VERSION MODIFIÉE
+      # ✅ VERSION CORRIGÉE
       - name: Push migrations
         run: |
           set +e
 
           # Réparer la version orpheline 20260420
           supabase migration repair --status reverted 20260420 \
-            --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
+            --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
 
           # Pousser toutes les migrations
-          output=$(echo "Y" | supabase db push --password ${{ secrets.DB_PASSWORD }} 2>&1)
+          output=$(echo "Y" | supabase db push --password ${{ secrets.SUPABASE_DB_PASSWORD }} 2>&1)
           exit_code=$?
 
           echo "$output"
