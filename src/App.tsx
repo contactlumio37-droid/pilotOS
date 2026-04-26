@@ -5,6 +5,7 @@ import { useAppShell } from '@/hooks/useRole'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
 import MFARoute from '@/components/auth/MFARoute'
 import ImpersonationBanner from '@/components/layout/ImpersonationBanner'
+import { ToastProvider } from '@/components/ui/Toast'
 
 // Pages publiques (petit poids — pas de lazy)
 import LandingPage from '@/pages/public/LandingPage'
@@ -99,7 +100,9 @@ function LoadingScreen() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AppRouter />
+      <ToastProvider>
+        <AppRouter />
+      </ToastProvider>
     </BrowserRouter>
   )
 }

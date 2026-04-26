@@ -33,8 +33,7 @@ export function useUpdateProfile() {
       }
       const { data, error } = await supabase
         .from('profiles')
-        .update({ ...payload, updated_at: new Date().toISOString() })
-        .eq('id', user.id)
+        .upsert({ id: user.id, ...payload, updated_at: new Date().toISOString() })
         .select()
         .single()
       if (error) {

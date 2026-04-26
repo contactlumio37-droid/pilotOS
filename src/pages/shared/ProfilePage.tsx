@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -6,6 +6,7 @@ import { motion } from 'framer-motion'
 import { Save, Lock, User, Flame } from 'lucide-react'
 import { useProfile, useUpdateProfile, useChangePassword } from '@/hooks/useProfile'
 import { useAuth } from '@/hooks/useAuth'
+import { useToast } from '@/components/ui/useToast'
 import { useGamification } from '@/hooks/useGamification'
 import { UserStreak } from '@/components/features/gamification/UserStreak'
 import { BadgeList } from '@/components/features/gamification/UserBadge'
@@ -32,8 +33,7 @@ export default function ProfilePage() {
   const updateProfile = useUpdateProfile()
   const changePassword = useChangePassword()
   const { streak, badges } = useGamification()
-  const [profileSaved, setProfileSaved] = useState(false)
-  const [pwdSaved, setPwdSaved] = useState(false)
+  const toast = useToast()
 
   const {
     register: regProfile,
@@ -69,18 +69,20 @@ export default function ProfilePage() {
         phone:     data.phone ?? null,
         job_title: data.job_title ?? null,
       })
-      setProfileSaved(true)
-      setTimeout(() => setProfileSaved(false), 3000)
-    } catch { /* error shown by mutation */ }
+      toast.success('Profil mis à jour ✓')
+    } catch (err) {
+      toast.error(`Erreur profil : ${(err as Error).message}`)
+    }
   }
 
   async function onPasswordSubmit(data: PasswordForm) {
     try {
       await changePassword.mutateAsync(data.password)
       resetPwd()
-      setPwdSaved(true)
-      setTimeout(() => setPwdSaved(false), 3000)
-    } catch { /* error shown by mutation */ }
+      toast.success('Mot de passe modifié ✓')
+    } catch (err) {
+      toast.error(`Erreur : ${(err as Error).message}`)
+    }
   }
 
   const initials = (profile?.full_name ?? user?.email ?? '?')
@@ -148,10 +150,6 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {updateProfile.isError && (
-              <p className="text-sm text-danger-500">Erreur lors de la mise à jour du profil.</p>
-            )}
-
             <div className="flex items-center gap-3 pt-1">
               <button
                 type="submit"
@@ -161,7 +159,6 @@ export default function ProfilePage() {
                 <Save className="w-4 h-4" />
                 {updateProfile.isPending ? 'Enregistrement…' : 'Enregistrer'}
               </button>
-              {profileSaved && <span className="text-sm text-success-600 font-medium">Profil mis à jour ✓</span>}
             </div>
           </form>
         </div>
@@ -202,10 +199,6 @@ export default function ProfilePage() {
               )}
             </div>
 
-            {changePassword.isError && (
-              <p className="text-sm text-danger-500">Erreur lors du changement de mot de passe.</p>
-            )}
-
             <div className="flex items-center gap-3 pt-1">
               <button
                 type="submit"
@@ -215,7 +208,6 @@ export default function ProfilePage() {
                 <Lock className="w-4 h-4" />
                 {changePassword.isPending ? 'Modification…' : 'Modifier le mot de passe'}
               </button>
-              {pwdSaved && <span className="text-sm text-success-600 font-medium">Mot de passe modifié ✓</span>}
             </div>
           </form>
         </div>
