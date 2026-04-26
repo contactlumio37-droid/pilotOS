@@ -5,24 +5,32 @@
 -- ── is_billable : colonne générée — impossible à falsifier depuis l'app ──────
 -- superadmin = accès plateforme, non facturé à l'org
 -- tous les autres rôles org (admin, manager, director, contributor, terrain, reader) sont facturés
-ALTER TABLE organisation_members
+DO $$
+BEGIN
+  ALTER TABLE organisation_members
   ADD COLUMN is_billable BOOLEAN NOT NULL
-    GENERATED ALWAYS AS (role NOT IN ('superadmin')) STORED;
+  GENERATED ALWAYS AS (role NOT IN ('superadmin')) STORED;
+EXCEPTION WHEN duplicate_column THEN null;
+END $$;
 
 -- ── can_impersonate : permission explicite, ne découle pas du rôle ────────────
-ALTER TABLE organisation_members
+DO $$
+BEGIN
+  ALTER TABLE organisation_members
   ADD COLUMN can_impersonate BOOLEAN NOT NULL DEFAULT false;
+EXCEPTION WHEN duplicate_column THEN null;
+END $$;
 
 -- Donner can_impersonate aux superadmins existants
 UPDATE organisation_members SET can_impersonate = true WHERE role = 'superadmin';
 
 -- ── Index billing : COUNT rapide des sièges facturés par org ─────────────────
-CREATE INDEX idx_org_members_billable
+CREATE INDEX IF NOT EXISTS idx_org_members_billable
   ON organisation_members (organisation_id)
   WHERE is_billable = true AND is_active = true;
 
 -- ── impersonation_logs : audit immuable ───────────────────────────────────────
-CREATE TABLE impersonation_logs (
+CREATE TABLE IF NOT EXISTS impersonation_logs (
   id                   UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   impersonator_id      UUID        NOT NULL REFERENCES auth.users(id),
   impersonated_user_id UUID        NOT NULL REFERENCES auth.users(id),
@@ -52,8 +60,8 @@ CREATE POLICY "impersonation_logs_superadmin_read" ON impersonation_logs
 -- L'app écrit via Edge Function (service_role) uniquement — pas de INSERT côté client
 -- Aucune policy INSERT/UPDATE/DELETE pour authenticated
 
-CREATE INDEX idx_impersonation_impersonator ON impersonation_logs (impersonator_id);
-CREATE INDEX idx_impersonation_org          ON impersonation_logs (organisation_id, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_impersonation_impersonator ON impersonation_logs (impersonator_id);
+CREATE INDEX IF NOT EXISTS idx_impersonation_org          ON impersonation_logs (organisation_id, started_at DESC);
 
 -- ── Fonction SQL : sièges facturés vs limite ──────────────────────────────────
 CREATE OR REPLACE FUNCTION get_billing_status(p_org_id UUID)

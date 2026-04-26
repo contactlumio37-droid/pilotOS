@@ -120,7 +120,7 @@ ALTER TABLE document_acknowledgments ENABLE ROW LEVEL SECURITY;
 -- ============================================================
 -- Vue : registre des documents maîtrisés (export audit ISO)
 -- ============================================================
-CREATE VIEW master_document_register AS
+CREATE OR REPLACE VIEW master_document_register AS
 SELECT
   d.doc_code,
   df.name AS folder,

@@ -232,7 +232,7 @@ ALTER TABLE bounty_pledges ENABLE ROW LEVEL SECURITY;
 -- ============================================================
 -- Vue : health score processus
 -- ============================================================
-CREATE VIEW process_health AS
+CREATE OR REPLACE VIEW process_health AS
 SELECT
   p.id,
   p.organisation_id,

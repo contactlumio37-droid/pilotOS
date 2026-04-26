@@ -4,7 +4,7 @@
 -- ============================================================
 -- DUER — Document Unique d'Évaluation des Risques
 -- ============================================================
-CREATE TABLE duer_evaluations (
+CREATE TABLE IF NOT EXISTS duer_evaluations (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organisation_id   UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
   site_id           UUID REFERENCES sites(id) ON DELETE SET NULL,
@@ -31,14 +31,14 @@ CREATE TABLE duer_evaluations (
   updated_at        TIMESTAMPTZ DEFAULT now()
 );
 ALTER TABLE duer_evaluations ENABLE ROW LEVEL SECURITY;
-CREATE INDEX duer_org_idx      ON duer_evaluations(organisation_id);
-CREATE INDEX duer_status_idx   ON duer_evaluations(status);
-CREATE INDEX duer_score_idx    ON duer_evaluations(risk_score DESC);
+CREATE INDEX IF NOT EXISTS duer_org_idx      ON duer_evaluations(organisation_id);
+CREATE INDEX IF NOT EXISTS duer_status_idx   ON duer_evaluations(status);
+CREATE INDEX IF NOT EXISTS duer_score_idx    ON duer_evaluations(risk_score DESC);
 
 -- ============================================================
 -- PLANS DE PRÉVENTION — Entreprises extérieures
 -- ============================================================
-CREATE TABLE prevention_plans (
+CREATE TABLE IF NOT EXISTS prevention_plans (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organisation_id   UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
   site_id           UUID REFERENCES sites(id) ON DELETE SET NULL,
@@ -58,12 +58,12 @@ CREATE TABLE prevention_plans (
   updated_at        TIMESTAMPTZ DEFAULT now()
 );
 ALTER TABLE prevention_plans ENABLE ROW LEVEL SECURITY;
-CREATE INDEX prevention_plans_org_idx ON prevention_plans(organisation_id);
+CREATE INDEX IF NOT EXISTS prevention_plans_org_idx ON prevention_plans(organisation_id);
 
 -- ============================================================
 -- INCIDENTS — AT, presqu'accidents, situations dangereuses
 -- ============================================================
-CREATE TABLE incidents (
+CREATE TABLE IF NOT EXISTS incidents (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organisation_id   UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
   site_id           UUID REFERENCES sites(id) ON DELETE SET NULL,
@@ -95,15 +95,15 @@ CREATE TABLE incidents (
   updated_at        TIMESTAMPTZ DEFAULT now()
 );
 ALTER TABLE incidents ENABLE ROW LEVEL SECURITY;
-CREATE INDEX incidents_org_idx    ON incidents(organisation_id);
-CREATE INDEX incidents_status_idx ON incidents(status);
-CREATE INDEX incidents_type_idx   ON incidents(incident_type);
-CREATE INDEX incidents_date_idx   ON incidents(occurred_at DESC);
+CREATE INDEX IF NOT EXISTS incidents_org_idx    ON incidents(organisation_id);
+CREATE INDEX IF NOT EXISTS incidents_status_idx ON incidents(status);
+CREATE INDEX IF NOT EXISTS incidents_type_idx   ON incidents(incident_type);
+CREATE INDEX IF NOT EXISTS incidents_date_idx   ON incidents(occurred_at DESC);
 
 -- ============================================================
 -- VISITES DE SÉCURITÉ
 -- ============================================================
-CREATE TABLE safety_visits (
+CREATE TABLE IF NOT EXISTS safety_visits (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organisation_id   UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
   site_id           UUID REFERENCES sites(id) ON DELETE SET NULL,
@@ -127,13 +127,13 @@ CREATE TABLE safety_visits (
   updated_at        TIMESTAMPTZ DEFAULT now()
 );
 ALTER TABLE safety_visits ENABLE ROW LEVEL SECURITY;
-CREATE INDEX safety_visits_org_idx     ON safety_visits(organisation_id);
-CREATE INDEX safety_visits_planned_idx ON safety_visits(planned_at);
+CREATE INDEX IF NOT EXISTS safety_visits_org_idx     ON safety_visits(organisation_id);
+CREATE INDEX IF NOT EXISTS safety_visits_planned_idx ON safety_visits(planned_at);
 
 -- ============================================================
 -- REGISTRE RÉGLEMENTAIRE
 -- ============================================================
-CREATE TABLE regulatory_register (
+CREATE TABLE IF NOT EXISTS regulatory_register (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   organisation_id   UUID NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
   obligation        TEXT NOT NULL,
@@ -155,9 +155,9 @@ CREATE TABLE regulatory_register (
   updated_at        TIMESTAMPTZ DEFAULT now()
 );
 ALTER TABLE regulatory_register ENABLE ROW LEVEL SECURITY;
-CREATE INDEX reg_register_org_idx    ON regulatory_register(organisation_id);
-CREATE INDEX reg_register_status_idx ON regulatory_register(status);
-CREATE INDEX reg_register_due_idx    ON regulatory_register(due_date);
+CREATE INDEX IF NOT EXISTS reg_register_org_idx    ON regulatory_register(organisation_id);
+CREATE INDEX IF NOT EXISTS reg_register_status_idx ON regulatory_register(status);
+CREATE INDEX IF NOT EXISTS reg_register_due_idx    ON regulatory_register(due_date);
 
 -- ============================================================
 -- TRIGGER updated_at sur toutes les tables
@@ -167,10 +167,15 @@ RETURNS TRIGGER LANGUAGE plpgsql AS $$
 BEGIN NEW.updated_at = now(); RETURN NEW; END;
 $$;
 
+DROP TRIGGER IF EXISTS duer_updated_at ON duer_evaluations;
 CREATE TRIGGER duer_updated_at         BEFORE UPDATE ON duer_evaluations    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS prevention_updated_at ON prevention_plans;
 CREATE TRIGGER prevention_updated_at   BEFORE UPDATE ON prevention_plans    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS incidents_updated_at ON incidents;
 CREATE TRIGGER incidents_updated_at    BEFORE UPDATE ON incidents           FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS safety_visits_updated_at ON safety_visits;
 CREATE TRIGGER safety_visits_updated_at BEFORE UPDATE ON safety_visits      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DROP TRIGGER IF EXISTS reg_register_updated_at ON regulatory_register;
 CREATE TRIGGER reg_register_updated_at BEFORE UPDATE ON regulatory_register FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================================
