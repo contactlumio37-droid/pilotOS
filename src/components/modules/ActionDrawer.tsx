@@ -6,6 +6,7 @@ import { Sparkles, Send, User, Calendar, AlertCircle } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import Drawer from '@/components/ui/Drawer'
+import { useToast } from '@/components/ui/Toast'
 import { OriginBadge, StatusBadge, PriorityBadge } from '@/components/modules/ActionBadges'
 import { useCreateAction, useUpdateAction, useActionComments, useAddComment } from '@/hooks/useActions'
 import { useAiAssist } from '@/hooks/useAiAssist'
@@ -61,6 +62,7 @@ export default function ActionDrawer({ open, onClose, action }: ActionDrawerProp
   const [showAi, setShowAi] = useState(false)
   const [comment, setComment] = useState('')
 
+  const toast = useToast()
   const createAction = useCreateAction()
   const updateAction = useUpdateAction()
   const { data: comments = [] } = useActionComments(action?.id ?? null)
@@ -110,12 +112,18 @@ export default function ActionDrawer({ open, onClose, action }: ActionDrawerProp
       due_date: data.due_date || undefined,
       responsible_id: data.responsible_id || undefined,
     }
-    if (isEdit) {
-      await updateAction.mutateAsync({ id: action.id, ...payload })
-    } else {
-      await createAction.mutateAsync(payload)
+    try {
+      if (isEdit) {
+        await updateAction.mutateAsync({ id: action.id, ...payload })
+        toast.success('Action mise à jour ✓')
+      } else {
+        await createAction.mutateAsync(payload)
+        toast.success('Action créée ✓')
+      }
+      onClose()
+    } catch (err) {
+      toast.error((err as Error).message ?? 'Erreur lors de la sauvegarde')
     }
-    onClose()
   }
 
   async function handleAiFill() {
