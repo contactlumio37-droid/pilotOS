@@ -19,7 +19,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # ── Node Setup (stable) ──────────────────────────────────
+      # ── Node Setup ───────────────────────────────────────────
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -31,7 +31,7 @@ jobs:
           node -v
           npm -v
 
-      # ── Install / Quality checks ─────────────────────────────
+      # ── Install / Checks ─────────────────────────────────────
       - name: Install dependencies
         run: npm ci
 
@@ -41,7 +41,7 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      # ── Supabase Migrations ──────────────────────────────────
+      # ── Supabase ─────────────────────────────────────────────
       - name: Install Supabase CLI
         uses: supabase/setup-cli@v2
         with:
@@ -52,24 +52,23 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
-      # ✅ VERSION CORRIGÉE
+      # ✅ FIX FINAL
       - name: Push migrations
         run: |
           set +e
 
-          # Réparer la version orpheline 20260420
-          supabase migration repair --status reverted 20260420 \
-            --project-ref ${{ secrets.SUPABASE_PROJECT_REF }}
+          # ⚠️ PAS de --project-ref ici
+          supabase migration repair --status reverted 20260420
 
-          # Pousser toutes les migrations
+          # Push
           output=$(echo "Y" | supabase db push --password ${{ secrets.SUPABASE_DB_PASSWORD }} 2>&1)
           exit_code=$?
 
           echo "$output"
 
-          # Ignore erreur duplication schema_migrations
+          # Ignore duplication
           echo "$output" | grep -q "23505.*schema_migrations" && {
-            echo "Migration déjà appliquée → continuation du déploiement"
+            echo "Migration déjà appliquée → continuation"
             exit 0
           }
 
@@ -77,7 +76,7 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
-      # ── Supabase Edge Functions ──────────────────────────────
+      # ── Edge Functions ───────────────────────────────────────
       - name: Deploy Edge Functions
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
@@ -116,7 +115,7 @@ jobs:
 
           echo "Edge Functions deployed"
 
-      # ── Vercel Production (robuste) ──────────────────────────
+      # ── Vercel ───────────────────────────────────────────────
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
