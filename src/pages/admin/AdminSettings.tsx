@@ -57,6 +57,8 @@ const MODULE_LABELS: Record<Module, string> = {
   processus: 'Processus',
   ged:       'GED',
   terrain:   'Terrain',
+  securite:  'Sécurité / QSE',
+  qse:       'Qualité Sécurité Environnement',
 }
 
 export default function AdminSettings() {
