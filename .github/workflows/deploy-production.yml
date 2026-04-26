@@ -2,14 +2,14 @@ name: Deploy — Production
 
 # ─────────────────────────────────────────────────────────────
 # Déclenché sur :
-#   - Push d'un tag vX.X.X (release officielle)
+#   - Push vers main (après merge)
 #   - workflow_dispatch avec confirmation explicite
 #
 # Ordre impératif : Supabase → Vercel → Smoke test
 # ─────────────────────────────────────────────────────────────
 on:
   push:
-    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+    branches: [main]
   workflow_dispatch:
     inputs:
       confirm:
@@ -59,7 +59,7 @@ jobs:
         run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF_PROD }}
 
       # ── Migrations ────────────────────────────────────────────
       # Les migrations sont idempotentes — rejouer est sûr.
@@ -88,7 +88,7 @@ jobs:
           echo "✅ Migrations production appliquées"
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD_PROD }}
 
       # ── Edge Functions ────────────────────────────────────────
       - name: Deploy Edge Functions (production)
@@ -118,7 +118,7 @@ jobs:
           echo "✅ Edge Functions production déployées"
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF_PROD }}
 
       - name: Résumé Supabase
         if: always()
@@ -187,7 +187,7 @@ jobs:
           echo "════════════════════════════════════════"
           echo "  Deploy Production — ${{ job.status }}"
           echo "  URL    : ${{ steps.vercel_deploy.outputs.url }}"
-          echo "  Tag    : ${{ github.ref_name }}"
+          echo "  Branch : ${{ github.ref_name }}"
           echo "  Commit : ${{ github.sha }}"
           echo "════════════════════════════════════════"
 
@@ -244,7 +244,7 @@ jobs:
         run: |
           echo "::error::═══════════════════════════════════════"
           echo "::error::  DEPLOY PRODUCTION ÉCHOUÉ"
-          echo "::error::  Tag    : ${{ github.ref_name }}"
+          echo "::error::  Branch : ${{ github.ref_name }}"
           echo "::error::  Commit : ${{ github.sha }}"
           echo "::error::  Acteur : ${{ github.actor }}"
           echo "::error::  Run    : ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
