@@ -4,10 +4,12 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { motion } from 'framer-motion'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Settings, Shield, Bell, CreditCard, Save, Sparkles, Users } from 'lucide-react'
+import { Settings, Shield, Bell, CreditCard, Save, Sparkles, Users, Boxes, ExternalLink } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { useOrganisation } from '@/hooks/useOrganisation'
+import { useActiveModules } from '@/hooks/useModuleAccess'
 import { supabase } from '@/lib/supabase'
-import type { MfaPolicy, Organisation } from '@/types/database'
+import type { MfaPolicy, Module, Organisation } from '@/types/database'
 
 const orgSchema = z.object({
   name:   z.string().min(1, 'Nom requis'),
@@ -50,11 +52,33 @@ function useUpdateOrganisation() {
   })
 }
 
+const MODULE_LABELS: Record<Module, string> = {
+  pilotage:  'Pilotage',
+  processus: 'Processus',
+  ged:       'GED',
+  terrain:   'Terrain',
+}
+
 export default function AdminSettings() {
   const { organisation } = useOrganisation()
   const updateOrg = useUpdateOrganisation()
+  const navigate = useNavigate()
+  const activeModules = useActiveModules()
   const [saved, setSaved] = useState(false)
   const [mfaPolicy, setMfaPolicy] = useState<MfaPolicy>('optional')
+
+  const { data: memberCount = 0 } = useQuery({
+    queryKey: ['member_count', organisation?.id],
+    enabled: !!organisation,
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('organisation_members')
+        .select('id', { count: 'exact', head: true })
+        .eq('organisation_id', organisation!.id)
+        .eq('is_active', true)
+      return count ?? 0
+    },
+  })
 
   const { data: billing } = useQuery({
     queryKey: ['billing', organisation?.id],
@@ -283,6 +307,54 @@ export default function AdminSettings() {
             <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2 mt-3">
               IA activée — chaque requête consomme des tokens Anthropic (voir votre quota plan).
             </p>
+          )}
+        </div>
+        {/* Members */}
+        <div className="card">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <Users className="w-5 h-5 text-brand-600" />
+              <h2 className="font-semibold text-slate-900">Membres</h2>
+            </div>
+            <button
+              onClick={() => navigate('/admin/membres')}
+              className="flex items-center gap-1.5 text-sm text-brand-600 hover:text-brand-700 font-medium"
+            >
+              Gérer les membres
+              <ExternalLink className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-lg">
+            <Users className="w-8 h-8 text-slate-400" />
+            <div>
+              <p className="text-2xl font-bold text-slate-900">{memberCount}</p>
+              <p className="text-sm text-slate-500">
+                membre{memberCount !== 1 ? 's' : ''} actif{memberCount !== 1 ? 's' : ''}
+                {organisation?.seats_included
+                  ? ` · ${organisation.seats_included + (organisation.seats_extra ?? 0)} sièges disponibles`
+                  : ''}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Modules */}
+        <div className="card">
+          <div className="flex items-center gap-3 mb-4">
+            <Boxes className="w-5 h-5 text-brand-600" />
+            <h2 className="font-semibold text-slate-900">Modules actifs</h2>
+            <span className="badge badge-neutral text-xs">Lecture seule — contactez le support</span>
+          </div>
+          {activeModules.length === 0 ? (
+            <p className="text-sm text-slate-400">Aucun module activé pour cette organisation.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {activeModules.map(m => (
+                <span key={m} className="badge badge-brand text-xs font-semibold">
+                  {MODULE_LABELS[m] ?? m}
+                </span>
+              ))}
+            </div>
           )}
         </div>
       </motion.div>

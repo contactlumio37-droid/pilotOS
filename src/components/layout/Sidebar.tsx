@@ -5,6 +5,7 @@ import type { LucideIcon } from 'lucide-react'
 import { signOut, useAuth, ADMIN_SESSION_KEY } from '@/hooks/useAuth'
 import { ORG_CONTEXT_KEY } from '@/hooks/useOrganisation'
 import NotificationBell from './NotificationBell'
+import { Zap } from 'lucide-react'
 
 interface NavItem {
   to: string
@@ -22,7 +23,7 @@ interface SidebarProps {
 
 export default function Sidebar({ items, dark = false, profileTo = '/profil', headerSlot }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
-  const { isImpersonating } = useAuth()
+  const { isImpersonating, role } = useAuth()
   const hasBannerOffset = isImpersonating || !!sessionStorage.getItem(ORG_CONTEXT_KEY) || !!localStorage.getItem(ADMIN_SESSION_KEY)
 
   useEffect(() => {
@@ -93,6 +94,22 @@ export default function Sidebar({ items, dark = false, profileTo = '/profil', he
       <div className="border-t border-slate-800 p-2 space-y-0.5">
         {/* Notifications */}
         <NotificationBell collapsed={collapsed} />
+
+        {/* Super Admin shortcut — visible uniquement hors /superadmin */}
+        {role === 'superadmin' && !window.location.pathname.startsWith('/superadmin') && (
+          <NavLink
+            to="/superadmin"
+            className={({ isActive }) =>
+              `flex items-center gap-3 w-full px-3 py-2.5 rounded-lg transition-colors ${
+                isActive ? 'bg-brand-600 text-white' : 'text-amber-400 hover:text-amber-300 hover:bg-slate-800'
+              } ${collapsed ? 'justify-center' : ''}`
+            }
+            title={collapsed ? '⚡ Super Admin' : undefined}
+          >
+            <Zap className="w-5 h-5 shrink-0" />
+            {!collapsed && <span className="text-sm font-medium">Super Admin</span>}
+          </NavLink>
+        )}
 
         {/* Profile */}
         <NavLink
