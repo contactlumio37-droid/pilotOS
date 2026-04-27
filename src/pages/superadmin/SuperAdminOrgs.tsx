@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { Search, Building2, Users, ChevronDown, UserCheck, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { setOrgContext } from '@/hooks/useOrganisation'
 import type { Organisation, Plan } from '@/types/database'
 
 const PLAN_COLORS: Record<string, string> = {
@@ -26,6 +27,20 @@ function useUpdateOrgPlan() {
       const { error } = await supabase
         .from('organisations')
         .update({ plan, updated_at: new Date().toISOString() })
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['superadmin_orgs'] }),
+  })
+}
+
+function useUpdateOrgSeats() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, seats_included, seats_extra }: { id: string; seats_included: number; seats_extra: number }) => {
+      const { error } = await supabase
+        .from('organisations')
+        .update({ seats_included, seats_extra, updated_at: new Date().toISOString() })
         .eq('id', id)
       if (error) throw error
     },
@@ -98,13 +113,57 @@ function PlanSelect({ org, updatePlan }: { org: OrgWithMemberCount; updatePlan: 
   )
 }
 
+function SeatsEditor({ org, onSave }: { org: OrgWithMemberCount; onSave: (included: number, extra: number) => Promise<void> }) {
+  const [included, setIncluded] = useState(org.seats_included)
+  const [extra, setExtra] = useState(org.seats_extra)
+  const [saving, setSaving] = useState(false)
+
+  async function handleSave() {
+    setSaving(true)
+    try { await onSave(included, extra) } finally { setSaving(false) }
+  }
+
+  return (
+    <div className="flex items-end gap-2">
+      <div>
+        <p className="text-xs text-slate-500 mb-1">Sièges inclus</p>
+        <input
+          type="number"
+          min={0}
+          value={included}
+          onChange={e => setIncluded(Number(e.target.value))}
+          className="w-20 text-sm bg-slate-700 border border-slate-600 text-white rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-500"
+        />
+      </div>
+      <div>
+        <p className="text-xs text-slate-500 mb-1">Sièges extra</p>
+        <input
+          type="number"
+          min={0}
+          value={extra}
+          onChange={e => setExtra(Number(e.target.value))}
+          className="w-20 text-sm bg-slate-700 border border-slate-600 text-white rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-500"
+        />
+      </div>
+      <button
+        onClick={handleSave}
+        disabled={saving}
+        className="text-xs px-3 py-1.5 rounded-lg border border-brand-600 text-brand-400 hover:bg-brand-900/30 transition-colors disabled:opacity-50"
+      >
+        {saving ? '…' : 'Sauvegarder'}
+      </button>
+    </div>
+  )
+}
+
 export default function SuperAdminOrgs() {
   const [search, setSearch] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const updatePlan      = useUpdateOrgPlan()
-  const toggleActive    = useToggleOrgActive()
-  const toggleAi        = useToggleAiEnabled()
-  const ensureAccess    = useEnsureOrgAccess()
+  const updatePlan   = useUpdateOrgPlan()
+  const updateSeats  = useUpdateOrgSeats()
+  const toggleActive = useToggleOrgActive()
+  const toggleAi     = useToggleAiEnabled()
+  const ensureAccess = useEnsureOrgAccess()
 
   const { data: orgs = [], isLoading } = useQuery({
     queryKey: ['superadmin_orgs'],
@@ -123,11 +182,21 @@ export default function SuperAdminOrgs() {
     o.slug.toLowerCase().includes(search.toLowerCase()),
   )
 
+  async function handleAcceder(orgId: string) {
+    try {
+      await ensureAccess.mutateAsync(orgId)
+    } catch {
+      // If ensure-org-access fails, still try to navigate (membership may exist)
+    }
+    setOrgContext(orgId)
+    window.location.href = '/app/dashboard'
+  }
+
   return (
-    <div className="max-w-5xl">
+    <div>
       <motion.div initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-white">Organisations</h1>
+          <h2 className="text-xl font-bold text-white">Organisations</h2>
           <span className="text-sm text-slate-400">{orgs.length} total</span>
         </div>
 
@@ -183,27 +252,30 @@ export default function SuperAdminOrgs() {
 
                 {/* Expanded panel */}
                 {expandedId === org.id && (
-                  <div className="px-6 pb-4 pt-1 border-t border-slate-700 flex items-center gap-4 flex-wrap">
-                    <div>
-                      <p className="text-xs text-slate-500 mb-1">Plan</p>
-                      <PlanSelect org={org} updatePlan={updatePlan} />
+                  <div className="px-6 pb-4 pt-1 border-t border-slate-700 space-y-4">
+                    <div className="flex items-end gap-6 flex-wrap">
+                      <div>
+                        <p className="text-xs text-slate-500 mb-1">Plan</p>
+                        <PlanSelect org={org} updatePlan={updatePlan} />
+                      </div>
+
+                      <SeatsEditor
+                        key={org.id}
+                        org={org}
+                        onSave={(included, extra) =>
+                          updateSeats.mutateAsync({ id: org.id, seats_included: included, seats_extra: extra })
+                        }
+                      />
+
+                      <div>
+                        <p className="text-xs text-slate-500 mb-1">Stripe</p>
+                        <p className="text-xs font-mono text-slate-400">
+                          {org.stripe_customer_id ?? '—'}
+                        </p>
+                      </div>
                     </div>
 
-                    <div>
-                      <p className="text-xs text-slate-500 mb-1">Sièges inclus</p>
-                      <p className="text-sm text-white font-medium">
-                        {org.seats_included} + {org.seats_extra} extra
-                      </p>
-                    </div>
-
-                    <div>
-                      <p className="text-xs text-slate-500 mb-1">Stripe</p>
-                      <p className="text-xs font-mono text-slate-400">
-                        {org.stripe_customer_id ?? '—'}
-                      </p>
-                    </div>
-
-                    <div className="ml-auto flex items-center gap-2 flex-wrap">
+                    <div className="flex items-center gap-2 flex-wrap">
                       {/* Toggle IA */}
                       <button
                         onClick={() => toggleAi.mutate({ id: org.id, ai_enabled: !org.ai_enabled })}
@@ -219,15 +291,15 @@ export default function SuperAdminOrgs() {
                         IA {org.ai_enabled ? 'ON' : 'OFF'}
                       </button>
 
-                      {/* Accès org (auto-provisioning) */}
+                      {/* Accéder */}
                       <button
-                        onClick={() => ensureAccess.mutate(org.id)}
+                        onClick={() => handleAcceder(org.id)}
                         disabled={ensureAccess.isPending}
-                        title="Accéder à cette organisation en tant que superadmin"
-                        className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-slate-600 text-slate-400 hover:border-brand-500 hover:text-brand-400 transition-colors"
+                        title="Accéder à cette organisation"
+                        className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-slate-600 text-slate-400 hover:border-brand-500 hover:text-brand-400 transition-colors disabled:opacity-50"
                       >
                         <UserCheck className="w-3 h-3" />
-                        Accéder
+                        {ensureAccess.isPending ? 'Accès…' : 'Accéder'}
                       </button>
 
                       {/* Activer / désactiver org */}
