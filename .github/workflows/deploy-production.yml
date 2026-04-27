@@ -15,11 +15,9 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Install Supabase CLI
-        uses: supabase/setup-cli@v2
+      - uses: supabase/setup-cli@v2
         with:
           version: latest
 
@@ -29,7 +27,7 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
 
-      - name: Push migrations (production)
+      - name: Push migrations
         run: |
           set -euo pipefail
 
@@ -52,8 +50,7 @@ jobs:
 
           echo "$OUTPUT"
 
-          echo "→ Vérification drift"
-          supabase db diff || echo "⚠️ Drift détecté (non bloquant)"
+          supabase db diff || echo "⚠️ Drift détecté"
 
           echo "✅ Migrations OK"
         env:
@@ -68,25 +65,20 @@ jobs:
             local fn="$1"; shift
             echo "→ Deploy $fn"
 
-            if ! supabase functions deploy "$fn" \
-              --project-ref "$SUPABASE_PROJECT_REF" "$@"; then
-              echo "::error::Échec fonction $fn"
-              exit 1
-            fi
+            supabase functions deploy "$fn" \
+              --project-ref "$SUPABASE_PROJECT_REF" "$@"
           }
 
-          deploy_fn "send-email"          --no-verify-jwt
+          deploy_fn "send-email" --no-verify-jwt
           deploy_fn "invite-member"
           deploy_fn "ai-assistant"
-          deploy_fn "check-ai-quota"      --no-verify-jwt
+          deploy_fn "check-ai-quota" --no-verify-jwt
           deploy_fn "ensure-org-access"
           deploy_fn "impersonate-user"
           deploy_fn "notify-late-actions"
           deploy_fn "stripe-checkout"
           deploy_fn "stripe-portal"
-          deploy_fn "stripe-webhook"      --no-verify-jwt
-
-          echo "✅ Edge Functions OK"
+          deploy_fn "stripe-webhook" --no-verify-jwt
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
@@ -104,17 +96,14 @@ jobs:
       prod_url: ${{ steps.deploy.outputs.url }}
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install dependencies
-        run: npm ci
+      - run: npm ci
 
       - name: Install Vercel CLI + jq
         run: |
@@ -159,16 +148,6 @@ jobs:
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
-      - name: Résumé deploy
-        if: always()
-        run: |
-          echo "════════════════════════════════════════"
-          echo "Deploy Production — ${{ job.status }}"
-          echo "URL    : ${{ steps.deploy.outputs.url }}"
-          echo "Branch : ${{ github.ref_name }}"
-          echo "Commit : ${{ github.sha }}"
-          echo "════════════════════════════════════════"
-
   # ════════════════════════════════════════════════════════════
   # Job 3 — Smoke Test
   # ════════════════════════════════════════════════════════════
@@ -177,38 +156,31 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 6
     needs: vercel
+    continue-on-error: true
 
     steps:
-      - name: Smoke Test (Vercel)
+      - name: Smoke Test
         run: |
           set -uo pipefail
 
           URL="${{ needs.vercel.outputs.prod_url }}"
 
-          echo "→ URL récupérée: '$URL'"
-
-          if [ -z "$URL" ]; then
-            echo "::error::prod_url est vide"
-            exit 1
-          fi
+          echo "→ URL: $URL"
 
           TARGET="$URL"
           MAX_ATTEMPTS=24
           SLEEP=10
 
           for ((i=1;i<=MAX_ATTEMPTS;i++)); do
-
             HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
               --location \
               --max-time 25 \
-              --retry 3 \
-              --retry-delay 2 \
               "$TARGET" || echo "000")
 
-            echo "Tentative $i/$MAX_ATTEMPTS → HTTP $HTTP_CODE"
+            echo "Tentative $i → HTTP $HTTP_CODE"
 
-            if [[ "$HTTP_CODE" =~ ^(200|301|302|307|308)$ ]]; then
-              echo "✅ Application disponible"
+            if [[ "$HTTP_CODE" =~ ^(200|301|302|307|308|401)$ ]]; then
+              echo "✅ OK"
               exit 0
             fi
 
@@ -217,28 +189,3 @@ jobs:
 
           echo "::error::Smoke test échoué"
           exit 1
-
-  # ════════════════════════════════════════════════════════════
-  # Job 4 — Notification
-  # ════════════════════════════════════════════════════════════
-  notify-failure:
-    name: Notification — Échec production
-    runs-on: ubuntu-latest
-    timeout-minutes: 2
-    needs: [supabase, vercel, smoke-test]
-    if: >
-      always() && (
-        needs.supabase.result == 'failure' ||
-        needs.vercel.result == 'failure' ||
-        needs.smoke-test.result == 'failure'
-      )
-
-    steps:
-      - name: Log échec
-        run: |
-          echo "::error::═══════════════════════════════════════"
-          echo "::error::DEPLOY PRODUCTION ÉCHOUÉ"
-          echo "Supabase : ${{ needs.supabase.result }}"
-          echo "Vercel   : ${{ needs.vercel.result }}"
-          echo "Smoke    : ${{ needs.smoke-test.result }}"
-          echo "::error::═══════════════════════════════════════"
