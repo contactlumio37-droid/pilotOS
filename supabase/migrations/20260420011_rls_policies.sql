@@ -73,6 +73,25 @@ END;
 $$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
 
 -- ============================================================
+-- Ensure visibility columns exist on all content tables
+-- (idempotent — no-op if columns already present)
+-- ============================================================
+ALTER TABLE IF EXISTS strategic_objectives  ADD COLUMN IF NOT EXISTS visibility          TEXT NOT NULL DEFAULT 'public';
+ALTER TABLE IF EXISTS strategic_objectives  ADD COLUMN IF NOT EXISTS visibility_user_ids  UUID[] DEFAULT '{}';
+ALTER TABLE IF EXISTS codir_decisions       ADD COLUMN IF NOT EXISTS visibility          TEXT NOT NULL DEFAULT 'internal';
+ALTER TABLE IF EXISTS codir_decisions       ADD COLUMN IF NOT EXISTS visibility_user_ids  UUID[] DEFAULT '{}';
+ALTER TABLE IF EXISTS projects              ADD COLUMN IF NOT EXISTS visibility          TEXT NOT NULL DEFAULT 'internal';
+ALTER TABLE IF EXISTS projects              ADD COLUMN IF NOT EXISTS visibility_user_ids  UUID[] DEFAULT '{}';
+ALTER TABLE IF EXISTS processes             ADD COLUMN IF NOT EXISTS visibility          TEXT NOT NULL DEFAULT 'internal';
+ALTER TABLE IF EXISTS processes             ADD COLUMN IF NOT EXISTS visibility_user_ids  UUID[] DEFAULT '{}';
+ALTER TABLE IF EXISTS actions               ADD COLUMN IF NOT EXISTS visibility          TEXT NOT NULL DEFAULT 'internal';
+ALTER TABLE IF EXISTS actions               ADD COLUMN IF NOT EXISTS visibility_user_ids  UUID[] DEFAULT '{}';
+ALTER TABLE IF EXISTS indicators            ADD COLUMN IF NOT EXISTS visibility          TEXT NOT NULL DEFAULT 'internal';
+ALTER TABLE IF EXISTS indicators            ADD COLUMN IF NOT EXISTS visibility_user_ids  UUID[] DEFAULT '{}';
+ALTER TABLE IF EXISTS documents             ADD COLUMN IF NOT EXISTS visibility          TEXT NOT NULL DEFAULT 'internal';
+ALTER TABLE IF EXISTS documents             ADD COLUMN IF NOT EXISTS visibility_user_ids  UUID[] DEFAULT '{}';
+
+-- ============================================================
 -- Organisations
 -- ============================================================
 DROP POLICY IF EXISTS "organisations_member_read" ON organisations;
