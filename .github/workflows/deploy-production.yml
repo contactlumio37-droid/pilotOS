@@ -151,11 +151,14 @@ jobs:
             exit 1
           fi
 
-          FULL_URL="https://$URL"
+          # Fix double https
+          if [[ "$URL" != http* ]]; then
+            URL="https://$URL"
+          fi
 
-          echo "url=$FULL_URL" >> "$GITHUB_OUTPUT"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
 
-          echo "✅ Deploy OK : $FULL_URL"
+          echo "✅ Deploy OK : $URL"
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
@@ -186,6 +189,12 @@ jobs:
           URL="${{ needs.vercel.outputs.prod_url }}"
 
           echo "→ Test URL : $URL"
+
+          # Vérification rapide de validité
+          if ! curl -I "$URL" --max-time 10 >/dev/null 2>&1; then
+            echo "::error::URL invalide ou inaccessible"
+            exit 1
+          fi
 
           for i in {1..10}; do
             HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
