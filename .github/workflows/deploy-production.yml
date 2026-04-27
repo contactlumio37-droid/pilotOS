@@ -150,7 +150,7 @@ jobs:
         id: vercel_deploy
         continue-on-error: false
         run: |
-          DEPLOY_URL=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN" 2>&1 | tail -1)
+          DEPLOY_URL=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN" 2>&1 | grep -oE 'https://[^[:space:]]+' | tail -1)
           echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
           echo "✅ Production déployée : $DEPLOY_URL"
         env:
