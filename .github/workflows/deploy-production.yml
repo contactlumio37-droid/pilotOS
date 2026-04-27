@@ -29,9 +29,7 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
 
-      # ── Migrations corrigées ──────────────────────────────────
       - name: Push migrations (production)
-        id: db_push
         run: |
           set -euo pipefail
 
@@ -62,7 +60,6 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
-      # ── Edge Functions sécurisées ─────────────────────────────
       - name: Deploy Edge Functions
         run: |
           set -euo pipefail
@@ -102,6 +99,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: supabase
+
     outputs:
       prod_url: ${{ steps.deploy.outputs.url }}
 
@@ -151,7 +149,6 @@ jobs:
             exit 1
           fi
 
-          # Fix double https
           if [[ "$URL" != http* ]]; then
             URL="https://$URL"
           fi
@@ -166,68 +163,61 @@ jobs:
         if: always()
         run: |
           echo "════════════════════════════════════════"
-          echo "  Deploy Production — ${{ job.status }}"
-          echo "  URL    : ${{ steps.deploy.outputs.url }}"
-          echo "  Branch : ${{ github.ref_name }}"
-          echo "  Commit : ${{ github.sha }}"
+          echo "Deploy Production — ${{ job.status }}"
+          echo "URL    : ${{ steps.deploy.outputs.url }}"
+          echo "Branch : ${{ github.ref_name }}"
+          echo "Commit : ${{ github.sha }}"
           echo "════════════════════════════════════════"
 
   # ════════════════════════════════════════════════════════════
-  # Job 3 — Smoke Test robuste
+  # Job 3 — Smoke Test
   # ════════════════════════════════════════════════════════════
- smoke-test:
-  name: Smoke Test
-  runs-on: ubuntu-latest
-  timeout-minutes: 6
-  needs: vercel
+  smoke-test:
+    name: Smoke Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    needs: vercel
 
-  steps:
-    - name: Smoke Test (Vercel)
-      run: |
-        set -uo pipefail
+    steps:
+      - name: Smoke Test (Vercel)
+        run: |
+          set -uo pipefail
 
-        URL="${{ needs.vercel.outputs.prod_url }}"
+          URL="${{ needs.vercel.outputs.prod_url }}"
 
-        echo "→ URL récupérée: '$URL'"
+          echo "→ URL récupérée: '$URL'"
 
-        # Vérification critique
-        if [ -z "$URL" ]; then
-          echo "::error::prod_url est vide (vérifie les outputs du job vercel)"
-          exit 1
-        fi
-
-        # OPTION RECOMMANDÉE :
-        # Si tu as un endpoint healthcheck, utilise-le
-        TARGET="$URL"
-        # TARGET="$URL/api/health"
-
-        MAX_ATTEMPTS=24   # ~4 minutes
-        SLEEP=10
-
-        echo "→ Début du smoke test..."
-
-        for ((i=1;i<=MAX_ATTEMPTS;i++)); do
-
-          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-            --location \
-            --max-time 25 \
-            --retry 3 \
-            --retry-delay 2 \
-            "$TARGET" || echo "000")
-
-          echo "Tentative $i/$MAX_ATTEMPTS → HTTP $HTTP_CODE"
-
-          # Codes acceptés (Vercel inclus)
-          if [[ "$HTTP_CODE" =~ ^(200|301|302|307|308)$ ]]; then
-            echo "✅ Application disponible"
-            exit 0
+          if [ -z "$URL" ]; then
+            echo "::error::prod_url est vide"
+            exit 1
           fi
 
-          sleep $SLEEP
-        done
+          TARGET="$URL"
+          MAX_ATTEMPTS=24
+          SLEEP=10
 
-        echo "::error::Smoke test échoué après $MAX_ATTEMPTS tentatives"
-        exit 1
+          for ((i=1;i<=MAX_ATTEMPTS;i++)); do
+
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+              --location \
+              --max-time 25 \
+              --retry 3 \
+              --retry-delay 2 \
+              "$TARGET" || echo "000")
+
+            echo "Tentative $i/$MAX_ATTEMPTS → HTTP $HTTP_CODE"
+
+            if [[ "$HTTP_CODE" =~ ^(200|301|302|307|308)$ ]]; then
+              echo "✅ Application disponible"
+              exit 0
+            fi
+
+            sleep $SLEEP
+          done
+
+          echo "::error::Smoke test échoué"
+          exit 1
+
   # ════════════════════════════════════════════════════════════
   # Job 4 — Notification
   # ════════════════════════════════════════════════════════════
