@@ -1,9 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { Search, Building2, Users, ChevronDown, UserCheck, Sparkles } from 'lucide-react'
+import { Search, Building2, Users, ChevronDown, UserCheck, Sparkles, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { setOrgContext } from '@/hooks/useOrganisation'
+import { useAuth } from '@/hooks/useAuth'
 import type { Organisation, Plan } from '@/types/database'
 
 const PLAN_COLORS: Record<string, string> = {
@@ -88,6 +89,17 @@ function useEnsureOrgAccess() {
   })
 }
 
+function useDeleteOrg() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('organisations').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['superadmin_orgs'] }),
+  })
+}
+
 function PlanSelect({ org, updatePlan }: { org: OrgWithMemberCount; updatePlan: ReturnType<typeof useUpdateOrgPlan> }) {
   const [localPlan, setLocalPlan] = useState<Plan>(org.plan)
   return (
@@ -157,13 +169,16 @@ function SeatsEditor({ org, onSave }: { org: OrgWithMemberCount; onSave: (includ
 }
 
 export default function SuperAdminOrgs() {
+  const { user } = useAuth()
   const [search, setSearch] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const updatePlan   = useUpdateOrgPlan()
   const updateSeats  = useUpdateOrgSeats()
   const toggleActive = useToggleOrgActive()
   const toggleAi     = useToggleAiEnabled()
   const ensureAccess = useEnsureOrgAccess()
+  const deleteOrg    = useDeleteOrg()
 
   const { data: orgs = [], isLoading } = useQuery({
     queryKey: ['superadmin_orgs'],
@@ -314,6 +329,37 @@ export default function SuperAdminOrgs() {
                       >
                         {org.is_active ? 'Désactiver' : 'Réactiver'}
                       </button>
+
+                      {/* Supprimer org */}
+                      {confirmDeleteId === org.id ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-red-400">Confirmer ?</span>
+                          <button
+                            onClick={() => { deleteOrg.mutate(org.id); setConfirmDeleteId(null); setExpandedId(null) }}
+                            disabled={deleteOrg.isPending}
+                            className="text-xs px-2 py-1 rounded bg-red-900 text-red-300 hover:bg-red-800 transition-colors disabled:opacity-50"
+                          >
+                            Oui, supprimer
+                          </button>
+                          <button
+                            onClick={() => setConfirmDeleteId(null)}
+                            className="text-xs px-2 py-1 rounded border border-slate-600 text-slate-400 hover:border-slate-500 transition-colors"
+                          >
+                            Annuler
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            if (user?.id && org.id) setConfirmDeleteId(org.id)
+                          }}
+                          disabled={deleteOrg.isPending}
+                          title="Supprimer cette organisation"
+                          className="flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg border border-slate-700 text-slate-600 hover:border-red-700 hover:text-red-400 transition-colors disabled:opacity-50"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 )}

@@ -6,6 +6,20 @@ import Drawer from '@/components/ui/Drawer'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 
+const PAGE_NAMES: Record<string, string> = {
+  '/app':            'Dashboard',
+  '/app/dashboard':  'Dashboard',
+  '/app/actions':    'Actions',
+  '/app/processus':  'Processus',
+  '/app/documents':  'Documents',
+  '/app/profil':     'Profil',
+  '/app/feedback':   'Mes signalements',
+  '/manager':        'Dashboard Manager',
+  '/direction':      'Dashboard Direction',
+  '/admin':          'Dashboard Admin',
+  '/terrain':        'Terrain',
+}
+
 const schema = z.object({
   category: z.enum(['bug', 'suggestion', 'question']),
   title: z.string().min(5, 'Titre trop court (min 5 caractères)'),
@@ -131,7 +145,7 @@ export default function FeedbackDrawer({ open, onClose }: FeedbackDrawerProps) {
           </div>
 
           <p className="text-xs text-slate-400">
-            Page : <span className="font-mono">{window.location.pathname}</span>
+            Page : <span className="font-mono">{PAGE_NAMES[window.location.pathname] ?? window.location.pathname}</span>
           </p>
         </form>
       )}

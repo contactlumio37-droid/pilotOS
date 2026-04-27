@@ -40,6 +40,20 @@ export function useCreateFolder() {
   })
 }
 
+export function useRenameFolder() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      const { error } = await supabase
+        .from('document_folders')
+        .update({ name })
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['document_folders'] }),
+  })
+}
+
 // ── Documents ─────────────────────────────────────────────────
 
 export function useDocuments(folderId?: string | null) {

@@ -3,7 +3,8 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { motion } from 'framer-motion'
-import { Save, Lock, User, Flame } from 'lucide-react'
+import { Save, Lock, User, Flame, MessageSquarePlus } from 'lucide-react'
+import { Link, useResolvedPath } from 'react-router-dom'
 import { useProfile, useUpdateProfile, useChangePassword } from '@/hooks/useProfile'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/components/ui/useToast'
@@ -85,6 +86,9 @@ export default function ProfilePage() {
     }
   }
 
+  const { pathname } = useResolvedPath('.')
+  const feedbackPath = pathname.replace(/\/profil$/, '/feedback')
+
   const initials = (profile?.full_name ?? user?.email ?? '?')
     .split(' ')
     .map(w => w[0])
@@ -95,7 +99,16 @@ export default function ProfilePage() {
   return (
     <div className="max-w-2xl">
       <motion.div initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="space-y-6">
-        <h1 className="text-2xl font-bold text-slate-900">Mon profil</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-slate-900">Mon profil</h1>
+          <Link
+            to={feedbackPath}
+            className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-brand-600 transition-colors"
+          >
+            <MessageSquarePlus className="w-4 h-4" />
+            Mes signalements
+          </Link>
+        </div>
 
         {/* Avatar + email */}
         <div className="card flex items-center gap-4">

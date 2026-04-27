@@ -1,7 +1,6 @@
 import { Routes, Route } from 'react-router-dom'
 import { AlertCircle, ClipboardList, CheckSquare } from 'lucide-react'
 import BottomNav from '@/components/layout/BottomNav'
-import FeedbackButton from '@/components/layout/FeedbackButton'
 import ProfilePage from '@/pages/shared/ProfilePage'
 import TerrainReportPage from './TerrainReportPage'
 import TerrainMyReportsPage from './TerrainMyReportsPage'
@@ -25,7 +24,6 @@ export default function TerrainApp() {
         </Routes>
       </main>
       <BottomNav items={NAV_ITEMS} />
-      <FeedbackButton />
     </div>
   )
 }

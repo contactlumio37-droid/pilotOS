@@ -3,12 +3,12 @@ import { LayoutDashboard, ListChecks, FolderOpen, GitBranch } from 'lucide-react
 import { useBreakpoint } from '@/hooks/useBreakpoint'
 import Sidebar from '@/components/layout/Sidebar'
 import BottomNav from '@/components/layout/BottomNav'
-import FeedbackButton from '@/components/layout/FeedbackButton'
 import DashboardPage from './DashboardPage'
 import ActionsPage from './ActionsPage'
 import ProcessesPage from '@/pages/shared/ProcessesPage'
 import DocumentsPage from '@/pages/shared/DocumentsPage'
 import ProfilePage from '@/pages/shared/ProfilePage'
+import MyReportsPage from '@/pages/shared/MyReportsPage'
 
 const NAV_ITEMS = [
   { to: '/app', label: 'Tableau de bord', icon: LayoutDashboard, end: true },
@@ -36,9 +36,9 @@ export default function ContributorApp() {
           <Route path="/processus" element={<ProcessesPage />} />
           <Route path="/documents" element={<DocumentsPage />} />
           <Route path="/profil" element={<ProfilePage />} />
+          <Route path="/feedback" element={<MyReportsPage />} />
         </Routes>
       </main>
-      <FeedbackButton />
     </div>
   )
 }
