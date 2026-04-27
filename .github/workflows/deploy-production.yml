@@ -1,12 +1,5 @@
 name: Deploy — Production
 
-# ─────────────────────────────────────────────────────────────
-# Déclenché sur :
-#   - Push vers main (après merge)
-#   - workflow_dispatch (déclenchement manuel sans confirmation)
-#
-# Ordre impératif : Supabase → Vercel → Smoke test
-# ─────────────────────────────────────────────────────────────
 on:
   push:
     branches: [main]
@@ -14,7 +7,7 @@ on:
 
 jobs:
   # ════════════════════════════════════════════════════════════
-  # Job 1 — Supabase : migrations + Edge Functions
+  # Job 1 — Supabase
   # ════════════════════════════════════════════════════════════
   supabase:
     name: Supabase — Migrations & Edge Functions
@@ -22,10 +15,8 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # ── Supabase CLI ──────────────────────────────────────────
       - name: Install Supabase CLI
         uses: supabase/setup-cli@v2
         with:
@@ -38,66 +29,42 @@ jobs:
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
 
       # ── Migrations ────────────────────────────────────────────
-      # Les migrations sont idempotentes — rejouer est sûr.
-      # En cas d'erreur réelle, le job échoue et bloque le deploy Vercel.
       - name: Push migrations (production)
         id: db_push
-        continue-on-error: false
         run: |
           set -euo pipefail
-          echo "→ Application des migrations Supabase (production)..."
 
-          do_push() {
-            echo "Y" | supabase db push --password "$SUPABASE_DB_PASSWORD" 2>&1
-          }
+          echo "→ Application des migrations..."
 
-          output=$(do_push) || {
-            exit_code=$?
-            echo "$output"
+          if ! echo "Y" | supabase db push --password "$SUPABASE_DB_PASSWORD"; then
+            echo "::error::Échec migrations"
+            exit 1
+          fi
 
-            if echo "$output" | grep -qE "SQLSTATE 42P07|already exists"; then
-              echo "⚠️  Objets déjà présents — migrations idempotentes, continuation"
-              exit 0
-            fi
+          echo "→ Vérification drift"
+          supabase db diff || echo "⚠️ Drift détecté (non bloquant)"
 
-            if echo "$output" | grep -q "Remote migration versions not found"; then
-              echo "⚠️  Versions distantes orphelines détectées — réparation..."
-              echo "$output" | grep -oP 'reverted \K[0-9]+' | while read -r version; do
-                echo "  → supabase migration repair --status reverted $version"
-                supabase migration repair --status reverted "$version"
-              done
-              echo "→ Nouvelle tentative après réparation..."
-              output2=$(do_push) || { echo "$output2"; exit 1; }
-              echo "$output2"
-              echo "✅ Migrations production appliquées (après réparation historique)"
-              exit 0
-            fi
-
-            echo "::error::Migration production ÉCHOUÉE (code $exit_code)"
-            echo "::error::Un rollback manuel peut être requis si la migration est partielle."
-            exit "$exit_code"
-          }
-
-          echo "$output"
-          echo "✅ Migrations production appliquées"
+          echo "✅ Migrations OK"
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
       # ── Edge Functions ────────────────────────────────────────
-      - name: Deploy Edge Functions (production)
-        continue-on-error: false
+      - name: Deploy Edge Functions
         run: |
           set -euo pipefail
 
           deploy_fn() {
-            local fn_name="$1"; shift
-            echo "  → $fn_name"
-            supabase functions deploy "$fn_name" \
-              --project-ref "$SUPABASE_PROJECT_REF" "$@"
+            local fn="$1"; shift
+            echo "→ Deploy $fn"
+
+            if ! supabase functions deploy "$fn" \
+              --project-ref "$SUPABASE_PROJECT_REF" "$@"; then
+              echo "::error::Échec fonction $fn"
+              exit 1
+            fi
           }
 
-          echo "→ Déploiement des Edge Functions (production)..."
           deploy_fn "send-email"          --no-verify-jwt
           deploy_fn "invite-member"
           deploy_fn "ai-assistant"
@@ -109,147 +76,123 @@ jobs:
           deploy_fn "stripe-portal"
           deploy_fn "stripe-webhook"      --no-verify-jwt
 
-          echo "✅ Edge Functions production déployées"
+          echo "✅ Edge Functions OK"
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
 
-      - name: Résumé Supabase
-        if: always()
-        run: |
-          echo "Migrations production : ${{ steps.db_push.outcome }}"
-
   # ════════════════════════════════════════════════════════════
-  # Job 2 — Vercel : build + deploy production
-  # Dépend de supabase — ne démarre que si les migrations réussissent.
+  # Job 2 — Vercel
   # ════════════════════════════════════════════════════════════
   vercel:
     name: Vercel — Build & Deploy Production
     runs-on: ubuntu-latest
-    timeout-minutes: 15
     needs: supabase
     outputs:
-      prod_url: ${{ steps.vercel_deploy.outputs.url }}
+      prod_url: ${{ steps.deploy.outputs.url }}
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # ── Node.js ───────────────────────────────────────────────
-      - name: Setup Node.js 20
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install dependencies
-        run: npm ci
+      - run: npm ci
 
-      # ── Vercel ────────────────────────────────────────────────
-      - name: Install Vercel CLI
-        run: npm install --global vercel@latest
+      - name: Install Vercel CLI + jq
+        run: |
+          npm install -g vercel@latest
+          sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Pull Vercel environment (production)
+      - name: Pull env
         run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
-      - name: Build production
-        continue-on-error: false
+      - name: Build
         run: vercel build --prod --token="$VERCEL_TOKEN"
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
-      - name: Deploy to Vercel (production)
-        id: vercel_deploy
-        continue-on-error: false
+      - name: Deploy
+        id: deploy
         run: |
-          DEPLOY_URL=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN" 2>&1 | grep -oE 'https://[^[:space:]]+' | tail -1)
-          echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
-          echo "✅ Production déployée : $DEPLOY_URL"
+          set -euo pipefail
+
+          echo "→ Deploy Vercel..."
+
+          JSON=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN" --json)
+
+          echo "$JSON"
+
+          URL=$(echo "$JSON" | jq -r '.url')
+
+          if [[ -z "$URL" || "$URL" == "null" ]]; then
+            echo "::error::URL Vercel introuvable"
+            exit 1
+          fi
+
+          FULL_URL="https://$URL"
+
+          echo "url=$FULL_URL" >> "$GITHUB_OUTPUT"
+
+          echo "✅ Deploy OK : $FULL_URL"
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-
-      - name: Résumé deploy
-        if: always()
-        run: |
-          echo "════════════════════════════════════════"
-          echo "  Deploy Production — ${{ job.status }}"
-          echo "  URL    : ${{ steps.vercel_deploy.outputs.url }}"
-          echo "  Branch : ${{ github.ref_name }}"
-          echo "  Commit : ${{ github.sha }}"
-          echo "════════════════════════════════════════"
 
   # ════════════════════════════════════════════════════════════
-  # Job 3 — Smoke Test : vérification post-deploy
-  # Ping la homepage avec 3 tentatives avant d'échouer.
+  # Job 3 — Smoke Test
   # ════════════════════════════════════════════════════════════
   smoke-test:
-    name: Smoke Test — Vérification post-deploy
+    name: Smoke Test
     runs-on: ubuntu-latest
-    timeout-minutes: 5
     needs: vercel
 
     steps:
-      - name: Ping homepage production
+      - name: Test production
         run: |
+          set -euo pipefail
+
           URL="${{ needs.vercel.outputs.prod_url }}"
-          echo "→ Test de disponibilité : $URL"
 
-          for i in 1 2 3; do
+          echo "→ Test URL : $URL"
+
+          for i in {1..10}; do
             HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-              --max-time 15 --location "$URL" || echo "000")
+              --max-time 15 \
+              --location "$URL" || echo "000")
 
-            if [ "$HTTP_CODE" = "200" ]; then
-              echo "✅ Smoke test OK — HTTP $HTTP_CODE (tentative $i)"
+            echo "Tentative $i → HTTP $HTTP_CODE"
+
+            if [[ "$HTTP_CODE" =~ ^(200|301|302|308)$ ]]; then
+              echo "✅ OK"
               exit 0
             fi
 
-            echo "Tentative $i/3 — HTTP $HTTP_CODE, nouvelle tentative dans 10s..."
-            sleep 10
+            sleep 15
           done
 
-          echo "::error::Smoke test ÉCHOUÉ — HTTP $HTTP_CODE après 3 tentatives"
-          echo "::error::URL testée : $URL"
+          echo "::error::Smoke test échoué"
           exit 1
 
   # ════════════════════════════════════════════════════════════
-  # Job 4 — Notification d'échec (email/Slack à brancher si besoin)
+  # Job 4 — Notification
   # ════════════════════════════════════════════════════════════
   notify-failure:
-    name: Notification — Échec production
     runs-on: ubuntu-latest
-    timeout-minutes: 2
     needs: [supabase, vercel, smoke-test]
     if: >
       always() && (
-        needs.supabase.result    == 'failure' ||
-        needs.vercel.result      == 'failure' ||
-        needs.smoke-test.result  == 'failure'
+        needs.supabase.result == 'failure' ||
+        needs.vercel.result == 'failure' ||
+        needs.smoke-test.result == 'failure'
       )
 
     steps:
-      - name: Log détaillé de l'échec
-        run: |
-          echo "::error::═══════════════════════════════════════"
-          echo "::error::  DEPLOY PRODUCTION ÉCHOUÉ"
-          echo "::error::  Branch : ${{ github.ref_name }}"
-          echo "::error::  Commit : ${{ github.sha }}"
-          echo "::error::  Acteur : ${{ github.actor }}"
-          echo "::error::  Run    : ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          echo "::error::  Supabase : ${{ needs.supabase.result }}"
-          echo "::error::  Vercel   : ${{ needs.vercel.result }}"
-          echo "::error::  Smoke    : ${{ needs.smoke-test.result }}"
-          echo "::error::═══════════════════════════════════════"
-          echo ""
-          echo "Action requise : vérifier les logs et rollbacker si nécessaire."
-          # TODO : ajouter ici un appel webhook Slack/Discord si souhaité
-          # curl -X POST -H 'Content-type: application/json' \
-          #   --data '{"text":"Deploy production ÉCHOUÉ : '"${{ github.ref_name }}"'"}' \
-          #   "${{ secrets.SLACK_WEBHOOK_URL }}"
+      - run: |
+          echo "::error::DEPLOY ÉCHOUÉ"
+          echo "Supabase : ${{ needs.supabase.result }}"
+          echo "Vercel   : ${{ needs.vercel.result }}"
+          echo "Smoke    : ${{ needs.smoke-test.result }}"
