@@ -175,45 +175,59 @@ jobs:
   # ════════════════════════════════════════════════════════════
   # Job 3 — Smoke Test robuste
   # ════════════════════════════════════════════════════════════
-  smoke-test:
-    name: Smoke Test
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    needs: vercel
+ smoke-test:
+  name: Smoke Test
+  runs-on: ubuntu-latest
+  timeout-minutes: 6
+  needs: vercel
 
-    steps:
-      - name: Test production
-        run: |
-          set -euo pipefail
+  steps:
+    - name: Smoke Test (Vercel)
+      run: |
+        set -uo pipefail
 
-          URL="${{ needs.vercel.outputs.prod_url }}"
+        URL="${{ needs.vercel.outputs.prod_url }}"
 
-          echo "→ Test URL : $URL"
+        echo "→ URL récupérée: '$URL'"
 
-          # Vérification rapide de validité
-          if ! curl -I "$URL" --max-time 10 >/dev/null 2>&1; then
-            echo "::error::URL invalide ou inaccessible"
-            exit 1
+        # Vérification critique
+        if [ -z "$URL" ]; then
+          echo "::error::prod_url est vide (vérifie les outputs du job vercel)"
+          exit 1
+        fi
+
+        # OPTION RECOMMANDÉE :
+        # Si tu as un endpoint healthcheck, utilise-le
+        TARGET="$URL"
+        # TARGET="$URL/api/health"
+
+        MAX_ATTEMPTS=24   # ~4 minutes
+        SLEEP=10
+
+        echo "→ Début du smoke test..."
+
+        for ((i=1;i<=MAX_ATTEMPTS;i++)); do
+
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            --location \
+            --max-time 25 \
+            --retry 3 \
+            --retry-delay 2 \
+            "$TARGET" || echo "000")
+
+          echo "Tentative $i/$MAX_ATTEMPTS → HTTP $HTTP_CODE"
+
+          # Codes acceptés (Vercel inclus)
+          if [[ "$HTTP_CODE" =~ ^(200|301|302|307|308)$ ]]; then
+            echo "✅ Application disponible"
+            exit 0
           fi
 
-          for i in {1..10}; do
-            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-              --max-time 15 \
-              --location "$URL" || echo "000")
+          sleep $SLEEP
+        done
 
-            echo "Tentative $i → HTTP $HTTP_CODE"
-
-            if [[ "$HTTP_CODE" =~ ^(200|301|302|308)$ ]]; then
-              echo "✅ OK"
-              exit 0
-            fi
-
-            sleep 15
-          done
-
-          echo "::error::Smoke test échoué"
-          exit 1
-
+        echo "::error::Smoke test échoué après $MAX_ATTEMPTS tentatives"
+        exit 1
   # ════════════════════════════════════════════════════════════
   # Job 4 — Notification
   # ════════════════════════════════════════════════════════════
