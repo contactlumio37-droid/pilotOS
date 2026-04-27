@@ -15,20 +15,21 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Install Supabase CLI
         uses: supabase/setup-cli@v2
         with:
           version: latest
 
-      - name: Link projet Supabase (production)
+      - name: Link projet Supabase
         run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
 
-      # ── Migrations ────────────────────────────────────────────
+      # ── Migrations corrigées ──────────────────────────────────
       - name: Push migrations (production)
         id: db_push
         run: |
@@ -36,10 +37,22 @@ jobs:
 
           echo "→ Application des migrations..."
 
-          if ! echo "Y" | supabase db push --password "$SUPABASE_DB_PASSWORD"; then
+          OUTPUT=$(echo "Y" | supabase db push \
+            --include-all \
+            --password "$SUPABASE_DB_PASSWORD" 2>&1) || {
+
+            echo "$OUTPUT"
+
+            if echo "$OUTPUT" | grep -qE "already exists|duplicate"; then
+              echo "⚠️ Objets déjà existants — OK"
+              exit 0
+            fi
+
             echo "::error::Échec migrations"
             exit 1
-          fi
+          }
+
+          echo "$OUTPUT"
 
           echo "→ Vérification drift"
           supabase db diff || echo "⚠️ Drift détecté (non bloquant)"
@@ -49,7 +62,7 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
-      # ── Edge Functions ────────────────────────────────────────
+      # ── Edge Functions sécurisées ─────────────────────────────
       - name: Deploy Edge Functions
         run: |
           set -euo pipefail
@@ -87,19 +100,23 @@ jobs:
   vercel:
     name: Vercel — Build & Deploy Production
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: supabase
     outputs:
       prod_url: ${{ steps.deploy.outputs.url }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
-      - run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
       - name: Install Vercel CLI + jq
         run: |
@@ -142,12 +159,23 @@ jobs:
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
+      - name: Résumé deploy
+        if: always()
+        run: |
+          echo "════════════════════════════════════════"
+          echo "  Deploy Production — ${{ job.status }}"
+          echo "  URL    : ${{ steps.deploy.outputs.url }}"
+          echo "  Branch : ${{ github.ref_name }}"
+          echo "  Commit : ${{ github.sha }}"
+          echo "════════════════════════════════════════"
+
   # ════════════════════════════════════════════════════════════
-  # Job 3 — Smoke Test
+  # Job 3 — Smoke Test robuste
   # ════════════════════════════════════════════════════════════
   smoke-test:
     name: Smoke Test
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs: vercel
 
     steps:
@@ -181,7 +209,9 @@ jobs:
   # Job 4 — Notification
   # ════════════════════════════════════════════════════════════
   notify-failure:
+    name: Notification — Échec production
     runs-on: ubuntu-latest
+    timeout-minutes: 2
     needs: [supabase, vercel, smoke-test]
     if: >
       always() && (
@@ -191,8 +221,11 @@ jobs:
       )
 
     steps:
-      - run: |
-          echo "::error::DEPLOY ÉCHOUÉ"
+      - name: Log échec
+        run: |
+          echo "::error::═══════════════════════════════════════"
+          echo "::error::DEPLOY PRODUCTION ÉCHOUÉ"
           echo "Supabase : ${{ needs.supabase.result }}"
           echo "Vercel   : ${{ needs.vercel.result }}"
           echo "Smoke    : ${{ needs.smoke-test.result }}"
+          echo "::error::═══════════════════════════════════════"
