@@ -98,7 +98,8 @@ jobs:
 
       - name: Résumé Supabase
         if: always()
-        run: echo "Migrations production : ${{ steps.db_push.outcome }}"
+        run: |
+          echo "Migrations production : ${{ steps.db_push.outcome }}"
 
   # ════════════════════════════════════════════════════════════
   # Job 2 — Vercel : build + deploy production
