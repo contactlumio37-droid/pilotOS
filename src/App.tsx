@@ -32,8 +32,8 @@ const SuperAdminApp  = lazy(() => import('@/pages/superadmin/SuperAdminApp'))
 
 function AppRouter() {
   const { user, loading, isImpersonating } = useAuth()
-  const appShell = useAppShell()
   const { loading: orgLoading } = useOrganisation()
+  const appShell = useAppShell()
 
   // Wait for both useAuth AND useOrganisation before evaluating redirects.
   // Without this guard, AppRedirect fires while useOrganisation is still
@@ -79,6 +79,7 @@ function AppRouter() {
 }
 
 function AppRedirect({ shell }: { shell: ReturnType<typeof useAppShell> }) {
+  const { role } = useAuth()
   const routes: Record<NonNullable<typeof shell>, string> = {
     terrain: '/terrain',
     contributor: '/app',
@@ -87,7 +88,10 @@ function AppRedirect({ shell }: { shell: ReturnType<typeof useAppShell> }) {
     admin: '/admin',
     superadmin: '/superadmin',
   }
-  if (!shell) return <Navigate to="/onboarding" replace />
+  if (!shell) {
+    if (role === 'superadmin') return <Navigate to="/superadmin" replace />
+    return <Navigate to="/onboarding" replace />
+  }
   return <Navigate to={routes[shell]} replace />
 }
 
