@@ -114,7 +114,9 @@ export function useOrganisation(): OrganisationContext {
     organisation: organisation ?? null,
     member: member ?? null,
     modules,
-    loading: memberLoading || orgLoading,
+    // Treat "user exists but member not yet fetched" as loading to prevent
+    // a transient undefined member from propagating to callers.
+    loading: memberLoading || orgLoading || (!!user && member === undefined),
   }
 }
 

@@ -1,5 +1,5 @@
 import type { UserRole } from '@/types/database'
-import { useOrganisation } from './useOrganisation'
+import { useAuth } from './useAuth'
 
 const ROLE_HIERARCHY: Record<UserRole, number> = {
   superadmin: 100,
@@ -11,9 +11,12 @@ const ROLE_HIERARCHY: Record<UserRole, number> = {
   terrain: 10,
 }
 
+// Role comes from useAuth — already resolved before routes evaluate.
+// useOrganisation (React Query) may still be loading when AppRouter first
+// renders; reading role from there causes a transient null → /onboarding redirect.
 export function useRole(): UserRole | null {
-  const { member } = useOrganisation()
-  return member?.role ?? null
+  const { role } = useAuth()
+  return role
 }
 
 export function useIsAtLeast(minRole: UserRole): boolean {
