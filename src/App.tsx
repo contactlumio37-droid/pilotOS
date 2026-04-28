@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { useAppShell } from '@/hooks/useRole'
+import { useOrganisation } from '@/hooks/useOrganisation'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
 import MFARoute from '@/components/auth/MFARoute'
 import ImpersonationBanner from '@/components/layout/ImpersonationBanner'
@@ -32,8 +33,12 @@ const SuperAdminApp  = lazy(() => import('@/pages/superadmin/SuperAdminApp'))
 function AppRouter() {
   const { user, loading, isImpersonating } = useAuth()
   const appShell = useAppShell()
+  const { loading: orgLoading } = useOrganisation()
 
-  if (loading) return <LoadingScreen />
+  // Wait for both useAuth AND useOrganisation before evaluating redirects.
+  // Without this guard, AppRedirect fires while useOrganisation is still
+  // fetching (shell = null) and sends authenticated users to /onboarding.
+  if (loading || (!!user && orgLoading)) return <LoadingScreen />
 
   return (
     <>
