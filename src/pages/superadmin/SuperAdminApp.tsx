@@ -13,6 +13,7 @@ import SuperAdminDashboard from './SuperAdminDashboard'
 import SuperAdminOrgs from './SuperAdminOrgs'
 import SuperAdminFeedback from './SuperAdminFeedback'
 import SuperAdminUsers from './SuperAdminUsers'
+import ProfilePage from '@/pages/shared/ProfilePage'
 
 const NAV_ITEMS = [
   { to: '/superadmin',               label: 'Dashboard',      icon: LayoutDashboard, end: true },
@@ -122,6 +123,7 @@ export default function SuperAdminApp() {
         <Sidebar
           items={NAV_ITEMS}
           dark
+          profileTo="/superadmin/profil"
           headerSlot={(collapsed) => <OrgSwitcher collapsed={collapsed} />}
         />
       ) : (
@@ -139,6 +141,7 @@ export default function SuperAdminApp() {
           <Route path="/cms"             element={<StubPage title="CMS Site" description="Édition du contenu de la landing page." />} />
           <Route path="/blog"            element={<StubPage title="Blog" description="Gestion des articles de blog." />} />
           <Route path="/newsletter"      element={<StubPage title="Newsletter" description="Gestion des abonnés et envoi de newsletters." />} />
+          <Route path="/profil"          element={<ProfilePage />} />
         </Routes>
       </main>
     </div>

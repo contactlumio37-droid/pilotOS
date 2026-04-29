@@ -1,5 +1,5 @@
 import { Routes, Route } from 'react-router-dom'
-import { AlertCircle, ClipboardList, CheckSquare, UserCircle } from 'lucide-react'
+import { AlertCircle, ClipboardList, CheckSquare } from 'lucide-react'
 import BottomNav from '@/components/layout/BottomNav'
 import FeedbackButton from '@/components/layout/FeedbackButton'
 import ProfilePage from '@/pages/shared/ProfilePage'
@@ -11,7 +11,6 @@ const NAV_ITEMS = [
   { to: '/terrain', label: 'Signaler', icon: AlertCircle, end: true },
   { to: '/terrain/remontees', label: 'Mes remontées', icon: ClipboardList },
   { to: '/terrain/actions', label: 'Mes actions', icon: CheckSquare },
-  { to: '/terrain/profil', label: 'Profil', icon: UserCircle },
 ]
 
 export default function TerrainApp() {

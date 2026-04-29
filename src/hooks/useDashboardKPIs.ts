@@ -150,18 +150,18 @@ export function useDashboardKPIs(kpiConfig?: KpiConfig) {
 }
 
 export function useKpiConfig() {
-  const { organisation } = useAuth()
+  const { organisation, user } = useAuth()
 
   return useQuery({
-    queryKey: ['kpi-config', organisation?.id],
-    enabled: !!organisation,
+    queryKey: ['kpi-config', organisation?.id, user?.id],
+    enabled: !!organisation && !!user,
     staleTime: 300_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('organisation_members')
         .select('kpi_config')
         .eq('organisation_id', organisation!.id)
-        .limit(1)
+        .eq('user_id', user!.id)
         .maybeSingle()
       if (error) return DEFAULT_KPI_CONFIG
       const raw = data?.kpi_config as Json
@@ -175,7 +175,7 @@ export function useKpiConfig() {
 
 export function useSaveKpiConfig() {
   const qc = useQueryClient()
-  const { organisation } = useAuth()
+  const { organisation, user } = useAuth()
 
   return useMutation({
     mutationFn: async (config: KpiConfig) => {
@@ -183,6 +183,7 @@ export function useSaveKpiConfig() {
         .from('organisation_members')
         .update({ kpi_config: config as unknown as Json })
         .eq('organisation_id', organisation!.id)
+        .eq('user_id', user!.id)
       if (error) throw error
     },
     onSuccess: () => {

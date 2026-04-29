@@ -39,18 +39,26 @@ export default function LoginPage() {
 
     const userId = authData.user.id
 
-    // Vérifie si MFA est requis (utilise le membership avec le rôle le plus élevé)
-    const memberResult = await supabase
+    // Vérifie si MFA est requis — utilise le membership avec le rôle le plus élevé
+    // (cohérent avec useAuth qui applique la même logique de priorité)
+    const ROLE_WEIGHT: Record<string, number> = {
+      superadmin: 100, admin: 80, director: 70,
+      manager: 60, contributor: 40, reader: 20, terrain: 10,
+    }
+
+    const { data: allMembers } = await supabase
       .from('organisation_members')
       .select('role, mfa_enabled, organisation:organisations(mfa_policy)')
       .eq('user_id', userId)
       .eq('is_active', true)
-      .order('created_at', { ascending: true })
-      .limit(1)
-      .maybeSingle()
+      .limit(10)
 
-    if (memberResult.data) {
-      const { role, mfa_enabled, organisation } = memberResult.data
+    const memberRow = (allMembers ?? []).sort(
+      (a, b) => (ROLE_WEIGHT[b.role] ?? 0) - (ROLE_WEIGHT[a.role] ?? 0),
+    )[0]
+
+    if (memberRow) {
+      const { role, mfa_enabled, organisation } = memberRow
       const policy = (organisation as unknown as { mfa_policy: string } | null)?.mfa_policy ?? 'optional'
 
       if (isMFARequired(policy, role, mfa_enabled)) {
