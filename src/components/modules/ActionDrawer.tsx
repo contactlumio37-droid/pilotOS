@@ -11,6 +11,8 @@ import { OriginBadge, StatusBadge, PriorityBadge } from '@/components/modules/Ac
 import { useCreateAction, useUpdateAction, useActionComments, useAddComment } from '@/hooks/useActions'
 import { useAiAssist } from '@/hooks/useAiAssist'
 import { useOrganisation } from '@/hooks/useOrganisation'
+import { useProcesses } from '@/hooks/useProcesses'
+import { useActionCategories } from '@/hooks/useActionCategories'
 import type { ActionWithRelations, ActionInsertPayload } from '@/hooks/useActions'
 import type { ActionStatus, ActionPriority, ActionOrigin } from '@/types/database'
 
@@ -22,6 +24,8 @@ const schema = z.object({
   origin: z.enum(['manual', 'process_review', 'codir', 'audit', 'incident', 'kaizen', 'terrain']),
   due_date: z.string().optional(),
   responsible_id: z.string().optional(),
+  process_id: z.string().optional(),
+  category_id: z.string().optional(),
 })
 
 type FormData = z.infer<typeof schema>
@@ -30,6 +34,7 @@ interface ActionDrawerProps {
   open: boolean
   onClose: () => void
   action?: ActionWithRelations | null
+  initialProcessId?: string
 }
 
 const STATUS_OPTIONS: { value: ActionStatus; label: string }[] = [
@@ -56,7 +61,7 @@ const ORIGIN_OPTIONS: { value: ActionOrigin; label: string }[] = [
   { value: 'terrain',        label: 'Terrain' },
 ]
 
-export default function ActionDrawer({ open, onClose, action }: ActionDrawerProps) {
+export default function ActionDrawer({ open, onClose, action, initialProcessId }: ActionDrawerProps) {
   const isEdit = !!action
   const [aiInput, setAiInput] = useState('')
   const [showAi, setShowAi] = useState(false)
@@ -69,6 +74,8 @@ export default function ActionDrawer({ open, onClose, action }: ActionDrawerProp
   const addComment = useAddComment()
   const ai = useAiAssist()
   const { organisation } = useOrganisation()
+  const { data: processes = [] } = useProcesses()
+  const { data: categories = [] } = useActionCategories()
   const aiEnabled = (organisation as (typeof organisation & { ai_enabled?: boolean }) | null)?.ai_enabled ?? false
 
   const { register, handleSubmit, reset, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
@@ -93,14 +100,16 @@ export default function ActionDrawer({ open, onClose, action }: ActionDrawerProp
         origin: action.origin,
         due_date: action.due_date ?? '',
         responsible_id: action.responsible_id ?? '',
+        process_id: action.process_id ?? '',
+        category_id: action.category_id ?? '',
       })
     } else {
-      reset({ title: '', description: '', priority: 'medium', status: 'todo', origin: 'manual', due_date: '' })
+      reset({ title: '', description: '', priority: 'medium', status: 'todo', origin: 'manual', due_date: '', process_id: initialProcessId ?? '', category_id: '' })
     }
     setShowAi(false)
     setAiInput('')
     setComment('')
-  }, [action, open, reset])
+  }, [action, open, reset, initialProcessId])
 
   async function onSubmit(data: FormData) {
     const payload: ActionInsertPayload = {
@@ -111,6 +120,8 @@ export default function ActionDrawer({ open, onClose, action }: ActionDrawerProp
       priority: data.priority,
       due_date: data.due_date || undefined,
       responsible_id: data.responsible_id || undefined,
+      process_id: data.process_id || undefined,
+      category_id: data.category_id || undefined,
     }
     try {
       if (isEdit) {
@@ -271,6 +282,28 @@ export default function ActionDrawer({ open, onClose, action }: ActionDrawerProp
             <input {...register('due_date')} type="date" className="input" />
           </div>
         </div>
+
+        {/* Ligne catégorie + processus */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="label">Catégorie</label>
+            <select {...register('category_id')} className="input">
+              <option value="">— Aucune —</option>
+              {categories.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label">Processus lié</label>
+            <select {...register('process_id')} className="input">
+              <option value="">— Aucun —</option>
+              {processes.map(p => (
+                <option key={p.id} value={p.id}>{p.title}</option>
+              ))}
+            </select>
+          </div>
+        </div>
       </form>
 
       {/* RACI en lecture si édition */}
@@ -307,6 +340,9 @@ export default function ActionDrawer({ open, onClose, action }: ActionDrawerProp
           )}
           {action.project && (
             <span className="text-xs text-slate-500">📁 {action.project.title}</span>
+          )}
+          {action.process && (
+            <span className="text-xs text-slate-500">⚙️ {action.process.title}</span>
           )}
         </div>
       )}

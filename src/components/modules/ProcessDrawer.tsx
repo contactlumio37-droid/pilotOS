@@ -2,11 +2,17 @@ import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Activity, AlertTriangle, Lightbulb, Save, X } from 'lucide-react'
+import { Activity, AlertTriangle, Lightbulb, Save, X, Plus, Zap } from 'lucide-react'
+import { format } from 'date-fns'
+import { fr } from 'date-fns/locale'
 import Drawer from '@/components/ui/Drawer'
+import ActionDrawer from '@/components/modules/ActionDrawer'
+import { StatusBadge, PriorityBadge } from '@/components/modules/ActionBadges'
 import { useCreateProcess, useUpdateProcess } from '@/hooks/useProcesses'
+import { useActions } from '@/hooks/useActions'
 import { useIsAtLeast } from '@/hooks/useRole'
 import type { Process, ProcessType, ReviewFrequency, Visibility } from '@/types/database'
+import type { ActionWithRelations } from '@/hooks/useActions'
 
 const schema = z.object({
   title:            z.string().min(1, 'Titre requis'),
@@ -62,10 +68,15 @@ interface Props {
 export default function ProcessDrawer({ open, onClose, process }: Props) {
   const isEdit      = !!process
   const canEdit     = useIsAtLeast('manager')
-  const [tab, setTab] = useState<'form' | 'nc' | 'kaizen'>('form')
+  const [tab, setTab] = useState<'form' | 'nc' | 'kaizen' | 'actions'>('form')
+  const [actionDrawerOpen, setActionDrawerOpen] = useState(false)
+  const [editAction, setEditAction] = useState<ActionWithRelations | null>(null)
 
   const createProcess = useCreateProcess()
   const updateProcess = useUpdateProcess()
+
+  const { data: allActions = [] } = useActions()
+  const linkedActions = process ? allActions.filter(a => a.process_id === process.id) : []
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -84,6 +95,7 @@ export default function ProcessDrawer({ open, onClose, process }: Props) {
   useEffect(() => {
     if (open) {
       setTab('form')
+      setEditAction(null)
       reset(process ? {
         title:            process.title,
         process_code:     process.process_code ?? '',
@@ -132,7 +144,7 @@ export default function ProcessDrawer({ open, onClose, process }: Props) {
 
   const isPending = createProcess.isPending || updateProcess.isPending
 
-  return (
+  return (<>
     <Drawer
       open={open}
       onClose={onClose}
@@ -169,11 +181,12 @@ export default function ProcessDrawer({ open, onClose, process }: Props) {
 
       {/* Tabs (edit mode) */}
       {isEdit && (
-        <div className="flex gap-1 mb-5 bg-slate-100 p-1 rounded-lg w-fit">
+        <div className="flex gap-1 mb-5 bg-slate-100 p-1 rounded-lg w-fit flex-wrap">
           {([
-            { key: 'form'   as const, label: 'Infos',   icon: null },
-            { key: 'nc'     as const, label: 'NC',      icon: AlertTriangle },
-            { key: 'kaizen' as const, label: 'Kaizen',  icon: Lightbulb },
+            { key: 'form'    as const, label: 'Infos',                                    icon: null },
+            { key: 'actions' as const, label: `Actions${linkedActions.length ? ` (${linkedActions.length})` : ''}`, icon: Zap },
+            { key: 'nc'      as const, label: 'NC',                                       icon: AlertTriangle },
+            { key: 'kaizen'  as const, label: 'Kaizen',                                   icon: Lightbulb },
           ]).map(({ key, label, icon: Icon }) => (
             <button
               key={key}
@@ -198,6 +211,65 @@ export default function ProcessDrawer({ open, onClose, process }: Props) {
         <p className="text-sm text-slate-500 py-4 text-center">
           Gérez les plans kaizen depuis l'onglet Kaizen de la page Processus.
         </p>
+      )}
+
+      {/* Actions liées */}
+      {tab === 'actions' && process && (
+        <div className="space-y-3">
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => { setEditAction(null); setActionDrawerOpen(true) }}
+              className="btn-primary flex items-center gap-1.5 text-sm"
+            >
+              <Plus className="w-4 h-4" /> Nouvelle action liée
+            </button>
+          </div>
+
+          {linkedActions.length === 0 ? (
+            <div className="text-center py-8">
+              <Zap className="w-8 h-8 text-slate-200 mx-auto mb-3" />
+              <p className="text-sm text-slate-500 font-medium">Aucune action liée à ce processus.</p>
+              <button
+                type="button"
+                onClick={() => { setEditAction(null); setActionDrawerOpen(true) }}
+                className="btn-primary mt-3 text-sm"
+              >
+                Créer la première
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {linkedActions.map(a => (
+                <div
+                  key={a.id}
+                  onClick={() => { setEditAction(a); setActionDrawerOpen(true) }}
+                  className="card-hover cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-800 truncate">{a.title}</p>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        {a.responsible_profile?.full_name && (
+                          <span className="text-xs text-slate-400">→ {a.responsible_profile.full_name}</span>
+                        )}
+                        {a.due_date && (
+                          <span className={`text-xs ${a.status === 'late' ? 'text-danger font-medium' : 'text-slate-400'}`}>
+                            {format(new Date(a.due_date), 'd MMM yyyy', { locale: fr })}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <PriorityBadge priority={a.priority} />
+                      <StatusBadge status={a.status} />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {/* Main form */}
@@ -260,5 +332,13 @@ export default function ProcessDrawer({ open, onClose, process }: Props) {
         </form>
       )}
     </Drawer>
+
+    <ActionDrawer
+      open={actionDrawerOpen}
+      onClose={() => { setActionDrawerOpen(false); setEditAction(null) }}
+      action={editAction}
+      initialProcessId={process?.id}
+    />
+  </>
   )
 }

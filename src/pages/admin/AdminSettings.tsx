@@ -4,9 +4,10 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { motion } from 'framer-motion'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Settings, Shield, Bell, CreditCard, Save, Sparkles, Users, Boxes, ExternalLink } from 'lucide-react'
+import { Settings, Shield, Bell, CreditCard, Save, Sparkles, Users, Boxes, ExternalLink, Tag } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useOrganisation } from '@/hooks/useOrganisation'
+import ActionCategories from '@/pages/admin/ActionCategories'
 import { useActiveModules } from '@/hooks/useModuleAccess'
 import { supabase } from '@/lib/supabase'
 import type { MfaPolicy, Module, Organisation } from '@/types/database'
@@ -358,6 +359,14 @@ export default function AdminSettings() {
               ))}
             </div>
           )}
+        </div>
+        {/* Action Categories */}
+        <div className="card">
+          <div className="flex items-center gap-3 mb-5">
+            <Tag className="w-5 h-5 text-brand-600" />
+            <h2 className="font-semibold text-slate-900">Catégories d'actions</h2>
+          </div>
+          <ActionCategories />
         </div>
       </motion.div>
     </div>

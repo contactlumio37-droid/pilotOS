@@ -17,6 +17,8 @@ export interface ActionWithRelations extends Action {
   responsible_profile: { id: string; full_name: string | null; avatar_url: string | null } | null
   accountable_profile: { id: string; full_name: string | null; avatar_url: string | null } | null
   project: { id: string; title: string } | null
+  process: { id: string; title: string } | null
+  category_id?: string | null
 }
 
 export interface ActionInsertPayload {
@@ -33,6 +35,7 @@ export interface ActionInsertPayload {
   project_id?: string
   process_id?: string
   objective_id?: string
+  category_id?: string
   visibility?: Action['visibility']
 }
 
@@ -46,14 +49,12 @@ export function useActions(filters?: ActionFilters) {
     enabled: !!organisation,
     staleTime: 30_000,
     queryFn: async () => {
+      // Join project via valid FK. Profiles are fetched separately because
+      // actions.responsible_id / accountable_id reference auth.users(id),
+      // not profiles(id) — PostgREST cannot resolve that join directly.
       let q = supabase
         .from('actions')
-        .select(`
-          *,
-          responsible_profile:profiles!actions_responsible_id_fkey(id, full_name, avatar_url),
-          accountable_profile:profiles!actions_accountable_id_fkey(id, full_name, avatar_url),
-          project:projects(id, title)
-        `)
+        .select('*, project:projects(id, title), process:processes(id, title)')
         .eq('organisation_id', organisation!.id)
         .order('due_date', { ascending: true, nullsFirst: false })
 
@@ -81,7 +82,30 @@ export function useActions(filters?: ActionFilters) {
 
       const { data, error } = await q
       if (error) throw error
-      return (data ?? []) as ActionWithRelations[]
+
+      const rows = data ?? []
+
+      // Collect unique user IDs that need profile data
+      const userIds = [...new Set([
+        ...rows.map(r => r.responsible_id),
+        ...rows.map(r => r.accountable_id),
+      ].filter(Boolean) as string[])]
+
+      let profileMap: Record<string, { id: string; full_name: string | null; avatar_url: string | null }> = {}
+      if (userIds.length) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, avatar_url')
+          .in('id', userIds)
+        for (const p of profiles ?? []) profileMap[p.id] = p
+      }
+
+      return rows.map(row => ({
+        ...row,
+        responsible_profile: row.responsible_id ? (profileMap[row.responsible_id] ?? null) : null,
+        accountable_profile: row.accountable_id ? (profileMap[row.accountable_id] ?? null) : null,
+        process: (row as { process?: { id: string; title: string } | null }).process ?? null,
+      })) as ActionWithRelations[]
     },
   })
 }
