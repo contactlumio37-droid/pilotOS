@@ -11,6 +11,7 @@ import { StatusBadge, PriorityBadge } from '@/components/modules/ActionBadges'
 import { useCreateProcess, useUpdateProcess } from '@/hooks/useProcesses'
 import { useActions } from '@/hooks/useActions'
 import { useIsAtLeast } from '@/hooks/useRole'
+import { useCategories } from '@/hooks/useCategories'
 import type { Process, ProcessType, ReviewFrequency, Visibility } from '@/types/database'
 import type { ActionWithRelations } from '@/hooks/useActions'
 
@@ -23,6 +24,7 @@ const schema = z.object({
   scope:            z.string().optional(),
   review_frequency: z.enum(['monthly', 'quarterly', 'biannual', 'annual'] as const),
   visibility:       z.enum(['public', 'managers', 'restricted', 'confidential'] as const),
+  category_id:      z.string().nullable().optional(),
 })
 
 type FormData = z.infer<typeof schema>
@@ -74,6 +76,7 @@ export default function ProcessDrawer({ open, onClose, process }: Props) {
 
   const createProcess = useCreateProcess()
   const updateProcess = useUpdateProcess()
+  const { categories: processCategories } = useCategories('process')
 
   const { data: allActions = [] } = useActions()
   const linkedActions = process ? allActions.filter(a => a.process_id === process.id) : []
@@ -89,6 +92,7 @@ export default function ProcessDrawer({ open, onClose, process }: Props) {
       scope:            '',
       review_frequency: 'annual',
       visibility:       'public',
+      category_id:      null,
     },
   })
 
@@ -105,18 +109,25 @@ export default function ProcessDrawer({ open, onClose, process }: Props) {
         scope:            process.scope ?? '',
         review_frequency: process.review_frequency,
         visibility:       process.visibility,
+        category_id:      process.category_id ?? null,
       } : {
         title: '', process_code: '', process_type: 'operational',
         description: '', purpose: '', scope: '',
-        review_frequency: 'annual', visibility: 'public',
+        review_frequency: 'annual', visibility: 'public', category_id: null,
       })
     }
   }, [open, process, reset])
 
   async function onSubmit(data: FormData) {
     try {
+      const categoryId = data.category_id || null
       if (isEdit && process) {
-        await updateProcess.mutateAsync({ id: process.id, ...data, process_code: data.process_code || null })
+        await updateProcess.mutateAsync({
+          id: process.id,
+          ...data,
+          process_code: data.process_code || null,
+          category_id: categoryId,
+        })
       } else {
         await createProcess.mutateAsync({
           title: data.title,
@@ -136,6 +147,7 @@ export default function ProcessDrawer({ open, onClose, process }: Props) {
           resources: null, risks: null, performance_criteria: null,
           last_review_date: null, next_review_date: null,
           health_score: null, diagram_type: null, diagram_data: null,
+          category_id: categoryId,
         })
       }
       onClose()
@@ -292,6 +304,16 @@ export default function ProcessDrawer({ open, onClose, process }: Props) {
               <select {...register('process_type')} className="input">
                 {(Object.entries(PROCESS_TYPE_LABELS) as [ProcessType, string][]).map(([v, l]) => (
                   <option key={v} value={v}>{l}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="label">Catégorie</label>
+              <select {...register('category_id')} className="input">
+                <option value="">— Aucune —</option>
+                {processCategories.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
             </div>

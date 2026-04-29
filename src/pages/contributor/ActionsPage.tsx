@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Plus, Search, SlidersHorizontal, Inbox, LayoutList, Columns } from 'lucide-react'
 import { format } from 'date-fns'
@@ -8,10 +8,10 @@ import ActionDrawer from '@/components/modules/ActionDrawer'
 import KanbanBoard from '@/components/actions/KanbanBoard'
 import { OriginBadge, StatusBadge, PriorityBadge } from '@/components/modules/ActionBadges'
 import { useActions } from '@/hooks/useActions'
-import { useActionCategories } from '@/hooks/useActionCategories'
+import { useCategories } from '@/hooks/useCategories'
 import { useBreakpoint } from '@/hooks/useBreakpoint'
 import type { ActionWithRelations } from '@/hooks/useActions'
-import type { ActionStatus, ActionPriority, ActionOrigin } from '@/types/database'
+import type { ActionStatus, ActionOrigin } from '@/types/database'
 
 const STATUS_OPTIONS: { value: ActionStatus | ''; label: string }[] = [
   { value: '',            label: 'Tous les statuts' },
@@ -20,14 +20,6 @@ const STATUS_OPTIONS: { value: ActionStatus | ''; label: string }[] = [
   { value: 'late',        label: 'En retard' },
   { value: 'done',        label: 'Terminé' },
   { value: 'cancelled',   label: 'Annulé' },
-]
-
-const PRIORITY_OPTIONS: { value: ActionPriority | ''; label: string }[] = [
-  { value: '',         label: 'Toutes priorités' },
-  { value: 'critical', label: 'Critique' },
-  { value: 'high',     label: 'Haute' },
-  { value: 'medium',   label: 'Moyenne' },
-  { value: 'low',      label: 'Basse' },
 ]
 
 const ORIGIN_OPTIONS: { value: ActionOrigin | ''; label: string }[] = [
@@ -41,37 +33,45 @@ const ORIGIN_OPTIONS: { value: ActionOrigin | ''; label: string }[] = [
   { value: 'kaizen',         label: 'Kaizen' },
 ]
 
-const VIEW_KEY = 'actions_view_mode'
+const VIEW_KEY = 'pilotos_actions_view'
 
 function getStoredView(): 'list' | 'kanban' {
   try { return (localStorage.getItem(VIEW_KEY) as 'list' | 'kanban') ?? 'list' } catch { return 'list' }
 }
 
 export default function ActionsPage() {
-  const [search, setSearch] = useState('')
-  const [status, setStatus]   = useState<ActionStatus | ''>('')
-  const [priority, setPriority] = useState<ActionPriority | ''>('')
-  const [origin, setOrigin]   = useState<ActionOrigin | ''>('')
+  const [search, setSearch]       = useState('')
+  const [status, setStatus]       = useState<ActionStatus | ''>('')
+  const [origin, setOrigin]       = useState<ActionOrigin | ''>('')
+  const [responsible, setResponsible] = useState('')
   const [showFilters, setShowFilters] = useState(false)
-  const [showDone, setShowDone] = useState(false)
-  const [drawerOpen, setDrawerOpen] = useState(false)
-  const [selected, setSelected] = useState<ActionWithRelations | null>(null)
-  const [viewMode, setViewMode] = useState<'list' | 'kanban'>(getStoredView)
+  const [showClosed, setShowClosed]   = useState(false)
+  const [drawerOpen, setDrawerOpen]   = useState(false)
+  const [selected, setSelected]       = useState<ActionWithRelations | null>(null)
+  const [viewMode, setViewMode]       = useState<'list' | 'kanban'>(getStoredView)
 
   const breakpoint = useBreakpoint()
   const isDesktop = breakpoint === 'desktop'
-
-  // Force list on all sub-1024px viewports; kanban is desktop-only
   const effectiveView = isDesktop ? viewMode : 'list'
 
   const { data: actions = [], isLoading, isError } = useActions({
     search: search || undefined,
     status: status ? [status] : undefined,
-    priority: priority ? [priority] : undefined,
     origin: origin ? [origin] : undefined,
   })
 
-  const { data: categories = [] } = useActionCategories()
+  const { categories } = useCategories('action')
+
+  // Unique responsibles from loaded actions
+  const responsibleOptions = useMemo(() => {
+    const seen = new Map<string, string>()
+    for (const a of actions) {
+      if (a.responsible_profile?.id && a.responsible_profile.full_name) {
+        seen.set(a.responsible_profile.id, a.responsible_profile.full_name)
+      }
+    }
+    return Array.from(seen.entries()).map(([id, name]) => ({ id, name }))
+  }, [actions])
 
   function openCreate() { setSelected(null); setDrawerOpen(true) }
   function openEdit(a: ActionWithRelations) { setSelected(a); setDrawerOpen(true) }
@@ -81,12 +81,20 @@ export default function ActionsPage() {
     try { localStorage.setItem(VIEW_KEY, mode) } catch { /* noop */ }
   }
 
-  const activeFilters = [status, priority, origin].filter(Boolean).length
+  // Client-side filter for responsible (server doesn't support it)
+  const filteredActions = responsible
+    ? actions.filter(a => a.responsible_profile?.id === responsible)
+    : actions
 
-  const displayedActions = showDone ? actions : actions.filter(a => a.status !== 'done' && a.status !== 'cancelled')
+  // For list view, also apply showClosed filter
+  const listActions = showClosed
+    ? filteredActions
+    : filteredActions.filter(a => a.status !== 'done' && a.status !== 'cancelled')
+
+  const activeFilters = [status, origin, responsible].filter(Boolean).length
 
   return (
-    <div className="max-w-4xl">
+    <div className="max-w-5xl">
       <PageHeader
         title="Actions"
         subtitle={`${actions.length} action${actions.length !== 1 ? 's' : ''}`}
@@ -98,9 +106,9 @@ export default function ActionsPage() {
         }
       />
 
-      {/* Barre recherche + filtres + toggle vue */}
-      <div className="flex gap-2 mb-4">
-        <div className="relative flex-1">
+      {/* Toolbar */}
+      <div className="flex gap-2 mb-4 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             value={search}
@@ -109,6 +117,19 @@ export default function ActionsPage() {
             className="input pl-9"
           />
         </div>
+
+        {/* Toggle clôturées */}
+        <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600 px-1">
+          <button
+            type="button"
+            onClick={() => setShowClosed(v => !v)}
+            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${showClosed ? 'bg-brand-600' : 'bg-slate-200'}`}
+          >
+            <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${showClosed ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
+          </button>
+          <span className="whitespace-nowrap">Clôturées</span>
+        </label>
+
         <button
           onClick={() => setShowFilters(v => !v)}
           className={`btn-secondary flex items-center gap-1.5 ${activeFilters > 0 ? 'border-brand-400 text-brand-600' : ''}`}
@@ -121,6 +142,7 @@ export default function ActionsPage() {
             </span>
           )}
         </button>
+
         {isDesktop && (
           <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
             <button
@@ -152,39 +174,25 @@ export default function ActionsPage() {
           <select value={status} onChange={e => setStatus(e.target.value as ActionStatus | '')} className="input text-sm">
             {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
-          <select value={priority} onChange={e => setPriority(e.target.value as ActionPriority | '')} className="input text-sm">
-            {PRIORITY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
           <select value={origin} onChange={e => setOrigin(e.target.value as ActionOrigin | '')} className="input text-sm">
             {ORIGIN_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+          <select value={responsible} onChange={e => setResponsible(e.target.value)} className="input text-sm">
+            <option value="">Tous les responsables</option>
+            {responsibleOptions.map(r => (
+              <option key={r.id} value={r.id}>{r.name}</option>
+            ))}
           </select>
         </motion.div>
       )}
 
-      {/* Toggle affichage terminées */}
-      {effectiveView === 'kanban' && (
-        <div className="flex items-center gap-2 mb-4">
-          <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-600">
-            <button
-              type="button"
-              onClick={() => setShowDone(v => !v)}
-              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${showDone ? 'bg-brand-600' : 'bg-slate-200'}`}
-            >
-              <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${showDone ? 'translate-x-4.5' : 'translate-x-0.5'}`} />
-            </button>
-            Afficher les terminées
-          </label>
-        </div>
-      )}
-
-      {/* Erreur fetch */}
+      {/* Errors & loading */}
       {isError && (
         <div className="bg-danger-light text-danger text-sm rounded-xl px-4 py-3 mb-4">
           Impossible de charger les actions. Vérifiez votre connexion et rechargez la page.
         </div>
       )}
 
-      {/* Loading */}
       {isLoading && (
         <div className="space-y-3">
           {Array.from({ length: 5 }).map((_, i) => <div key={i} className="card animate-pulse h-20" />)}
@@ -196,7 +204,7 @@ export default function ActionsPage() {
         <div className="card text-center py-12">
           <Inbox className="w-10 h-10 text-slate-200 mx-auto mb-3" />
           <p className="font-medium text-slate-500">
-            {search || activeFilters > 0 ? 'Aucune action ne correspond aux filtres.' : 'Aucune action pour l\'instant.'}
+            {search || activeFilters > 0 ? 'Aucune action ne correspond aux filtres.' : "Aucune action pour l'instant."}
           </p>
           {!search && !activeFilters && (
             <button onClick={openCreate} className="btn-primary mt-4 text-sm">Créer la première action</button>
@@ -205,19 +213,19 @@ export default function ActionsPage() {
       )}
 
       {/* Kanban view */}
-      {!isLoading && actions.length > 0 && effectiveView === 'kanban' && (
+      {!isLoading && filteredActions.length > 0 && effectiveView === 'kanban' && (
         <KanbanBoard
-          actions={displayedActions}
+          actions={filteredActions}
           categories={categories}
-          showDone={showDone}
+          showClosed={showClosed}
           onCardClick={openEdit}
         />
       )}
 
       {/* List view */}
-      {!isLoading && actions.length > 0 && effectiveView === 'list' && (
+      {!isLoading && listActions.length > 0 && effectiveView === 'list' && (
         <div className="space-y-2">
-          {actions.map(a => (
+          {listActions.map(a => (
             <motion.div
               key={a.id}
               initial={{ opacity: 0, y: 4 }}
@@ -255,6 +263,13 @@ export default function ActionsPage() {
               </div>
             </motion.div>
           ))}
+        </div>
+      )}
+
+      {/* Empty filtered list */}
+      {!isLoading && actions.length > 0 && listActions.length === 0 && effectiveView === 'list' && (
+        <div className="card text-center py-10">
+          <p className="text-slate-500 font-medium">Aucune action ne correspond aux filtres actifs.</p>
         </div>
       )}
 

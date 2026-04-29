@@ -1,7 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import {
   LayoutDashboard, ListChecks, GitBranch, FolderOpen,
-  Users, Settings, BarChart2, Target, AlertCircle, ShieldCheck,
+  Users, Settings, BarChart2, Target, AlertCircle, ShieldCheck, SlidersHorizontal,
 } from 'lucide-react'
 import { useBreakpoint } from '@/hooks/useBreakpoint'
 import { ORG_CONTEXT_KEY, useHasModule } from '@/hooks/useOrganisation'
@@ -12,6 +12,7 @@ import SuperAdminBanner from '@/components/layout/SuperAdminBanner'
 import AdminDashboard from './AdminDashboard'
 import AdminMembers from './AdminMembers'
 import AdminSettings from './AdminSettings'
+import Parametrage from './Parametrage'
 import ActionsPage from '@/pages/contributor/ActionsPage'
 import StrategyPage from '@/pages/shared/StrategyPage'
 import ProcessesPage from '@/pages/shared/ProcessesPage'
@@ -30,6 +31,7 @@ const BASE_NAV = [
   { to: '/admin/terrain',     label: 'Terrain',          icon: AlertCircle },
   { to: '/admin/documents',   label: 'Documents',        icon: FolderOpen },
   { to: '/admin/membres',     label: 'Membres',          icon: Users },
+  { to: '/admin/parametrage', label: 'Paramétrage',      icon: SlidersHorizontal },
   { to: '/admin/parametres',  label: 'Paramètres',       icon: Settings },
 ]
 
@@ -58,7 +60,8 @@ export default function AdminApp() {
           <Route path="/terrain"     element={<TerrainReportsManager />} />
           <Route path="/documents"   element={<DocumentsPage />} />
           <Route path="/securite/*"  element={<SecurityApp />} />
-          <Route path="/membres"     element={<AdminMembers />} />
+          <Route path="/membres"      element={<AdminMembers />} />
+          <Route path="/parametrage" element={<Parametrage />} />
           <Route path="/parametres"  element={<AdminSettings />} />
           <Route path="/profil"      element={<ProfilePage />} />
         </Routes>

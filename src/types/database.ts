@@ -239,8 +239,19 @@ export interface Process {
   diagram_data: Json | null
   visibility: Visibility
   visibility_user_ids: string[]
+  category_id: string | null
   created_at: string
   updated_at: string
+}
+
+export interface ProcessCategory {
+  id: string
+  organisation_id: string
+  name: string
+  color: string
+  icon: string
+  sort_order: number
+  created_at: string
 }
 
 export interface ProcessReview {
