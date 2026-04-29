@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, LogOut, UserCircle } from 'lucide-react'
+import { ChevronLeft, ChevronRight, LogOut, UserCircle, Building2 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { signOut, useAuth, ADMIN_SESSION_KEY } from '@/hooks/useAuth'
 import { ORG_CONTEXT_KEY } from '@/hooks/useOrganisation'
@@ -95,7 +95,17 @@ export default function Sidebar({ items, dark = false, profileTo = '/profil', he
         {/* Notifications */}
         <NotificationBell collapsed={collapsed} />
 
-        {/* Super Admin shortcut — visible uniquement hors /superadmin */}
+        {/* Superadmin shortcuts — bidirectional */}
+        {role === 'superadmin' && window.location.pathname.startsWith('/superadmin') && (
+          <button
+            onClick={() => { window.location.href = '/app/dashboard' }}
+            className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-brand-400 hover:text-brand-300 hover:bg-slate-800 transition-colors ${collapsed ? 'justify-center' : ''}`}
+            title={collapsed ? 'Mon organisation' : undefined}
+          >
+            <Building2 className="w-5 h-5 shrink-0" />
+            {!collapsed && <span className="text-sm font-medium">Mon organisation</span>}
+          </button>
+        )}
         {role === 'superadmin' && !window.location.pathname.startsWith('/superadmin') && (
           <NavLink
             to="/superadmin"

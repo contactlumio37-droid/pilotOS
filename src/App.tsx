@@ -1,11 +1,12 @@
 import { lazy, Suspense } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/hooks/useAuth'
 import { useAppShell } from '@/hooks/useRole'
 import { useOrganisation } from '@/hooks/useOrganisation'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
 import MFARoute from '@/components/auth/MFARoute'
 import ImpersonationBanner from '@/components/layout/ImpersonationBanner'
+import FeedbackButton from '@/components/layout/FeedbackButton'
 import { ToastProvider } from '@/components/ui/Toast'
 
 // Pages publiques (petit poids — pas de lazy)
@@ -30,10 +31,19 @@ const DirectorApp    = lazy(() => import('@/pages/director/DirectorApp'))
 const AdminApp       = lazy(() => import('@/pages/admin/AdminApp'))
 const SuperAdminApp  = lazy(() => import('@/pages/superadmin/SuperAdminApp'))
 
+function GlobalFeedbackButton() {
+  const { user, role } = useAuth()
+  const { pathname } = useLocation()
+  if (!user) return null
+  if (pathname.startsWith('/superadmin') || pathname === '/' || pathname.startsWith('/pricing') || pathname.startsWith('/roadmap')) return null
+  if (role === 'superadmin' && pathname.startsWith('/superadmin')) return null
+  return <FeedbackButton />
+}
+
 function AppRouter() {
   const { user, loading, isImpersonating } = useAuth()
-  const appShell = useAppShell()
   const { loading: orgLoading } = useOrganisation()
+  const appShell = useAppShell()
 
   // Wait for both useAuth AND useOrganisation before evaluating redirects.
   // Without this guard, AppRedirect fires while useOrganisation is still
@@ -44,6 +54,7 @@ function AppRouter() {
     <>
       <ImpersonationBanner />
       {isImpersonating && <div className="h-10 shrink-0" />}
+      <GlobalFeedbackButton />
       <Routes>
         {/* Site public */}
         <Route path="/"        element={<LandingPage />} />
@@ -79,6 +90,7 @@ function AppRouter() {
 }
 
 function AppRedirect({ shell }: { shell: ReturnType<typeof useAppShell> }) {
+  const { role } = useAuth()
   const routes: Record<NonNullable<typeof shell>, string> = {
     terrain: '/terrain',
     contributor: '/app',
@@ -87,7 +99,10 @@ function AppRedirect({ shell }: { shell: ReturnType<typeof useAppShell> }) {
     admin: '/admin',
     superadmin: '/superadmin',
   }
-  if (!shell) return <Navigate to="/onboarding" replace />
+  if (!shell) {
+    if (role === 'superadmin') return <Navigate to="/superadmin" replace />
+    return <Navigate to="/onboarding" replace />
+  }
   return <Navigate to={routes[shell]} replace />
 }
 

@@ -3,7 +3,6 @@ import { LayoutDashboard, Target, ListChecks, GitBranch, FolderOpen } from 'luci
 import { useBreakpoint } from '@/hooks/useBreakpoint'
 import Sidebar from '@/components/layout/Sidebar'
 import BottomNav from '@/components/layout/BottomNav'
-import FeedbackButton from '@/components/layout/FeedbackButton'
 import DirectorDashboard from './DirectorDashboard'
 import StrategyPage from '@/pages/shared/StrategyPage'
 import ActionsPage from '@/pages/contributor/ActionsPage'
@@ -37,7 +36,6 @@ export default function DirectorApp() {
           <Route path="/profil"    element={<ProfilePage />} />
         </Routes>
       </main>
-      <FeedbackButton />
     </div>
   )
 }

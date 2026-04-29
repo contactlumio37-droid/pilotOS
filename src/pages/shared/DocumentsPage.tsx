@@ -1,24 +1,72 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { FolderOpen, FileText, Plus, Upload, ChevronRight, Home, Search, X } from 'lucide-react'
-import { useFolders, useDocuments, DOC_STATUS_CLASS, DOC_STATUS_LABEL, DOC_TYPE_LABEL } from '@/hooks/useDocuments'
+import { FolderOpen, FileText, Plus, Upload, ChevronRight, Home, Search, X, Pencil, Check } from 'lucide-react'
+import { useFolders, useDocuments, useRenameFolder, DOC_STATUS_CLASS, DOC_STATUS_LABEL, DOC_TYPE_LABEL } from '@/hooks/useDocuments'
 import { useIsAtLeast } from '@/hooks/useRole'
 import { useCreateFolder } from '@/hooks/useDocuments'
 import DocumentDrawer from '@/components/modules/DocumentDrawer'
 import type { Document, DocumentFolder } from '@/types/database'
 
-function FolderCard({ folder, count, onClick }: { folder: DocumentFolder; count: number; onClick: () => void }) {
+function FolderCard({ folder, count, onClick, canManage }: { folder: DocumentFolder; count: number; onClick: () => void; canManage: boolean }) {
+  const [renaming, setRenaming] = useState(false)
+  const [draft, setDraft] = useState(folder.name)
+  const renameFolder = useRenameFolder()
+
+  async function commitRename() {
+    const trimmed = draft.trim()
+    if (trimmed && trimmed !== folder.name) {
+      await renameFolder.mutateAsync({ id: folder.id, name: trimmed })
+    }
+    setRenaming(false)
+  }
+
   return (
-    <div onClick={onClick} className="card-hover cursor-pointer">
+    <div className="card group">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center shrink-0">
+        <div
+          className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center shrink-0 cursor-pointer"
+          onClick={onClick}
+        >
           <FolderOpen className="w-5 h-5 text-brand-600" />
         </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-slate-900 truncate">{folder.name}</p>
-          <p className="text-xs text-slate-400">{count} document{count !== 1 ? 's' : ''}</p>
+
+        <div className="flex-1 min-w-0 cursor-pointer" onClick={renaming ? undefined : onClick}>
+          {renaming ? (
+            <input
+              autoFocus
+              value={draft}
+              onChange={e => setDraft(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') commitRename(); if (e.key === 'Escape') setRenaming(false) }}
+              onClick={e => e.stopPropagation()}
+              className="input py-1 text-sm w-full"
+            />
+          ) : (
+            <>
+              <p className="font-semibold text-slate-900 truncate">{folder.name}</p>
+              <p className="text-xs text-slate-400">{count} document{count !== 1 ? 's' : ''}</p>
+            </>
+          )}
         </div>
-        <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
+
+        {canManage && !renaming && (
+          <button
+            onClick={e => { e.stopPropagation(); setDraft(folder.name); setRenaming(true) }}
+            className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-brand-600 transition-all shrink-0"
+            title="Renommer"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+          </button>
+        )}
+        {renaming && (
+          <button
+            onClick={commitRename}
+            className="p-1.5 rounded-lg bg-brand-50 text-brand-600 shrink-0"
+          >
+            <Check className="w-3.5 h-3.5" />
+          </button>
+        )}
+
+        {!renaming && <ChevronRight className="w-4 h-4 text-slate-300 shrink-0 cursor-pointer" onClick={onClick} />}
       </div>
     </div>
   )
@@ -210,6 +258,7 @@ export default function DocumentsPage() {
                     folder={f}
                     count={documents.filter(d => d.folder_id === f.id).length}
                     onClick={() => setActiveFolderId(f.id)}
+                    canManage={canManage && !f.is_system}
                   />
                 ))}
               </div>
@@ -250,6 +299,7 @@ export default function DocumentsPage() {
                     folder={f}
                     count={documents.filter(d => d.folder_id === f.id).length}
                     onClick={() => setActiveFolderId(f.id)}
+                    canManage={canManage && !f.is_system}
                   />
                 ))}
               </div>
