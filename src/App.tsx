@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import { useAuth } from '@/hooks/useAuth'
+import { useAuth, signOut } from '@/hooks/useAuth'
 import { useAppShell } from '@/hooks/useRole'
 import { useOrganisation } from '@/hooks/useOrganisation'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
@@ -90,7 +90,7 @@ function AppRouter() {
 }
 
 function AppRedirect({ shell }: { shell: ReturnType<typeof useAppShell> }) {
-  const { role } = useAuth()
+  const { role, profile } = useAuth()
   const routes: Record<NonNullable<typeof shell>, string> = {
     terrain: '/terrain',
     contributor: '/app',
@@ -101,9 +101,41 @@ function AppRedirect({ shell }: { shell: ReturnType<typeof useAppShell> }) {
   }
   if (!shell) {
     if (role === 'superadmin') return <Navigate to="/superadmin" replace />
+    // Existing user with a profile but no active membership → broken state
+    if (profile) return <NoOrgScreen />
+    // Brand new user without a profile → needs onboarding
     return <Navigate to="/onboarding" replace />
   }
   return <Navigate to={routes[shell]} replace />
+}
+
+function NoOrgScreen() {
+  return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div className="max-w-sm w-full text-center">
+        <div className="w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <span className="text-2xl">🏢</span>
+        </div>
+        <h1 className="text-xl font-bold text-slate-900 mb-2">Aucune organisation trouvée</h1>
+        <p className="text-slate-500 text-sm mb-6">
+          Votre compte n'est associé à aucune organisation active.<br />
+          Contactez votre administrateur pour obtenir l'accès.
+        </p>
+        <a
+          href="mailto:support@pilotos.app"
+          className="btn-primary inline-block mb-3"
+        >
+          Contacter l'administrateur
+        </a>
+        <button
+          onClick={() => signOut()}
+          className="block w-full text-sm text-slate-500 hover:text-slate-700 transition-colors"
+        >
+          Se déconnecter
+        </button>
+      </div>
+    </div>
+  )
 }
 
 function LoadingScreen() {
