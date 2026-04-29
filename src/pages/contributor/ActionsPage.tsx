@@ -59,7 +59,10 @@ export default function ActionsPage() {
   const [viewMode, setViewMode] = useState<'list' | 'kanban'>(getStoredView)
 
   const breakpoint = useBreakpoint()
-  const isMobile = breakpoint === 'mobile'
+  const isDesktop = breakpoint === 'desktop'
+
+  // Force list on all sub-1024px viewports; kanban is desktop-only
+  const effectiveView = isDesktop ? viewMode : 'list'
 
   const { data: actions = [], isLoading, isError } = useActions({
     search: search || undefined,
@@ -81,8 +84,6 @@ export default function ActionsPage() {
   const activeFilters = [status, priority, origin].filter(Boolean).length
 
   const displayedActions = showDone ? actions : actions.filter(a => a.status !== 'done' && a.status !== 'cancelled')
-
-  const effectiveView = isMobile ? 'list' : viewMode
 
   return (
     <div className="max-w-4xl">
@@ -120,7 +121,7 @@ export default function ActionsPage() {
             </span>
           )}
         </button>
-        {!isMobile && (
+        {isDesktop && (
           <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
             <button
               onClick={() => toggleView('list')}
