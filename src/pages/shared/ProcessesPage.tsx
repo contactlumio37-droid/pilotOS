@@ -1,6 +1,10 @@
-import { useState } from 'react'
+import { useState, useMemo, type ReactNode } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { Plus, Activity, AlertTriangle, Lightbulb, CheckCircle2, Clock, ClipboardCheck } from 'lucide-react'
+import {
+  Plus, Activity, AlertTriangle, Lightbulb, CheckCircle2, Clock,
+  ClipboardCheck, ChevronDown, ChevronUp, User, Link2, Search,
+} from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import PageHeader from '@/components/layout/PageHeader'
@@ -11,7 +15,10 @@ import ProcessReviewDrawer from '@/components/modules/ProcessReviewDrawer'
 import { useProcesses, useNonConformities, useKaizenPlans } from '@/hooks/useProcesses'
 import { useCategories } from '@/hooks/useCategories'
 import { useIsAtLeast } from '@/hooks/useRole'
+import { useAuth } from '@/hooks/useAuth'
+import { supabase } from '@/lib/supabase'
 import type { Process, ProcessType, NcSeverity, NcStatus, KaizenStatus, KaizenPlan } from '@/types/database'
+import type { Category } from '@/hooks/useCategories'
 
 // ── Labels & styles ──────────────────────────────────────────
 
@@ -63,16 +70,144 @@ const KAIZEN_STATUS_CLASS: Record<KaizenStatus, string> = {
   completed:   'badge-success',
 }
 
-// ── Health bar ───────────────────────────────────────────────
+// ── Action counts by process (lightweight query) ──────────────
 
-function HealthBar({ score }: { score: number }) {
-  const color = score >= 80 ? 'bg-emerald-500' : score >= 50 ? 'bg-amber-500' : 'bg-red-500'
+function useActionCountsByProcess() {
+  const { organisation } = useAuth()
+  return useQuery({
+    queryKey: ['action-counts-by-process', organisation?.id],
+    enabled: !!organisation,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('actions')
+        .select('process_id')
+        .eq('organisation_id', organisation!.id)
+        .not('process_id', 'is', null)
+      if (error) throw error
+      const counts: Record<string, number> = {}
+      for (const row of data ?? []) {
+        if (row.process_id) counts[row.process_id] = (counts[row.process_id] ?? 0) + 1
+      }
+      return counts
+    },
+  })
+}
+
+// ── Process tile ─────────────────────────────────────────────
+
+function ProcessTile({
+  process,
+  category,
+  canEdit,
+  onEdit,
+  actionCount,
+}: {
+  process: Process
+  category: Category | null
+  canEdit: boolean
+  onEdit: (p: Process) => void
+  actionCount: number
+}) {
+  const borderColor = category?.color ?? '#e2e8f0'
+
   return (
-    <div className="flex items-center gap-1.5 shrink-0">
-      <div className="w-16 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full ${color}`} style={{ width: `${score}%` }} />
+    <motion.div
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      onClick={() => canEdit && onEdit(process)}
+      className={`bg-white border border-slate-100 rounded-xl p-4 flex flex-col min-h-[140px] transition-all duration-200 ${
+        canEdit ? 'cursor-pointer hover:-translate-y-1 hover:shadow-md' : ''
+      }`}
+      style={{ borderLeft: `3px solid ${borderColor}` }}
+    >
+      <div className="flex-1">
+        {process.process_code && (
+          <span className="text-[10px] font-mono text-slate-400 block mb-0.5">{process.process_code}</span>
+        )}
+        <p className="text-sm font-semibold text-slate-900 line-clamp-1">{process.title}</p>
+        {process.description && (
+          <p className="text-xs text-slate-500 line-clamp-2 mt-0.5">{process.description}</p>
+        )}
       </div>
-      <span className="text-xs font-medium text-slate-500">{score}%</span>
+
+      <div className="mt-3 flex items-center gap-3 text-xs text-slate-400 flex-wrap">
+        <span className="flex items-center gap-1">
+          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${process.status === 'active' ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+          {process.status === 'active' ? 'Actif' : 'Brouillon'}
+        </span>
+        {process.owner_id && (
+          <span className="flex items-center gap-1">
+            <User className="w-3 h-3" />
+            Responsable
+          </span>
+        )}
+        {actionCount > 0 && (
+          <span className="flex items-center gap-1">
+            <Link2 className="w-3 h-3" />
+            {actionCount} action{actionCount > 1 ? 's' : ''}
+          </span>
+        )}
+        <span className={`badge ${TYPE_BADGE[process.process_type]} ml-auto`}>
+          {TYPE_LABELS[process.process_type]}
+        </span>
+      </div>
+    </motion.div>
+  )
+}
+
+// ── Process group (collapsible) ───────────────────────────────
+
+function ProcessGroup({
+  category,
+  processes,
+  canEdit,
+  onEdit,
+  actionCounts,
+}: {
+  category: Category | null
+  processes: Process[]
+  canEdit: boolean
+  onEdit: (p: Process) => void
+  actionCounts: Record<string, number>
+}) {
+  const [collapsed, setCollapsed] = useState(false)
+  const color = category?.color ?? '#94a3b8'
+  const name = category?.name ?? 'Non catégorisé'
+
+  return (
+    <div className="mb-6">
+      <button
+        onClick={() => setCollapsed(v => !v)}
+        className="flex items-center gap-2.5 w-full text-left mb-3 group"
+      >
+        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+        <span className="text-sm font-semibold text-slate-700 flex-1 group-hover:text-slate-900 transition-colors">
+          {name}
+        </span>
+        <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+          {processes.length}
+        </span>
+        {collapsed
+          ? <ChevronDown className="w-4 h-4 text-slate-400" />
+          : <ChevronUp className="w-4 h-4 text-slate-400" />
+        }
+      </button>
+
+      {!collapsed && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {processes.map(p => (
+            <ProcessTile
+              key={p.id}
+              process={p}
+              category={category}
+              canEdit={canEdit}
+              onEdit={onEdit}
+              actionCount={actionCounts[p.id] ?? 0}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -90,6 +225,7 @@ export default function ProcessesPage() {
   const [selectedProcess, setSelectedProcess] = useState<Process | null>(null)
   const [selectedKaizen, setSelectedKaizen]   = useState<KaizenPlan | null>(null)
   const [categoryFilter, setCategoryFilter]   = useState('')
+  const [processSearch, setProcessSearch]     = useState('')
 
   const canEdit   = useIsAtLeast('manager')
   const canCreate = useIsAtLeast('manager')
@@ -98,16 +234,50 @@ export default function ProcessesPage() {
   const { data: ncs = [],       isLoading: ncLoading }   = useNonConformities()
   const { data: kaizens = [],   isLoading: kaizenLoading } = useKaizenPlans()
   const { categories: processCategories } = useCategories('process')
+  const { data: actionCounts = {} } = useActionCountsByProcess()
 
+  // Apply category filter then search filter
   const filteredProcesses = categoryFilter
     ? processes.filter(p => p.category_id === categoryFilter)
     : processes
 
-  const grouped = filteredProcesses.reduce<Record<ProcessType, Process[]>>((acc, p) => {
-    if (!acc[p.process_type]) acc[p.process_type] = []
-    acc[p.process_type].push(p)
-    return acc
-  }, {} as Record<ProcessType, Process[]>)
+  const searchedProcesses = processSearch.trim()
+    ? filteredProcesses.filter(p =>
+        p.title.toLowerCase().includes(processSearch.toLowerCase()),
+      )
+    : filteredProcesses
+
+  // Group by category (categories in sort_order, then uncategorized last)
+  const byCategory = useMemo(() => {
+    const result: { category: Category | null; processes: Process[] }[] = []
+    const byCatId = new Map<string, Process[]>()
+    const uncategorized: Process[] = []
+
+    for (const p of searchedProcesses) {
+      if (p.category_id) {
+        if (!byCatId.has(p.category_id)) byCatId.set(p.category_id, [])
+        byCatId.get(p.category_id)!.push(p)
+      } else {
+        uncategorized.push(p)
+      }
+    }
+
+    for (const cat of processCategories) {
+      const items = byCatId.get(cat.id)
+      if (items?.length) result.push({ category: cat, processes: items })
+    }
+
+    // Processes with a category_id that has no matching category entry
+    for (const [catId, items] of byCatId) {
+      if (!processCategories.find(c => c.id === catId)) {
+        result.push({ category: null, processes: items })
+      }
+    }
+
+    if (uncategorized.length) result.push({ category: null, processes: uncategorized })
+
+    return result
+  }, [searchedProcesses, processCategories])
 
   const openNcs = ncs.filter(n => n.status !== 'closed').length
 
@@ -174,99 +344,79 @@ export default function ProcessesPage() {
       {/* ── Processes ── */}
       {tab === 'processes' && (
         <>
-          {/* Category filter */}
-          {processCategories.length > 0 && (
-            <div className="flex items-center gap-2 mb-4 flex-wrap">
-              <button
-                onClick={() => setCategoryFilter('')}
-                className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
-                  !categoryFilter ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-slate-200 text-slate-500 hover:border-slate-300'
-                }`}
-              >
-                Toutes
-              </button>
-              {processCategories.map(c => (
+          {/* Search + category filter */}
+          <div className="flex flex-col gap-3 mb-4">
+            <div className="relative max-w-xs">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                value={processSearch}
+                onChange={e => setProcessSearch(e.target.value)}
+                placeholder="Rechercher un processus…"
+                className="input pl-9 text-sm"
+              />
+            </div>
+
+            {processCategories.length > 0 && (
+              <div className="flex items-center gap-2 flex-wrap">
                 <button
-                  key={c.id}
-                  onClick={() => setCategoryFilter(c.id === categoryFilter ? '' : c.id)}
-                  className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition-colors ${
-                    categoryFilter === c.id
-                      ? 'border-current text-white'
+                  onClick={() => setCategoryFilter('')}
+                  className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                    !categoryFilter
+                      ? 'border-brand-600 bg-brand-50 text-brand-700'
                       : 'border-slate-200 text-slate-500 hover:border-slate-300'
                   }`}
-                  style={categoryFilter === c.id ? { backgroundColor: c.color, borderColor: c.color } : {}}
                 >
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
-                  {c.name}
+                  Toutes
                 </button>
-              ))}
-            </div>
-          )}
+                {processCategories.map(c => (
+                  <button
+                    key={c.id}
+                    onClick={() => setCategoryFilter(c.id === categoryFilter ? '' : c.id)}
+                    className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                      categoryFilter === c.id
+                        ? 'border-current text-white'
+                        : 'border-slate-200 text-slate-500 hover:border-slate-300'
+                    }`}
+                    style={categoryFilter === c.id ? { backgroundColor: c.color, borderColor: c.color } : {}}
+                  >
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           {procLoading && <LoadingSkeleton />}
 
-          {!procLoading && filteredProcesses.length === 0 && (
+          {!procLoading && searchedProcesses.length === 0 && (
             <EmptyState
               icon={<Activity className="w-10 h-10 text-slate-200 mx-auto mb-3" />}
-              title={categoryFilter ? 'Aucun processus dans cette catégorie.' : 'Aucun processus documenté'}
-              cta={!categoryFilter && canCreate ? <button onClick={openCreateProcess} className="btn-primary mt-4 text-sm">Créer le premier processus</button> : undefined}
+              title={
+                categoryFilter || processSearch
+                  ? 'Aucun processus ne correspond aux filtres.'
+                  : 'Aucun processus documenté'
+              }
+              cta={
+                !categoryFilter && !processSearch && canCreate
+                  ? <button onClick={openCreateProcess} className="btn-primary mt-4 text-sm">Créer le premier processus</button>
+                  : undefined
+              }
             />
           )}
 
-          {!procLoading && filteredProcesses.length > 0 && (
-            <div className="space-y-6">
-              {(['management', 'operational', 'support'] as ProcessType[]).map(type => {
-                const items = grouped[type] ?? []
-                if (!items.length) return null
-                return (
-                  <div key={type}>
-                    <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
-                      {TYPE_LABELS[type]}
-                    </h3>
-                    <div className="grid gap-2">
-                      {items.map((p, i) => (
-                        <motion.div
-                          key={p.id}
-                          initial={{ opacity: 0, y: 4 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: i * 0.03 }}
-                          onClick={() => openEditProcess(p)}
-                          className={`card ${canEdit ? 'card-hover cursor-pointer' : ''}`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-0.5">
-                                {p.process_code && (
-                                  <span className="text-xs font-mono text-slate-400">{p.process_code}</span>
-                                )}
-                                <span className="text-sm font-semibold text-slate-900 truncate">{p.title}</span>
-                              </div>
-                              {p.description && (
-                                <p className="text-xs text-slate-500 line-clamp-1">{p.description}</p>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                              {p.health_score !== null && <HealthBar score={p.health_score} />}
-                              {(() => {
-                                const pCat = processCategories.find(c => c.id === p.category_id)
-                                return pCat ? (
-                                  <span
-                                    className="text-[10px] font-medium px-2 py-0.5 rounded-full"
-                                    style={{ backgroundColor: pCat.color + '22', color: pCat.color }}
-                                  >
-                                    {pCat.name}
-                                  </span>
-                                ) : null
-                              })()}
-                              <span className={`badge ${TYPE_BADGE[p.process_type]}`}>{TYPE_LABELS[p.process_type]}</span>
-                            </div>
-                          </div>
-                        </motion.div>
-                      ))}
-                    </div>
-                  </div>
-                )
-              })}
+          {!procLoading && byCategory.length > 0 && (
+            <div>
+              {byCategory.map(({ category, processes: groupItems }, idx) => (
+                <ProcessGroup
+                  key={category?.id ?? `uncategorized-${idx}`}
+                  category={category}
+                  processes={groupItems}
+                  canEdit={canEdit}
+                  onEdit={openEditProcess}
+                  actionCounts={actionCounts}
+                />
+              ))}
             </div>
           )}
         </>
@@ -399,7 +549,7 @@ export default function ProcessesPage() {
 
 // ── Small helpers ─────────────────────────────────────────────
 
-function TabBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function TabBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
   return (
     <button
       onClick={onClick}
@@ -414,14 +564,16 @@ function TabBtn({ active, onClick, children }: { active: boolean; onClick: () =>
 
 function LoadingSkeleton() {
   return (
-    <div className="space-y-3">
-      {Array.from({ length: 4 }).map((_, i) => <div key={i} className="card animate-pulse h-16" />)}
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="card animate-pulse min-h-[140px]" />
+      ))}
     </div>
   )
 }
 
 function EmptyState({ icon, title, subtitle, cta }: {
-  icon: React.ReactNode; title: string; subtitle?: string; cta?: React.ReactNode
+  icon: ReactNode; title: string; subtitle?: string; cta?: ReactNode
 }) {
   return (
     <div className="card text-center py-12">

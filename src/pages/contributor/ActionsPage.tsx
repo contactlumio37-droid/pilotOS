@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, Search, SlidersHorizontal, Inbox, LayoutList, Columns } from 'lucide-react'
+import { Plus, Search, SlidersHorizontal, Inbox, LayoutList, Columns, Download } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import PageHeader from '@/components/layout/PageHeader'
@@ -93,6 +93,52 @@ export default function ActionsPage() {
 
   const activeFilters = [status, origin, responsible].filter(Boolean).length
 
+  // Key that resets kanban column expanded states when any filter changes
+  const filterVersion = [search, status, origin, responsible, String(showClosed)].join('|')
+
+  // Keyboard shortcut: N → open create (desktop, outside inputs)
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.key !== 'n' && e.key !== 'N') return
+      if (e.ctrlKey || e.metaKey || e.altKey) return
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
+      setSelected(null)
+      setDrawerOpen(true)
+    }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [])
+
+  function handleExport() {
+    const today = format(new Date(), 'yyyy-MM-dd')
+    const catMap = Object.fromEntries(categories.map(c => [c.id, c.name]))
+    const headers = ['Titre', 'Catégorie', 'Statut', 'Priorité', 'Responsable', 'Approbateur', 'Échéance', 'Processus lié', 'Date création']
+    const rows = listActions.map(a => [
+      a.title,
+      a.category_id ? (catMap[a.category_id] ?? '') : '',
+      a.status,
+      a.priority,
+      a.responsible_profile?.full_name ?? '',
+      a.accountable_profile?.full_name ?? '',
+      a.due_date ?? '',
+      a.process?.title ?? '',
+      a.created_at ? format(new Date(a.created_at), 'dd/MM/yyyy', { locale: fr }) : '',
+    ])
+    const csv = [headers, ...rows]
+      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .join('\n')
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `actions_${today}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="max-w-5xl">
       <PageHeader
@@ -142,6 +188,17 @@ export default function ActionsPage() {
             </span>
           )}
         </button>
+
+        {listActions.length > 0 && (
+          <button
+            onClick={handleExport}
+            className="btn-secondary flex items-center gap-1.5"
+            title="Exporter les actions filtrées (CSV)"
+          >
+            <Download className="w-4 h-4" />
+            <span className="hidden sm:inline">Exporter</span>
+          </button>
+        )}
 
         {isDesktop && (
           <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
@@ -219,6 +276,7 @@ export default function ActionsPage() {
           categories={categories}
           showClosed={showClosed}
           onCardClick={openEdit}
+          filterVersion={filterVersion}
         />
       )}
 
