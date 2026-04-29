@@ -9,6 +9,7 @@ import NcDrawer from '@/components/modules/NcDrawer'
 import KaizenDrawer from '@/components/modules/KaizenDrawer'
 import ProcessReviewDrawer from '@/components/modules/ProcessReviewDrawer'
 import { useProcesses, useNonConformities, useKaizenPlans } from '@/hooks/useProcesses'
+import { useCategories } from '@/hooks/useCategories'
 import { useIsAtLeast } from '@/hooks/useRole'
 import type { Process, ProcessType, NcSeverity, NcStatus, KaizenStatus, KaizenPlan } from '@/types/database'
 
@@ -88,6 +89,7 @@ export default function ProcessesPage() {
   const [reviewOpen, setReviewOpen]     = useState(false)
   const [selectedProcess, setSelectedProcess] = useState<Process | null>(null)
   const [selectedKaizen, setSelectedKaizen]   = useState<KaizenPlan | null>(null)
+  const [categoryFilter, setCategoryFilter]   = useState('')
 
   const canEdit   = useIsAtLeast('manager')
   const canCreate = useIsAtLeast('manager')
@@ -95,8 +97,13 @@ export default function ProcessesPage() {
   const { data: processes = [], isLoading: procLoading } = useProcesses()
   const { data: ncs = [],       isLoading: ncLoading }   = useNonConformities()
   const { data: kaizens = [],   isLoading: kaizenLoading } = useKaizenPlans()
+  const { categories: processCategories } = useCategories('process')
 
-  const grouped = processes.reduce<Record<ProcessType, Process[]>>((acc, p) => {
+  const filteredProcesses = categoryFilter
+    ? processes.filter(p => p.category_id === categoryFilter)
+    : processes
+
+  const grouped = filteredProcesses.reduce<Record<ProcessType, Process[]>>((acc, p) => {
     if (!acc[p.process_type]) acc[p.process_type] = []
     acc[p.process_type].push(p)
     return acc
@@ -167,17 +174,46 @@ export default function ProcessesPage() {
       {/* ── Processes ── */}
       {tab === 'processes' && (
         <>
+          {/* Category filter */}
+          {processCategories.length > 0 && (
+            <div className="flex items-center gap-2 mb-4 flex-wrap">
+              <button
+                onClick={() => setCategoryFilter('')}
+                className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                  !categoryFilter ? 'border-brand-600 bg-brand-50 text-brand-700' : 'border-slate-200 text-slate-500 hover:border-slate-300'
+                }`}
+              >
+                Toutes
+              </button>
+              {processCategories.map(c => (
+                <button
+                  key={c.id}
+                  onClick={() => setCategoryFilter(c.id === categoryFilter ? '' : c.id)}
+                  className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                    categoryFilter === c.id
+                      ? 'border-current text-white'
+                      : 'border-slate-200 text-slate-500 hover:border-slate-300'
+                  }`}
+                  style={categoryFilter === c.id ? { backgroundColor: c.color, borderColor: c.color } : {}}
+                >
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+                  {c.name}
+                </button>
+              ))}
+            </div>
+          )}
+
           {procLoading && <LoadingSkeleton />}
 
-          {!procLoading && processes.length === 0 && (
+          {!procLoading && filteredProcesses.length === 0 && (
             <EmptyState
               icon={<Activity className="w-10 h-10 text-slate-200 mx-auto mb-3" />}
-              title="Aucun processus documenté"
-              cta={canCreate ? <button onClick={openCreateProcess} className="btn-primary mt-4 text-sm">Créer le premier processus</button> : undefined}
+              title={categoryFilter ? 'Aucun processus dans cette catégorie.' : 'Aucun processus documenté'}
+              cta={!categoryFilter && canCreate ? <button onClick={openCreateProcess} className="btn-primary mt-4 text-sm">Créer le premier processus</button> : undefined}
             />
           )}
 
-          {!procLoading && processes.length > 0 && (
+          {!procLoading && filteredProcesses.length > 0 && (
             <div className="space-y-6">
               {(['management', 'operational', 'support'] as ProcessType[]).map(type => {
                 const items = grouped[type] ?? []
@@ -211,6 +247,17 @@ export default function ProcessesPage() {
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
                               {p.health_score !== null && <HealthBar score={p.health_score} />}
+                              {(() => {
+                                const pCat = processCategories.find(c => c.id === p.category_id)
+                                return pCat ? (
+                                  <span
+                                    className="text-[10px] font-medium px-2 py-0.5 rounded-full"
+                                    style={{ backgroundColor: pCat.color + '22', color: pCat.color }}
+                                  >
+                                    {pCat.name}
+                                  </span>
+                                ) : null
+                              })()}
                               <span className={`badge ${TYPE_BADGE[p.process_type]}`}>{TYPE_LABELS[p.process_type]}</span>
                             </div>
                           </div>
