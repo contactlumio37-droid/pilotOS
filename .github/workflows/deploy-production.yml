@@ -27,31 +27,27 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
 
-      - name: Push migrations
+      - name: Repair migration history
+        run: |
+          set -euo pipefail
+          echo "→ Alignement historique migrations (idempotent)..."
+          # Version 20260420 appliquée en remote avant la normalisation des noms.
+          # Garantit que le record existe dans schema_migrations.
+          supabase migration repair --status applied 20260420 \
+            || echo "⚠️ Repair 20260420 ignoré (déjà aligné)"
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+      - name: Apply migrations
         run: |
           set -euo pipefail
 
+          echo "→ Vérification synchronisation migrations..."
+          supabase migration list
+
           echo "→ Application des migrations..."
-
-          OUTPUT=$(echo "Y" | supabase db push \
-            --include-all \
-            --password "$SUPABASE_DB_PASSWORD" 2>&1) || {
-
-            echo "$OUTPUT"
-
-            if echo "$OUTPUT" | grep -qE "already exists|duplicate"; then
-              echo "⚠️ Objets déjà existants — OK"
-              exit 0
-            fi
-
-            echo "::error::Échec migrations"
-            exit 1
-          }
-
-          echo "$OUTPUT"
-
-          supabase db diff || echo "⚠️ Drift détecté"
-
+          supabase db push --password "$SUPABASE_DB_PASSWORD" 2>&1
           echo "✅ Migrations OK"
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
