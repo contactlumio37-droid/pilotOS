@@ -39,16 +39,33 @@ function useMyOrgs() {
   return useQuery({
     queryKey: ['superadmin_my_orgs', user?.id],
     queryFn: async () => {
-      const { data } = await supabase
+      // Two-step query avoids nested join RLS issues with the organisations table
+      const { data: memberData } = await supabase
         .from('organisation_members')
-        .select('organisation_id, organisations(id, name)')
+        .select('organisation_id')
         .eq('user_id', user!.id)
         .eq('is_active', true)
         .order('created_at', { ascending: true })
-      return (data ?? []).map(m => {
-        const org = Array.isArray(m.organisations) ? m.organisations[0] : m.organisations
-        return { org_id: m.organisation_id, org_name: (org as { name: string } | null)?.name ?? '—' }
-      }) as OrgMembership[]
+
+      const orgIds = (memberData ?? []).map(m => m.organisation_id)
+
+      if (!orgIds.length) {
+        // Fallback: superadmin may query organisations directly (RLS allows via is_superadmin())
+        const { data: allOrgs } = await supabase
+          .from('organisations')
+          .select('id, name')
+          .eq('is_active', true)
+          .order('created_at', { ascending: true })
+          .limit(20)
+        return (allOrgs ?? []).map(o => ({ org_id: o.id, org_name: o.name })) as OrgMembership[]
+      }
+
+      const { data: orgData } = await supabase
+        .from('organisations')
+        .select('id, name')
+        .in('id', orgIds)
+
+      return (orgData ?? []).map(o => ({ org_id: o.id, org_name: o.name })) as OrgMembership[]
     },
     enabled: !!user,
   })
