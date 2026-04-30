@@ -1,127 +1,23 @@
-import { Routes, Route } from 'react-router-dom'
+import { Navigate, Routes, Route } from 'react-router-dom'
 import {
-  LayoutDashboard, Building2, Bug, Map, Zap, Globe, BookOpen, Mail, Users,
+  LayoutDashboard, Building2, Bug, Map, Zap, Globe, BookOpen, Mail,
 } from 'lucide-react'
-import { useQuery } from '@tanstack/react-query'
-import { supabase } from '@/lib/supabase'
-import { useBreakpoint } from '@/hooks/useBreakpoint'
-import { useAuth } from '@/hooks/useAuth'
-import { setOrgContext } from '@/hooks/useOrganisation'
-import Sidebar from '@/components/layout/Sidebar'
-import BottomNav from '@/components/layout/BottomNav'
+import SuperAdminHeader, { SUPERADMIN_HEADER_HEIGHT } from '@/components/layout/SuperAdminHeader'
 import SuperAdminDashboard from './SuperAdminDashboard'
 import SuperAdminOrgs from './SuperAdminOrgs'
 import SuperAdminFeedback from './SuperAdminFeedback'
-import SuperAdminUsers from './SuperAdminUsers'
 import ProfilePage from '@/pages/shared/ProfilePage'
 
 const NAV_ITEMS = [
-  { to: '/superadmin',               label: 'Dashboard',      icon: LayoutDashboard, end: true },
-  { to: '/superadmin/organisations', label: 'Organisations',  icon: Building2 },
-  { to: '/superadmin/utilisateurs',  label: 'Utilisateurs',   icon: Users },
+  { to: '/superadmin',               label: 'Dashboard',       icon: LayoutDashboard, end: true },
+  { to: '/superadmin/organisations', label: 'Organisations',   icon: Building2 },
   { to: '/superadmin/feedback',      label: 'Bugs & Feedback', icon: Bug },
-  { to: '/superadmin/roadmap',       label: 'Roadmap',        icon: Map },
-  { to: '/superadmin/bounties',      label: 'Bounties',       icon: Zap },
-  { to: '/superadmin/cms',           label: 'CMS Site',       icon: Globe },
-  { to: '/superadmin/blog',          label: 'Blog',           icon: BookOpen },
-  { to: '/superadmin/newsletter',    label: 'Newsletter',     icon: Mail },
+  { to: '/superadmin/roadmap',       label: 'Roadmap',         icon: Map },
+  { to: '/superadmin/bounties',      label: 'Bounties',        icon: Zap },
+  { to: '/superadmin/cms',           label: 'CMS Site',        icon: Globe },
+  { to: '/superadmin/blog',          label: 'Blog',            icon: BookOpen },
+  { to: '/superadmin/newsletter',    label: 'Newsletter',      icon: Mail },
 ]
-
-// ── Org switcher ──────────────────────────────────────────────
-
-interface OrgMembership {
-  org_id: string
-  org_name: string
-}
-
-function useMyOrgs() {
-  const { user } = useAuth()
-  return useQuery({
-    queryKey: ['superadmin_my_orgs', user?.id],
-    queryFn: async () => {
-      // Include inactive memberships — RLS "members_own_read" uses (user_id = auth.uid())
-      // without is_active constraint, so own rows are always readable.
-      const { data: memberData } = await supabase
-        .from('organisation_members')
-        .select('organisation_id')
-        .eq('user_id', user!.id)
-        .order('created_at', { ascending: true })
-
-      const orgIds = (memberData ?? []).map(m => m.organisation_id)
-
-      if (!orgIds.length) {
-        // Fallback: superadmin may query organisations directly (RLS allows via is_superadmin())
-        const { data: allOrgs } = await supabase
-          .from('organisations')
-          .select('id, name')
-          .eq('is_active', true)
-          .order('created_at', { ascending: true })
-          .limit(20)
-        return (allOrgs ?? []).map(o => ({ org_id: o.id, org_name: o.name })) as OrgMembership[]
-      }
-
-      const { data: orgData } = await supabase
-        .from('organisations')
-        .select('id, name')
-        .in('id', orgIds)
-
-      // orgData may be empty if RLS blocks org access (inactive membership + is_superadmin() false)
-      if (!orgData?.length) {
-        return orgIds.map(id => ({ org_id: id, org_name: 'Mon organisation' })) as OrgMembership[]
-      }
-
-      return orgData.map(o => ({ org_id: o.id, org_name: o.name })) as OrgMembership[]
-    },
-    enabled: !!user,
-  })
-}
-
-function OrgSwitcher({ collapsed }: { collapsed: boolean }) {
-  const { data: orgs = [] } = useMyOrgs()
-  if (!orgs.length) return null
-
-  function switchTo(orgId: string) {
-    setOrgContext(orgId)
-    window.location.href = '/admin'
-  }
-
-  if (collapsed) {
-    return (
-      <div className="flex flex-col gap-1">
-        {orgs.map(o => (
-          <button
-            key={o.org_id}
-            title={`Vue admin : ${o.org_name}`}
-            onClick={() => switchTo(o.org_id)}
-            className="flex justify-center p-2 rounded-lg text-slate-500 hover:text-brand-400 hover:bg-slate-800 transition-colors"
-          >
-            <Building2 className="w-4 h-4" />
-          </button>
-        ))}
-      </div>
-    )
-  }
-
-  return (
-    <div>
-      <p className="text-[10px] uppercase tracking-widest text-slate-600 font-semibold px-1 mb-1.5">
-        Mes organisations
-      </p>
-      {orgs.map(o => (
-        <button
-          key={o.org_id}
-          onClick={() => switchTo(o.org_id)}
-          className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-slate-400 hover:text-brand-300 hover:bg-slate-800 transition-colors text-xs font-medium"
-        >
-          <Building2 className="w-4 h-4 shrink-0 text-brand-500" />
-          <span className="truncate">{o.org_name}</span>
-        </button>
-      ))}
-    </div>
-  )
-}
-
-// ── App ───────────────────────────────────────────────────────
 
 function StubPage({ title, description }: { title: string; description: string }) {
   return (
@@ -136,34 +32,26 @@ function StubPage({ title, description }: { title: string; description: string }
 }
 
 export default function SuperAdminApp() {
-  const breakpoint = useBreakpoint()
-  const isDesktop = breakpoint === 'desktop'
-
   return (
     <div className="min-h-screen bg-slate-900">
-      {isDesktop ? (
-        <Sidebar
-          items={NAV_ITEMS}
-          dark
-          profileTo="/superadmin/profil"
-          headerSlot={(collapsed) => <OrgSwitcher collapsed={collapsed} />}
-        />
-      ) : (
-        <BottomNav items={NAV_ITEMS.slice(0, 5)} dark />
-      )}
+      <SuperAdminHeader items={NAV_ITEMS} />
 
-      <main className={`${isDesktop ? 'main-with-sidebar' : 'main-with-bottom-nav'} bg-slate-900 min-h-screen p-8`}>
+      <main
+        className="bg-slate-900 min-h-screen p-8"
+        style={{ paddingTop: `calc(${SUPERADMIN_HEADER_HEIGHT}px + 2rem)` }}
+      >
         <Routes>
-          <Route path="/"                element={<SuperAdminDashboard />} />
-          <Route path="/organisations"   element={<SuperAdminOrgs />} />
-          <Route path="/utilisateurs"    element={<SuperAdminUsers />} />
-          <Route path="/feedback"        element={<SuperAdminFeedback />} />
-          <Route path="/roadmap"         element={<StubPage title="Roadmap" description="Gestion publique de la roadmap produit." />} />
-          <Route path="/bounties"        element={<StubPage title="Bounties" description="Programme de récompenses pour les contributions." />} />
-          <Route path="/cms"             element={<StubPage title="CMS Site" description="Édition du contenu de la landing page." />} />
-          <Route path="/blog"            element={<StubPage title="Blog" description="Gestion des articles de blog." />} />
-          <Route path="/newsletter"      element={<StubPage title="Newsletter" description="Gestion des abonnés et envoi de newsletters." />} />
-          <Route path="/profil"          element={<ProfilePage />} />
+          <Route path="/"              element={<SuperAdminDashboard />} />
+          <Route path="/organisations" element={<SuperAdminOrgs />} />
+          {/* Redirect legacy utilisateurs route into Organisations sub-tab */}
+          <Route path="/utilisateurs"  element={<Navigate to="/superadmin/organisations?tab=utilisateurs" replace />} />
+          <Route path="/feedback"      element={<SuperAdminFeedback />} />
+          <Route path="/roadmap"       element={<StubPage title="Roadmap"    description="Gestion publique de la roadmap produit." />} />
+          <Route path="/bounties"      element={<StubPage title="Bounties"   description="Programme de récompenses pour les contributions." />} />
+          <Route path="/cms"           element={<StubPage title="CMS Site"   description="Édition du contenu de la landing page." />} />
+          <Route path="/blog"          element={<StubPage title="Blog"       description="Gestion des articles de blog." />} />
+          <Route path="/newsletter"    element={<StubPage title="Newsletter" description="Gestion des abonnés et envoi de newsletters." />} />
+          <Route path="/profil"        element={<ProfilePage />} />
         </Routes>
       </main>
     </div>
