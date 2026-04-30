@@ -102,8 +102,39 @@ export function useAuth(): AuthState {
       (a, b) => (ROLE_WEIGHT[b.role] ?? 0) - (ROLE_WEIGHT[a.role] ?? 0),
     )[0]
 
+    // Superadmin fallback: if no active membership, check inactive ones.
+    // RLS "members_own_read" allows USING (user_id = auth.uid()) unconditionally,
+    // so a user can always read their own rows regardless of is_active.
     if (!memberRow) {
-      console.warn('Membership non trouvé pour', user.id, '— utilisateur en cours d\'onboarding ?')
+      const { data: fallbackData } = await supabase
+        .from('organisation_members')
+        .select('role, organisation_id, site_id, kpi_config, organisation:organisations(*)')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(5)
+
+      const fallbackRows = (fallbackData ?? []) as typeof allRows
+      const fallbackRow = [...fallbackRows].sort(
+        (a, b) => (ROLE_WEIGHT[b.role] ?? 0) - (ROLE_WEIGHT[a.role] ?? 0),
+      )[0]
+
+      if (fallbackRow?.role === 'superadmin') {
+        console.warn('[useAuth] Superadmin membership inactif — accès accordé pour', user.id)
+        const rawOrgFallback = fallbackRow.organisation
+        const orgFallback = rawOrgFallback
+          ? (Array.isArray(rawOrgFallback) ? rawOrgFallback[0] : rawOrgFallback) as Organisation
+          : null
+        setState({
+          user, session, profile,
+          organisation: orgFallback,
+          role: 'superadmin' as UserRole,
+          mfaVerified, isImpersonating, impersonatorId, impersonatorEmail,
+          impersonationExpiresAt, loading: false,
+        })
+        return
+      }
+
+      console.warn('[useAuth] Aucun membership pour', user.id, '— onboarding ou compte orphelin')
     }
 
     const rawOrg      = memberRow?.organisation
@@ -111,6 +142,10 @@ export function useAuth(): AuthState {
       ? (Array.isArray(rawOrg) ? rawOrg[0] : rawOrg) as Organisation
       : null
     const role = (memberRow?.role ?? null) as UserRole | null
+
+    if (!organisation && user) {
+      console.warn('[useAuth] organisation=null pour user', user.id)
+    }
 
     setState({
       user, session, profile, organisation, role, mfaVerified,

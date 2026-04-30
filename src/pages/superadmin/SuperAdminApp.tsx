@@ -39,12 +39,12 @@ function useMyOrgs() {
   return useQuery({
     queryKey: ['superadmin_my_orgs', user?.id],
     queryFn: async () => {
-      // Two-step query avoids nested join RLS issues with the organisations table
+      // Include inactive memberships — RLS "members_own_read" uses (user_id = auth.uid())
+      // without is_active constraint, so own rows are always readable.
       const { data: memberData } = await supabase
         .from('organisation_members')
         .select('organisation_id')
         .eq('user_id', user!.id)
-        .eq('is_active', true)
         .order('created_at', { ascending: true })
 
       const orgIds = (memberData ?? []).map(m => m.organisation_id)
@@ -65,7 +65,12 @@ function useMyOrgs() {
         .select('id, name')
         .in('id', orgIds)
 
-      return (orgData ?? []).map(o => ({ org_id: o.id, org_name: o.name })) as OrgMembership[]
+      // orgData may be empty if RLS blocks org access (inactive membership + is_superadmin() false)
+      if (!orgData?.length) {
+        return orgIds.map(id => ({ org_id: id, org_name: 'Mon organisation' })) as OrgMembership[]
+      }
+
+      return orgData.map(o => ({ org_id: o.id, org_name: o.name })) as OrgMembership[]
     },
     enabled: !!user,
   })
