@@ -37,6 +37,9 @@ jobs:
       # Les migrations sont idempotentes — aucun repair manuel requis.
       # L'erreur 42P07 (already exists) est capturée par précaution
       # mais ne devrait plus survenir après les fixes d'idempotence.
+      - name: Vérification nommage migrations
+        run: bash scripts/check-migration-names.sh supabase/migrations
+
       - name: Push migrations
         id: db_push
         continue-on-error: false
