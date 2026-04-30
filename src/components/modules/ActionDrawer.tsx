@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Sparkles, Send, User, Calendar, AlertCircle } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { Sparkles, Send, Calendar, AlertCircle } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import Drawer from '@/components/ui/Drawer'
@@ -13,6 +14,10 @@ import { useAiAssist } from '@/hooks/useAiAssist'
 import { useOrganisation } from '@/hooks/useOrganisation'
 import { useProcesses } from '@/hooks/useProcesses'
 import { useActionCategories } from '@/hooks/useActionCategories'
+import { supabase } from '@/lib/supabase'
+import RACISelector from '@/components/actions/RACISelector'
+import { RACI_DEFAULT } from '@/components/actions/raci-types'
+import type { RACIValue } from '@/components/actions/raci-types'
 import type { ActionWithRelations, ActionInsertPayload } from '@/hooks/useActions'
 import type { ActionStatus, ActionPriority, ActionOrigin } from '@/types/database'
 
@@ -23,7 +28,6 @@ const schema = z.object({
   status: z.enum(['todo', 'in_progress', 'done', 'cancelled', 'late']),
   origin: z.enum(['manual', 'process_review', 'codir', 'audit', 'incident', 'kaizen', 'terrain']),
   due_date: z.string().optional(),
-  responsible_id: z.string().optional(),
   process_id: z.string().optional(),
   category_id: z.string().optional(),
 })
@@ -66,6 +70,8 @@ export default function ActionDrawer({ open, onClose, action, initialProcessId }
   const [aiInput, setAiInput] = useState('')
   const [showAi, setShowAi] = useState(false)
   const [comment, setComment] = useState('')
+  const [raci, setRaci] = useState<RACIValue>(RACI_DEFAULT)
+  const [raciError, setRaciError] = useState('')
 
   const toast = useToast()
   const createAction = useCreateAction()
@@ -77,6 +83,25 @@ export default function ActionDrawer({ open, onClose, action, initialProcessId }
   const { data: processes = [] } = useProcesses()
   const { data: categories = [] } = useActionCategories()
   const aiEnabled = (organisation as (typeof organisation & { ai_enabled?: boolean }) | null)?.ai_enabled ?? false
+
+  const { data: orgMembers = [] } = useQuery({
+    queryKey: ['org-members-raci', organisation?.id],
+    enabled: !!organisation,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('organisation_members')
+        .select('user_id, profile:profiles(id, full_name)')
+        .eq('organisation_id', organisation!.id)
+        .eq('is_active', true)
+      return (data ?? [])
+        .map(m => {
+          const p = Array.isArray(m.profile) ? m.profile[0] : m.profile
+          return p ? { id: p.id as string, full_name: p.full_name as string | null } : null
+        })
+        .filter((x): x is { id: string; full_name: string | null } => x !== null)
+    },
+  })
 
   const { register, handleSubmit, reset, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -99,19 +124,41 @@ export default function ActionDrawer({ open, onClose, action, initialProcessId }
         status: action.status,
         origin: action.origin,
         due_date: action.due_date ?? '',
-        responsible_id: action.responsible_id ?? '',
         process_id: action.process_id ?? '',
         category_id: action.category_id ?? '',
       })
+      setRaci({
+        responsible_id: action.responsible_id ?? null,
+        accountable_id: action.accountable_id ?? null,
+        consulted_ids: action.consulted_ids ?? [],
+        informed_ids: action.informed_ids ?? [],
+      })
     } else {
-      reset({ title: '', description: '', priority: 'medium', status: 'todo', origin: 'manual', due_date: '', process_id: initialProcessId ?? '', category_id: '' })
+      reset({
+        title: '',
+        description: '',
+        priority: 'medium',
+        status: 'todo',
+        origin: 'manual',
+        due_date: '',
+        process_id: initialProcessId ?? '',
+        category_id: '',
+      })
+      setRaci(RACI_DEFAULT)
     }
+    setRaciError('')
     setShowAi(false)
     setAiInput('')
     setComment('')
   }, [action, open, reset, initialProcessId])
 
   async function onSubmit(data: FormData) {
+    if (!raci.responsible_id) {
+      setRaciError('Le responsable est obligatoire')
+      return
+    }
+    setRaciError('')
+
     const payload: ActionInsertPayload = {
       title: data.title,
       description: data.description,
@@ -119,7 +166,10 @@ export default function ActionDrawer({ open, onClose, action, initialProcessId }
       status: data.status,
       priority: data.priority,
       due_date: data.due_date || undefined,
-      responsible_id: data.responsible_id || undefined,
+      responsible_id: raci.responsible_id,
+      accountable_id: raci.accountable_id || undefined,
+      consulted_ids: raci.consulted_ids,
+      informed_ids: raci.informed_ids,
       process_id: data.process_id || undefined,
       category_id: data.category_id || undefined,
     }
@@ -253,7 +303,7 @@ export default function ActionDrawer({ open, onClose, action, initialProcessId }
           <textarea {...register('description')} className="input resize-none" rows={3} placeholder="Détails, contexte…" />
         </div>
 
-        {/* Ligne priorité + statut */}
+        {/* Priorité + Statut */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="label">Priorité</label>
@@ -269,7 +319,7 @@ export default function ActionDrawer({ open, onClose, action, initialProcessId }
           </div>
         </div>
 
-        {/* Ligne origine + échéance */}
+        {/* Origine + Échéance */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="label">Origine</label>
@@ -283,7 +333,7 @@ export default function ActionDrawer({ open, onClose, action, initialProcessId }
           </div>
         </div>
 
-        {/* Ligne catégorie + processus */}
+        {/* Catégorie + Processus */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="label">Catégorie</label>
@@ -304,29 +354,19 @@ export default function ActionDrawer({ open, onClose, action, initialProcessId }
             </select>
           </div>
         </div>
+
+        {/* RACI — création et modification */}
+        <div className="pt-2 border-t border-slate-100">
+          <RACISelector
+            members={orgMembers}
+            value={raci}
+            onChange={v => { setRaci(v); if (v.responsible_id) setRaciError('') }}
+            responsibleError={raciError}
+          />
+        </div>
       </form>
 
-      {/* RACI en lecture si édition */}
-      {isEdit && (
-        <div className="mt-6 pt-6 border-t border-slate-100">
-          <h3 className="text-sm font-semibold text-slate-700 mb-3">RACI</h3>
-          <div className="space-y-2 text-sm">
-            <RaciRow icon={<User className="w-4 h-4 text-brand-500" />} label="Responsable" name={action.responsible_profile?.full_name} />
-            <RaciRow icon={<User className="w-4 h-4 text-purple-500" />} label="Approbateur" name={action.accountable_profile?.full_name} />
-            {action.consulted_ids?.length > 0 && (
-              <div className="flex items-start gap-2">
-                <span className="w-5 shrink-0 mt-0.5 text-slate-400"><User className="w-4 h-4" /></span>
-                <div>
-                  <span className="text-xs text-slate-500 block">Consultés</span>
-                  <span className="text-slate-700">{action.consulted_ids.length} personne(s)</span>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Badges métadonnées */}
+      {/* Badges métadonnées — modification uniquement */}
       {isEdit && (
         <div className="mt-4 flex flex-wrap gap-2">
           <OriginBadge origin={action.origin} />
@@ -347,7 +387,7 @@ export default function ActionDrawer({ open, onClose, action, initialProcessId }
         </div>
       )}
 
-      {/* Commentaires */}
+      {/* Commentaires — modification uniquement */}
       {isEdit && (
         <div className="mt-6 pt-6 border-t border-slate-100">
           <h3 className="text-sm font-semibold text-slate-700 mb-3">
@@ -406,15 +446,5 @@ export default function ActionDrawer({ open, onClose, action, initialProcessId }
         </div>
       )}
     </Drawer>
-  )
-}
-
-function RaciRow({ icon, label, name }: { icon: React.ReactNode; label: string; name?: string | null }) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="shrink-0">{icon}</span>
-      <span className="text-xs text-slate-500 w-24">{label}</span>
-      <span className="text-slate-700">{name ?? <span className="text-slate-400 italic">Non assigné</span>}</span>
-    </div>
   )
 }
