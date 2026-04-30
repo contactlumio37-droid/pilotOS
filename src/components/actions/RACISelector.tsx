@@ -134,22 +134,30 @@ export default function RACISelector({
       </div>
 
       <div>
-        <label className="label">Consultés</label>
+        <label className="label">
+          Consultés
+          <span className="ml-1 text-xs text-slate-400 font-normal">— Sollicités pour avis</span>
+        </label>
         <ChipSelector
           members={sorted}
           selected={value.consulted_ids}
           onChange={ids => onChange({ ...value, consulted_ids: ids })}
           disabled={disabled}
+          activeColor="bg-slate-500"
         />
       </div>
 
       <div>
-        <label className="label">Informés</label>
+        <label className="label">
+          Informés
+          <span className="ml-1 text-xs text-slate-400 font-normal">— Tenus informés uniquement</span>
+        </label>
         <ChipSelector
           members={sorted}
           selected={value.informed_ids}
           onChange={ids => onChange({ ...value, informed_ids: ids })}
           disabled={disabled}
+          activeColor="bg-slate-400"
         />
       </div>
     </div>
