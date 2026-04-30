@@ -30,11 +30,24 @@ jobs:
       - name: Repair migration history
         run: |
           set -euo pipefail
-          echo "→ Alignement historique migrations (idempotent)..."
-          # Version 20260420 appliquée en remote avant la normalisation des noms.
-          # Garantit que le record existe dans schema_migrations.
-          supabase migration repair --status applied 20260420 \
-            || echo "⚠️ Repair 20260420 ignoré (déjà aligné)"
+          echo "→ Marquage migrations orphelines comme revertées (idempotent)..."
+
+          # Remote-only + local-only : version courte 20260420
+          # (appliquée en remote avant normalisation des noms ; fichier local non aligné)
+          supabase migration repair --status reverted 20260420 \
+            || echo "⚠️ 20260420 déjà aligné"
+
+          # Local-only : jamais appliquées en remote, bloquent db push
+          for v in \
+            20260421016 20260421017 20260421 \
+            20260422 20260424 \
+            20260425021 20260425022 20260425023 20260425024 20260425025 20260425026 \
+            20260425 20260426001 20260428 20260429; do
+            supabase migration repair --status reverted "$v" \
+              || echo "⚠️ $v déjà aligné"
+          done
+
+          echo "✅ Réparation terminée"
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
@@ -42,12 +55,25 @@ jobs:
       - name: Apply migrations
         run: |
           set -euo pipefail
-
           echo "→ Vérification synchronisation migrations..."
           supabase migration list
 
-          echo "→ Application des migrations..."
-          supabase db push --password "$SUPABASE_DB_PASSWORD" 2>&1
+          UNSYNCED=$(supabase migration list 2>&1 | grep -E "^\s+[0-9]+ \|\s+\|" | wc -l)
+          if [ "$UNSYNCED" -gt "0" ]; then
+            echo "::error::Migrations locales non appliquées en remote détectées."
+            echo "Lancer manuellement : supabase migration repair"
+            exit 1
+          fi
+
+          REMOTE_ONLY=$(supabase migration list 2>&1 | grep -E "^\s+\|\s+[0-9]+" | wc -l)
+          if [ "$REMOTE_ONLY" -gt "0" ]; then
+            echo "::error::Migrations remote non présentes en local détectées."
+            echo "Lancer manuellement : supabase migration repair --status reverted [version]"
+            exit 1
+          fi
+
+          echo "→ Historique synchronisé. Application des migrations..."
+          supabase db push --password "$SUPABASE_DB_PASSWORD"
           echo "✅ Migrations OK"
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
