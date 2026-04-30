@@ -1,7 +1,7 @@
 // Edge Function : ai-assistant
 // Appelle l'API Anthropic (claude-sonnet-4-20250514) et trace l'usage dans ai_usage
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
+import { createClient } from 'npm:@supabase/supabase-js@2.39.3'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',

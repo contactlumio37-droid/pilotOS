@@ -55,21 +55,55 @@ jobs:
 
           deploy_fn() {
             local fn="$1"; shift
-            echo "→ Deploy $fn"
-            supabase functions deploy "$fn" \
-              --project-ref "$SUPABASE_PROJECT_REF" "$@"
+            local max_attempts=3
+            local attempt=1
+
+            while [ $attempt -le $max_attempts ]; do
+              echo "→ Deploy $fn (tentative $attempt/$max_attempts)"
+
+              OUTPUT=$(supabase functions deploy "$fn" \
+                --project-ref "$SUPABASE_PROJECT_REF" \
+                "$@" 2>&1)
+              EXIT_CODE=$?
+
+              echo "$OUTPUT"
+
+              if [ $EXIT_CODE -eq 0 ]; then
+                echo "✅ $fn OK"
+                return 0
+              fi
+
+              if echo "$OUTPUT" | grep -q "No change found"; then
+                echo "✅ $fn inchangée — skip"
+                return 0
+              fi
+
+              if echo "$OUTPUT" | grep -qE "522|failed to create the graph|timeout"; then
+                echo "⚠️ Erreur réseau sur $fn, retry dans 15s..."
+                sleep 15
+              else
+                echo "::error::Erreur non-réseau sur $fn :"
+                echo "$OUTPUT"
+                return 1
+              fi
+
+              attempt=$((attempt + 1))
+            done
+
+            echo "::error::$fn échouée après $max_attempts tentatives"
+            return 1
           }
 
-          deploy_fn "send-email"         --no-verify-jwt
+          deploy_fn "send-email"          --no-verify-jwt
           deploy_fn "invite-member"
           deploy_fn "ai-assistant"
-          deploy_fn "check-ai-quota"     --no-verify-jwt
+          deploy_fn "check-ai-quota"      --no-verify-jwt
           deploy_fn "ensure-org-access"
           deploy_fn "impersonate-user"
           deploy_fn "notify-late-actions"
           deploy_fn "stripe-checkout"
           deploy_fn "stripe-portal"
-          deploy_fn "stripe-webhook"     --no-verify-jwt
+          deploy_fn "stripe-webhook"      --no-verify-jwt
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
