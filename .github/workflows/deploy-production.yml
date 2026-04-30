@@ -32,62 +32,19 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
 
-      - name: Repair migration history
-        run: |
-          set -euo pipefail
-          echo "→ Marquage migrations orphelines comme revertées (idempotent)..."
-
-          # Remote-only + local-only : version courte 20260420
-          supabase migration repair --status reverted 20260420 \
-            || echo "⚠️  20260420 déjà aligné"
-
-          # Local-only : jamais appliquées en remote, bloquent db push
-          for v in \
-            20260421016 20260421017 20260421 \
-            20260422 20260424 \
-            20260425021 20260425022 20260425023 20260425024 20260425025 20260425026 \
-            20260425 20260426001 20260428 20260429; do
-            supabase migration repair --status reverted "$v" \
-              || echo "⚠️  $v déjà aligné"
-          done
-
-          echo "✅ Réparation terminée"
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-
-      - name: Vérification migrations
+      - name: Check et apply migrations
         run: |
           set -euo pipefail
           echo "→ État des migrations..."
           supabase migration list
 
-          LOCAL_ONLY=$(supabase migration list 2>&1 \
-            | awk -F'|' 'NR>3 {gsub(/ /,"",$1); gsub(/ /,"",$2); if($1!="" && $2=="") print $1}' \
-            | wc -l)
-
-          REMOTE_ONLY=$(supabase migration list 2>&1 \
-            | awk -F'|' 'NR>3 {gsub(/ /,"",$1); gsub(/ /,"",$2); if($1=="" && $2!="") print $2}' \
-            | wc -l)
-
-          if [ "$LOCAL_ONLY" -gt "0" ] || [ "$REMOTE_ONLY" -gt "0" ]; then
-            echo "::error::Désynchronisation détectée après repair."
-            echo "Local sans Remote : $LOCAL_ONLY"
-            echo "Remote sans Local : $REMOTE_ONLY"
-            echo "Exécuter : bash scripts/repair-migrations.sh"
-            exit 1
-          fi
-
-          echo "✅ Migrations synchronisées."
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-
-      - name: Apply migrations
-        run: |
-          set -euo pipefail
-          supabase db push --password "$SUPABASE_DB_PASSWORD"
-          echo "✅ Migrations appliquées."
+          echo "→ Application des migrations en attente..."
+          supabase db push --password "$SUPABASE_DB_PASSWORD" \
+            && echo "✅ Migrations OK" \
+            || {
+              echo "::error::Echec db push. Vérifier supabase migration list."
+              exit 1
+            }
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
