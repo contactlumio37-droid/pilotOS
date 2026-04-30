@@ -1,7 +1,7 @@
 // Edge Function : send-email
 // Appelée via supabase.functions.invoke('send-email', { body: payload })
 // Utilise le SMTP configuré dans Supabase Dashboard (Auth > SMTP)
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
+import { serve } from 'std/http/server.ts'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',

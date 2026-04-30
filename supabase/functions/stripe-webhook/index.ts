@@ -1,7 +1,7 @@
 // Edge Function : stripe-webhook
 // Traite les événements Stripe : upgrade plan, annulation, paiement échoué
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
+import { serve } from 'std/http/server.ts'
+import { createClient } from '@supabase/supabase-js'
 
 const PLAN_BY_PRICE: Record<string, string> = {
   [Deno.env.get('STRIPE_PRICE_TEAM')     ?? '__team__']:     'team',

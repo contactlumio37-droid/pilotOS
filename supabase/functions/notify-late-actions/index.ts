@@ -1,8 +1,8 @@
 // Edge Function : notify-late-actions
 // Destinée à être appelée par un cron Supabase (pg_cron) ou un scheduler externe.
 // Détecte les actions en retard, insère des notifications, envoie des emails.
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
+import { serve } from 'std/http/server.ts'
+import { createClient } from '@supabase/supabase-js'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',

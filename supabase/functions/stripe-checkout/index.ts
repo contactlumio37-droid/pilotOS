@@ -1,7 +1,7 @@
 // Edge Function : stripe-checkout
 // Crée une session Stripe Checkout pour upgrades de plan
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
+import { serve } from 'std/http/server.ts'
+import { createClient } from '@supabase/supabase-js'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',

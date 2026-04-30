@@ -1,9 +1,9 @@
 // Edge Function : impersonate-user
 // Émet un JWT Supabase-compatible (aud: "authenticated", signé avec le secret JWT du projet).
 // Audit log écrit AVANT l'émission du token — immuable même en cas d'erreur réseau.
-import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
-import { create, getNumericDate } from 'https://deno.land/x/djwt@v3.0.2/mod.ts'
+import { serve } from 'std/http/server.ts'
+import { createClient } from '@supabase/supabase-js'
+import { create, getNumericDate } from 'djwt/mod.ts'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',

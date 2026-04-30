@@ -59,10 +59,19 @@ jobs:
 
           deploy_fn() {
             local fn="$1"; shift
-            echo "→ Deploy $fn"
-
-            supabase functions deploy "$fn" \
-              --project-ref "$SUPABASE_PROJECT_REF" "$@"
+            local max_attempts=3
+            local attempt=1
+            while [[ $attempt -le $max_attempts ]]; do
+              echo "→ Deploy $fn (tentative $attempt/$max_attempts)"
+              supabase functions deploy "$fn" \
+                --project-ref "$SUPABASE_PROJECT_REF" \
+                --import-map supabase/functions/import_map.json "$@" \
+                && return 0
+              attempt=$((attempt + 1))
+              [[ $attempt -le $max_attempts ]] && echo "  ⚠ Échec, retry dans 10s…" && sleep 10
+            done
+            echo "::error::Échec déploiement $fn après $max_attempts tentatives"
+            return 1
           }
 
           deploy_fn "send-email" --no-verify-jwt
