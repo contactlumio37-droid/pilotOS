@@ -1,9 +1,14 @@
-name: Deploy — Production
+name: Deploy Production
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Raison du déploiement'
+        required: false
+        default: 'Deploy manuel'
 
 jobs:
   # ════════════════════════════════════════════════════════════
@@ -33,9 +38,8 @@ jobs:
           echo "→ Marquage migrations orphelines comme revertées (idempotent)..."
 
           # Remote-only + local-only : version courte 20260420
-          # (appliquée en remote avant normalisation des noms ; fichier local non aligné)
           supabase migration repair --status reverted 20260420 \
-            || echo "⚠️ 20260420 déjà aligné"
+            || echo "⚠️  20260420 déjà aligné"
 
           # Local-only : jamais appliquées en remote, bloquent db push
           for v in \
@@ -44,7 +48,7 @@ jobs:
             20260425021 20260425022 20260425023 20260425024 20260425025 20260425026 \
             20260425 20260426001 20260428 20260429; do
             supabase migration repair --status reverted "$v" \
-              || echo "⚠️ $v déjà aligné"
+              || echo "⚠️  $v déjà aligné"
           done
 
           echo "✅ Réparation terminée"
@@ -52,29 +56,38 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
+      - name: Vérification migrations
+        run: |
+          set -euo pipefail
+          echo "→ État des migrations..."
+          supabase migration list
+
+          LOCAL_ONLY=$(supabase migration list 2>&1 \
+            | awk -F'|' 'NR>3 {gsub(/ /,"",$1); gsub(/ /,"",$2); if($1!="" && $2=="") print $1}' \
+            | wc -l)
+
+          REMOTE_ONLY=$(supabase migration list 2>&1 \
+            | awk -F'|' 'NR>3 {gsub(/ /,"",$1); gsub(/ /,"",$2); if($1=="" && $2!="") print $2}' \
+            | wc -l)
+
+          if [ "$LOCAL_ONLY" -gt "0" ] || [ "$REMOTE_ONLY" -gt "0" ]; then
+            echo "::error::Désynchronisation détectée après repair."
+            echo "Local sans Remote : $LOCAL_ONLY"
+            echo "Remote sans Local : $REMOTE_ONLY"
+            echo "Exécuter : bash scripts/repair-migrations.sh"
+            exit 1
+          fi
+
+          echo "✅ Migrations synchronisées."
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
       - name: Apply migrations
         run: |
           set -euo pipefail
-          echo "→ Vérification synchronisation migrations..."
-          supabase migration list
-
-          UNSYNCED=$(supabase migration list 2>&1 | grep -E "^\s+[0-9]+ \|\s+\|" | wc -l)
-          if [ "$UNSYNCED" -gt "0" ]; then
-            echo "::error::Migrations locales non appliquées en remote détectées."
-            echo "Lancer manuellement : supabase migration repair"
-            exit 1
-          fi
-
-          REMOTE_ONLY=$(supabase migration list 2>&1 | grep -E "^\s+\|\s+[0-9]+" | wc -l)
-          if [ "$REMOTE_ONLY" -gt "0" ]; then
-            echo "::error::Migrations remote non présentes en local détectées."
-            echo "Lancer manuellement : supabase migration repair --status reverted [version]"
-            exit 1
-          fi
-
-          echo "→ Historique synchronisé. Application des migrations..."
           supabase db push --password "$SUPABASE_DB_PASSWORD"
-          echo "✅ Migrations OK"
+          echo "✅ Migrations appliquées."
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
@@ -86,21 +99,20 @@ jobs:
           deploy_fn() {
             local fn="$1"; shift
             echo "→ Deploy $fn"
-
             supabase functions deploy "$fn" \
               --project-ref "$SUPABASE_PROJECT_REF" "$@"
           }
 
-          deploy_fn "send-email" --no-verify-jwt
+          deploy_fn "send-email"         --no-verify-jwt
           deploy_fn "invite-member"
           deploy_fn "ai-assistant"
-          deploy_fn "check-ai-quota" --no-verify-jwt
+          deploy_fn "check-ai-quota"     --no-verify-jwt
           deploy_fn "ensure-org-access"
           deploy_fn "impersonate-user"
           deploy_fn "notify-late-actions"
           deploy_fn "stripe-checkout"
           deploy_fn "stripe-portal"
-          deploy_fn "stripe-webhook" --no-verify-jwt
+          deploy_fn "stripe-webhook"     --no-verify-jwt
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
@@ -146,26 +158,18 @@ jobs:
         id: deploy
         run: |
           set -euo pipefail
-
           echo "→ Deploy Vercel..."
-
           JSON=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN" --json)
-
           echo "$JSON"
-
           URL=$(echo "$JSON" | jq -r '.url')
-
           if [[ -z "$URL" || "$URL" == "null" ]]; then
             echo "::error::URL Vercel introuvable"
             exit 1
           fi
-
           if [[ "$URL" != http* ]]; then
             URL="https://$URL"
           fi
-
           echo "url=$URL" >> "$GITHUB_OUTPUT"
-
           echo "✅ Deploy OK : $URL"
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -184,30 +188,35 @@ jobs:
       - name: Smoke Test
         run: |
           set -uo pipefail
-
           URL="${{ needs.vercel.outputs.prod_url }}"
-
           echo "→ URL: $URL"
-
-          TARGET="$URL"
           MAX_ATTEMPTS=24
           SLEEP=10
-
           for ((i=1;i<=MAX_ATTEMPTS;i++)); do
             HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
-              --location \
-              --max-time 25 \
-              "$TARGET" || echo "000")
-
+              --location --max-time 25 "$URL" || echo "000")
             echo "Tentative $i → HTTP $HTTP_CODE"
-
             if [[ "$HTTP_CODE" =~ ^(200|301|302|307|308|401)$ ]]; then
               echo "✅ OK"
               exit 0
             fi
-
             sleep $SLEEP
           done
-
           echo "::error::Smoke test échoué"
           exit 1
+
+  # ════════════════════════════════════════════════════════════
+  # Résumé
+  # ════════════════════════════════════════════════════════════
+  summary:
+    name: Résumé
+    runs-on: ubuntu-latest
+    needs: [supabase, vercel]
+    if: always()
+
+    steps:
+      - name: Résumé
+        run: |
+          echo "✅ Deploy production terminé"
+          echo "Raison : ${{ inputs.reason || 'push main' }}"
+          echo "URL : ${{ needs.vercel.outputs.prod_url }}"

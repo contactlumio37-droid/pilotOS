@@ -22,6 +22,7 @@ import ResetPasswordPage from '@/pages/auth/ResetPasswordPage'
 import UpdatePasswordPage from '@/pages/auth/UpdatePasswordPage'
 import MFASetupPage from '@/pages/auth/MFASetupPage'
 import MFAVerifyPage from '@/pages/auth/MFAVerifyPage'
+import InvitationAccept from '@/pages/auth/InvitationAccept'
 
 // App shells — chargés à la demande selon le rôle
 const TerrainApp     = lazy(() => import('@/pages/terrain/TerrainApp'))
@@ -73,6 +74,9 @@ function AppRouter() {
 
         {/* Onboarding */}
         <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
+
+        {/* Invitation — route publique */}
+        <Route path="/invitation/:token" element={<InvitationAccept />} />
 
         {/* Apps par rôle — lazy loaded */}
         <Route path="/terrain/*"    element={<ProtectedRoute><MFARoute><Suspense fallback={<LoadingScreen />}><TerrainApp /></Suspense></MFARoute></ProtectedRoute>} />
