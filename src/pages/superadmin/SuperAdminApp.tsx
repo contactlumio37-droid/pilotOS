@@ -6,6 +6,7 @@ import SuperAdminHeader, { SUPERADMIN_HEADER_HEIGHT } from '@/components/layout/
 import SuperAdminDashboard from './SuperAdminDashboard'
 import SuperAdminOrgs from './SuperAdminOrgs'
 import SuperAdminFeedback from './SuperAdminFeedback'
+import BlogTab from './tabs/BlogTab'
 import ProfilePage from '@/pages/shared/ProfilePage'
 
 const NAV_ITEMS = [
@@ -49,7 +50,7 @@ export default function SuperAdminApp() {
           <Route path="/roadmap"       element={<StubPage title="Roadmap"    description="Gestion publique de la roadmap produit." />} />
           <Route path="/bounties"      element={<StubPage title="Bounties"   description="Programme de récompenses pour les contributions." />} />
           <Route path="/cms"           element={<StubPage title="CMS Site"   description="Édition du contenu de la landing page." />} />
-          <Route path="/blog"          element={<StubPage title="Blog"       description="Gestion des articles de blog." />} />
+          <Route path="/blog"          element={<BlogTab />} />
           <Route path="/newsletter"    element={<StubPage title="Newsletter" description="Gestion des abonnés et envoi de newsletters." />} />
           <Route path="/profil"        element={<ProfilePage />} />
         </Routes>

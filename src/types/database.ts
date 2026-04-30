@@ -552,14 +552,28 @@ export interface BlogPost {
   slug: string
   excerpt: string | null
   content: string | null
+  content_blocks: Record<string, unknown>[]
   cover_image_url: string | null
+  cover_image: string | null
+  category: string | null
+  categories: string[]
+  keywords: string | null
   published: boolean
   published_at: string | null
+  featured: boolean
+  read_time_minutes: number | null
   seo_title: string | null
   seo_description: string | null
   author_id: string | null
   created_at: string
   updated_at: string
+}
+
+export interface BlogCategory {
+  id: string
+  name: string
+  slug: string
+  created_at: string
 }
 
 export interface NewsletterSubscriber {
