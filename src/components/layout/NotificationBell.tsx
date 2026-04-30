@@ -1,4 +1,5 @@
 import { useRef, useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Bell, Check, CheckCheck } from 'lucide-react'
 import { useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead } from '@/hooks/useNotifications'
 import type { Notification } from '@/types/database'
@@ -13,13 +14,23 @@ function timeAgo(iso: string): string {
   return `${Math.floor(h / 24)} j`
 }
 
-function NotifRow({ notif, onRead }: { notif: Notification; onRead: (id: string) => void }) {
+function NotifRow({ notif, onRead, onNavigate }: { notif: Notification; onRead: (id: string) => void; onNavigate: () => void }) {
+  const navigate = useNavigate()
+
+  function handleClick() {
+    if (!notif.read) onRead(notif.id)
+    if (notif.type === 'feedback_reply' && notif.action_url) {
+      onNavigate()
+      navigate(notif.action_url)
+    }
+  }
+
   return (
     <div
       className={`flex items-start gap-3 px-4 py-3 hover:bg-slate-800 cursor-pointer transition-colors ${
         !notif.read ? 'bg-slate-800/60' : ''
       }`}
-      onClick={() => !notif.read && onRead(notif.id)}
+      onClick={handleClick}
     >
       {!notif.read && <span className="mt-1.5 w-2 h-2 rounded-full bg-brand-500 shrink-0" />}
       {notif.read && <span className="mt-1.5 w-2 h-2 rounded-full bg-transparent shrink-0" />}
@@ -104,7 +115,7 @@ export default function NotificationBell({ collapsed = false }: { collapsed?: bo
               </div>
             ) : (
               notifications.map(n => (
-                <NotifRow key={n.id} notif={n} onRead={id => markRead.mutate(id)} />
+                <NotifRow key={n.id} notif={n} onRead={id => markRead.mutate(id)} onNavigate={() => setOpen(false)} />
               ))
             )}
           </div>

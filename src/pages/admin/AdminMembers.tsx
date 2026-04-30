@@ -1,12 +1,16 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { UserPlus, Mail, X, UserMinus, ShieldCheck } from 'lucide-react'
+import { UserPlus, Mail, X, UserMinus, ShieldCheck, Upload } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useOrganisation } from '@/hooks/useOrganisation'
 import { useAuth } from '@/hooks/useAuth'
 import { sendInvitationEmail } from '@/lib/email'
+import Invitations from './Invitations'
+import ImportUsers from './ImportUsers'
 import type { OrganisationMember, Profile, MemberInvitation, UserRole } from '@/types/database'
+
+type MembersSubTab = 'actifs' | 'invitations' | 'import'
 
 type MemberWithProfile = OrganisationMember & { profile: Profile | null }
 type PendingInvite = Pick<MemberInvitation, 'id' | 'email' | 'role' | 'created_at'>
@@ -160,9 +164,43 @@ export default function AdminMembers() {
 
   const totalCount = members.length + pendingInvites.length
 
+  const [activeSubTab, setActiveSubTab] = useState<MembersSubTab>('actifs')
+
+  const SUB_TABS: { id: MembersSubTab; label: string; icon: React.FC<{ className?: string }> }[] = [
+    { id: 'actifs',       label: 'Membres actifs', icon: UserPlus },
+    { id: 'invitations',  label: 'Invitations',    icon: Mail },
+    { id: 'import',       label: 'Import CSV',     icon: Upload },
+  ]
+
   return (
     <div className="max-w-4xl">
       <motion.div initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
+        {/* Sub-tabs */}
+        <div className="flex items-center gap-0 border-b border-slate-200 mb-6 overflow-x-auto">
+          {SUB_TABS.map(tab => {
+            const Icon = tab.icon
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveSubTab(tab.id)}
+                className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 whitespace-nowrap transition-colors -mb-px shrink-0 ${
+                  activeSubTab === tab.id
+                    ? 'border-brand-500 text-brand-600'
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                {tab.label}
+              </button>
+            )
+          })}
+        </div>
+
+        {activeSubTab === 'invitations' && <Invitations />}
+        {activeSubTab === 'import' && <ImportUsers />}
+
+        {activeSubTab === 'actifs' && (
+        <>
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Membres</h1>
@@ -319,6 +357,8 @@ export default function AdminMembers() {
               </div>
             )}
           </div>
+        )}
+        </>
         )}
       </motion.div>
     </div>

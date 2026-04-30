@@ -585,6 +585,67 @@ export interface NewsletterSubscriber {
   created_at: string
 }
 
+export interface NewsletterTag {
+  id: string
+  name: string
+  created_at: string
+}
+
+export type NewsletterCampaignStatus = 'draft' | 'scheduled' | 'sent'
+
+export interface NewsletterCampaign {
+  id: string
+  subject: string
+  preview_text: string | null
+  content: string | null
+  content_blocks: Record<string, unknown>[]
+  status: NewsletterCampaignStatus
+  segment_tag_ids: string[]
+  scheduled_at: string | null
+  sent_at: string | null
+  sent_count: number
+  failed_count: number
+  created_at: string
+  updated_at: string
+}
+
+export interface SuperadminAutomation {
+  id: string
+  name: string
+  is_active: boolean
+  trigger_type: string
+  trigger_config: Record<string, unknown>
+  actions: Record<string, unknown>[]
+  tags_filter: string[]
+  run_count: number
+  last_run_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface SuperadminAutomationLog {
+  id: string
+  automation_id: string
+  trigger_data: Record<string, unknown> | null
+  status: 'success' | 'error' | 'partial'
+  actions_run: number
+  error_message: string | null
+  created_at: string
+}
+
+export interface CmsPage {
+  id: string
+  slug: string
+  title: string
+  seo_title: string | null
+  seo_description: string | null
+  og_image: string | null
+  sections: Record<string, unknown>[]
+  published: boolean
+  created_at: string
+  updated_at: string
+}
+
 export interface RoadmapItem {
   id: string
   title: string
@@ -606,6 +667,8 @@ export interface FeedbackReport {
   category: FeedbackCategory
   status: FeedbackStatus
   priority: FeedbackPriority
+  admin_priority: FeedbackPriority
+  admin_reply_at: string | null
   page_url: string | null
   browser: string | null
   os: string | null

@@ -1,12 +1,13 @@
 import { useMemo, useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, Search, SlidersHorizontal, Inbox, LayoutList, Columns, Download } from 'lucide-react'
+import { Plus, Search, SlidersHorizontal, Inbox, LayoutList, Columns, Download, Upload } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import PageHeader from '@/components/layout/PageHeader'
 import ActionDrawer from '@/components/modules/ActionDrawer'
 import KanbanBoard from '@/components/actions/KanbanBoard'
-import { OriginBadge, StatusBadge, PriorityBadge } from '@/components/modules/ActionBadges'
+import ImportActionsModal from '@/components/actions/ImportActionsModal'
+import { OriginBadge, StatusBadge, PriorityBadge, PRIORITY_DOT } from '@/components/modules/ActionBadges'
 import { useActions } from '@/hooks/useActions'
 import { useCategories } from '@/hooks/useCategories'
 import { useBreakpoint } from '@/hooks/useBreakpoint'
@@ -49,6 +50,7 @@ export default function ActionsPage() {
   const [drawerOpen, setDrawerOpen]   = useState(false)
   const [selected, setSelected]       = useState<ActionWithRelations | null>(null)
   const [viewMode, setViewMode]       = useState<'list' | 'kanban'>(getStoredView)
+  const [showImport, setShowImport]   = useState(false)
 
   const breakpoint = useBreakpoint()
   const isDesktop = breakpoint === 'desktop'
@@ -189,6 +191,15 @@ export default function ActionsPage() {
           )}
         </button>
 
+        <button
+          onClick={() => setShowImport(true)}
+          className="btn-secondary flex items-center gap-1.5"
+          title="Importer des actions depuis un CSV"
+        >
+          <Upload className="w-4 h-4" />
+          <span className="hidden sm:inline">Importer</span>
+        </button>
+
         {listActions.length > 0 && (
           <button
             onClick={handleExport}
@@ -294,6 +305,7 @@ export default function ActionsPage() {
               <div className="flex items-center gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${PRIORITY_DOT[a.priority]}`} title={a.priority} />
                     <p className="text-sm font-medium text-slate-800 truncate">{a.title}</p>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
@@ -336,6 +348,13 @@ export default function ActionsPage() {
         onClose={() => setDrawerOpen(false)}
         action={selected}
       />
+
+      {showImport && (
+        <ImportActionsModal
+          onClose={() => setShowImport(false)}
+          onImported={() => { setShowImport(false) }}
+        />
+      )}
     </div>
   )
 }
