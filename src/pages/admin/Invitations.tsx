@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Mail, Copy, RotateCcw, X, Plus, Check } from 'lucide-react'
 import { format } from 'date-fns'
@@ -33,6 +33,7 @@ const MODE_LABELS: Record<string, string> = {
 
 interface Invitation {
   id: string
+  organisation_id: string
   email: string
   role: string
   mode: string
@@ -115,7 +116,7 @@ export default function Invitations() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['invitations', organisation?.id] }),
   })
 
-  async function handleCreate(e: React.FormEvent) {
+  async function handleCreate(e: FormEvent) {
     e.preventDefault()
     if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       setFormErr('Email invalide.')

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useInvitation } from '@/hooks/useInvitation'
 import { useAuth } from '@/hooks/useAuth'
@@ -24,7 +24,7 @@ export default function InvitationAccept() {
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError]   = useState<string | null>(null)
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (!firstName.trim() || !lastName.trim()) {
       setFormError('Prénom et nom requis.')
