@@ -15,7 +15,7 @@ export function useNotifications() {
         .from('notifications')
         .select('*')
         .eq('user_id', user!.id)
-        .eq('organisation_id', organisation!.id)
+        .or(`organisation_id.eq.${organisation!.id},organisation_id.is.null`)
         .order('created_at', { ascending: false })
         .limit(30)
       if (error) throw error

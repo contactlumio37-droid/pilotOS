@@ -44,4 +44,11 @@ export function PriorityBadge({ priority }: { priority: ActionPriority }) {
   return <span className={s.className}>{s.label}</span>
 }
 
+export const PRIORITY_DOT: Record<ActionPriority, string> = {
+  low:      'bg-slate-300',
+  medium:   'bg-brand-500',
+  high:     'bg-amber-500',
+  critical: 'bg-red-500',
+}
+
 export { ORIGIN_STYLES, STATUS_STYLES, PRIORITY_STYLES }

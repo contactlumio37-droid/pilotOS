@@ -29,6 +29,20 @@ const PRIORITY_COLORS: Record<string, string> = {
   low:      'bg-slate-800 text-slate-500',
 }
 
+const ADMIN_PRIORITY_LABELS: Record<string, string> = {
+  low:      'Basse',
+  normal:   'Normale',
+  high:     'Haute',
+  critical: 'Critique',
+}
+
+const ADMIN_PRIORITY_COLORS: Record<string, string> = {
+  low:      'border-slate-600 text-slate-400 hover:border-slate-500',
+  normal:   'border-brand-500 text-brand-400',
+  high:     'border-amber-500 text-amber-400',
+  critical: 'border-red-500 text-red-400',
+}
+
 const CATEGORY_EMOJI: Record<string, string> = {
   bug:        '🐛',
   suggestion: '💡',
@@ -38,13 +52,30 @@ const CATEGORY_EMOJI: Record<string, string> = {
 
 const ALL_STATUSES: FeedbackStatus[] = ['new', 'confirmed', 'in_progress', 'resolved', 'wont_fix', 'duplicate']
 
+type FeedbackPriority = 'low' | 'normal' | 'high' | 'critical'
+
+type EnrichedReport = FeedbackReport & {
+  reporter: { id: string; full_name: string | null } | null
+  org: { id: string; name: string } | null
+}
+
 function useUpdateFeedback() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async ({ id, status, resolution_note }: { id: string; status?: FeedbackStatus; resolution_note?: string }) => {
+    mutationFn: async ({
+      id, status, resolution_note, admin_priority, admin_reply_at,
+    }: {
+      id: string
+      status?: FeedbackStatus
+      resolution_note?: string
+      admin_priority?: FeedbackPriority
+      admin_reply_at?: string
+    }) => {
       const payload: Record<string, unknown> = { updated_at: new Date().toISOString() }
-      if (status !== undefined) payload.status = status
+      if (status !== undefined)          payload.status = status
       if (resolution_note !== undefined) payload.resolution_note = resolution_note
+      if (admin_priority !== undefined)  payload.admin_priority = admin_priority
+      if (admin_reply_at !== undefined)  payload.admin_reply_at = admin_reply_at
       const { error } = await supabase.from('feedback_reports').update(payload).eq('id', id)
       if (error) throw error
     },
@@ -53,15 +84,18 @@ function useUpdateFeedback() {
 }
 
 interface DetailDrawerProps {
-  report: FeedbackReport
+  report: EnrichedReport
   onClose: () => void
 }
 
 function DetailDrawer({ report, onClose }: DetailDrawerProps) {
-  const [comment, setComment] = useState(report.resolution_note ?? '')
-  const [status, setStatus] = useState<FeedbackStatus>(report.status)
-  const [notifying, setNotifying] = useState(false)
-  const [notifyMsg, setNotifyMsg] = useState<string | null>(null)
+  const [comment, setComment]         = useState(report.resolution_note ?? '')
+  const [status, setStatus]           = useState<FeedbackStatus>(report.status)
+  const [adminPriority, setAdminPriority] = useState<FeedbackPriority>(
+    (report.admin_priority as FeedbackPriority | undefined) ?? 'normal',
+  )
+  const [notifying, setNotifying]     = useState(false)
+  const [notifyMsg, setNotifyMsg]     = useState<string | null>(null)
   const updateFeedback = useUpdateFeedback()
 
   async function handleSave() {
@@ -69,6 +103,7 @@ function DetailDrawer({ report, onClose }: DetailDrawerProps) {
       id: report.id,
       status,
       resolution_note: comment || undefined,
+      admin_priority: adminPriority,
     })
     onClose()
   }
@@ -80,30 +115,26 @@ function DetailDrawer({ report, onClose }: DetailDrawerProps) {
     }
     setNotifying(true)
     try {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('id', report.reporter_id)
-        .maybeSingle()
-
-      await updateFeedback.mutateAsync({ id: report.id, status, resolution_note: comment || undefined })
-
-      await supabase.functions.invoke('send-email', {
-        body: {
-          to_user_id: report.reporter_id,
-          subject: `Mise à jour de votre signalement : ${report.title}`,
-          html: `<div style="font-family:sans-serif">
-            <p>Bonjour${profile?.full_name ? ` ${profile.full_name}` : ''},</p>
-            <p>Votre signalement <strong>${report.title}</strong> a été mis à jour.</p>
-            <p><strong>Statut :</strong> ${STATUS_LABELS[status]}</p>
-            ${comment ? `<p><strong>Réponse :</strong> ${comment}</p>` : ''}
-            <p>Merci d'utiliser PilotOS.</p>
-          </div>`,
-        },
+      await updateFeedback.mutateAsync({
+        id: report.id,
+        status,
+        resolution_note: comment || undefined,
+        admin_priority: adminPriority,
+        admin_reply_at: new Date().toISOString(),
       })
+
+      const { error } = await supabase.from('notifications').insert({
+        user_id: report.reporter_id,
+        organisation_id: report.organisation_id ?? null,
+        type: 'feedback_reply',
+        title: 'Réponse à votre signalement',
+        body: `Votre signalement "${report.title}" a été mis à jour : ${STATUS_LABELS[status]}.${comment ? ` "${comment}"` : ''}`,
+        action_url: `/feedback#${report.id}`,
+      })
+      if (error) throw error
       setNotifyMsg('✅ Notification envoyée')
     } catch {
-      setNotifyMsg('Erreur lors de l\'envoi')
+      setNotifyMsg("Erreur lors de l'envoi")
     } finally {
       setNotifying(false)
     }
@@ -111,10 +142,8 @@ function DetailDrawer({ report, onClose }: DetailDrawerProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex">
-      {/* Backdrop */}
       <div className="flex-1 bg-black/50" onClick={onClose} />
 
-      {/* Panel */}
       <div className="w-[480px] max-w-full bg-slate-900 border-l border-slate-700 flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-start justify-between p-5 border-b border-slate-700">
@@ -138,6 +167,24 @@ function DetailDrawer({ report, onClose }: DetailDrawerProps) {
             <div>
               <p className="text-xs text-slate-500 mb-1">Description</p>
               <p className="text-sm text-slate-300 bg-slate-800 rounded-lg p-3">{report.description}</p>
+            </div>
+          )}
+
+          {/* Reporter */}
+          {(report.reporter || report.org) && (
+            <div className="bg-slate-800 rounded-lg p-3 space-y-1">
+              {report.reporter?.full_name && (
+                <p className="text-xs text-slate-400">
+                  <span className="text-slate-500">Reporter : </span>
+                  {report.reporter.full_name}
+                </p>
+              )}
+              {report.org?.name && (
+                <p className="text-xs text-slate-400">
+                  <span className="text-slate-500">Organisation : </span>
+                  {report.org.name}
+                </p>
+              )}
             </div>
           )}
 
@@ -180,6 +227,26 @@ function DetailDrawer({ report, onClose }: DetailDrawerProps) {
               />
             </div>
           )}
+
+          {/* Admin priority */}
+          <div>
+            <p className="text-xs text-slate-500 mb-2">Priorité admin</p>
+            <div className="flex gap-2 flex-wrap">
+              {(['low', 'normal', 'high', 'critical'] as FeedbackPriority[]).map(p => (
+                <button
+                  key={p}
+                  onClick={() => setAdminPriority(p)}
+                  className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+                    adminPriority === p
+                      ? `${ADMIN_PRIORITY_COLORS[p]} bg-slate-800`
+                      : 'border-slate-700 text-slate-500 hover:border-slate-600'
+                  }`}
+                >
+                  {ADMIN_PRIORITY_LABELS[p]}
+                </button>
+              ))}
+            </div>
+          </div>
 
           {/* Status */}
           <div>
@@ -238,17 +305,17 @@ function DetailDrawer({ report, onClose }: DetailDrawerProps) {
 
 export default function SuperAdminFeedback() {
   const updateFeedback = useUpdateFeedback()
-  const [selected, setSelected] = useState<FeedbackReport | null>(null)
+  const [selected, setSelected] = useState<EnrichedReport | null>(null)
 
   const { data: reports = [] } = useQuery({
     queryKey: ['superadmin_feedback'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('feedback_reports')
-        .select('*')
+        .select('*, reporter:profiles!reporter_id(id, full_name), org:organisations!organisation_id(id, name)')
         .order('created_at', { ascending: false })
       if (error) throw error
-      return data as FeedbackReport[]
+      return data as EnrichedReport[]
     },
   })
 
@@ -281,6 +348,7 @@ export default function SuperAdminFeedback() {
                   <div className="space-y-2">
                     {items.map(report => {
                       const next = NEXT_STATUS[report.status]
+                      const adminP = (report.admin_priority as string | undefined) ?? 'normal'
                       return (
                         <div
                           key={report.id}
@@ -294,10 +362,29 @@ export default function SuperAdminFeedback() {
                             </p>
                           </div>
 
-                          <div className="flex items-center justify-between mt-2">
-                            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${PRIORITY_COLORS[report.priority]}`}>
-                              {report.priority}
-                            </span>
+                          {report.description && (
+                            <p className="text-[11px] text-slate-400 line-clamp-1 mb-1.5 pl-5">{report.description}</p>
+                          )}
+
+                          {(report.reporter?.full_name || report.org?.name) && (
+                            <p className="text-[10px] text-slate-500 pl-5 truncate mb-1.5">
+                              {report.reporter?.full_name ?? ''}
+                              {report.reporter?.full_name && report.org?.name ? ' · ' : ''}
+                              {report.org?.name ?? ''}
+                            </p>
+                          )}
+
+                          <div className="flex items-center justify-between mt-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${PRIORITY_COLORS[report.priority]}`}>
+                                {report.priority}
+                              </span>
+                              {adminP !== 'normal' && (
+                                <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded border ${ADMIN_PRIORITY_COLORS[adminP]}`}>
+                                  {ADMIN_PRIORITY_LABELS[adminP]}
+                                </span>
+                              )}
+                            </div>
                             <span className="text-[10px] text-slate-500">👍 {report.vote_count}</span>
                           </div>
 

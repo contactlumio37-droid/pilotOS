@@ -9,7 +9,7 @@ import {
   Landmark, Folder, RefreshCw, ClipboardCheck, AlertTriangle,
   Cog, Compass, Layers, Flag, Zap, Shield, Target, Award,
 } from 'lucide-react'
-import { StatusBadge } from '@/components/modules/ActionBadges'
+import { StatusBadge, PRIORITY_DOT } from '@/components/modules/ActionBadges'
 import { useCreateAction, type ActionWithRelations } from '@/hooks/useActions'
 import { useBreakpoint } from '@/hooks/useBreakpoint'
 import type { Category } from '@/hooks/useCategories'
@@ -47,7 +47,10 @@ function KanbanCard({ action, onClick }: { action: ActionWithRelations; onClick:
       onClick={onClick}
       className="bg-white border border-slate-100 rounded-xl p-3 shadow-sm hover:shadow-md hover:border-brand-200 cursor-pointer transition-all"
     >
-      <p className="text-sm font-medium text-slate-800 mb-2 line-clamp-2">{action.title}</p>
+      <div className="flex items-start gap-2 mb-2">
+        <span className={`mt-1 w-2 h-2 rounded-full shrink-0 ${PRIORITY_DOT[action.priority]}`} title={action.priority} />
+        <p className="text-sm font-medium text-slate-800 line-clamp-2">{action.title}</p>
+      </div>
       <div className="flex items-center gap-1.5 flex-wrap mb-2">
         <StatusBadge status={action.status} />
         {action.process && (

@@ -7,6 +7,9 @@ import SuperAdminDashboard from './SuperAdminDashboard'
 import SuperAdminOrgs from './SuperAdminOrgs'
 import SuperAdminFeedback from './SuperAdminFeedback'
 import BlogTab from './tabs/BlogTab'
+import NewsletterTab from './tabs/NewsletterTab'
+import AutomationsTab from './tabs/AutomationsTab'
+import CmsTab from './tabs/CmsTab'
 import ProfilePage from '@/pages/shared/ProfilePage'
 
 const NAV_ITEMS = [
@@ -14,7 +17,7 @@ const NAV_ITEMS = [
   { to: '/superadmin/organisations', label: 'Organisations',   icon: Building2 },
   { to: '/superadmin/feedback',      label: 'Bugs & Feedback', icon: Bug },
   { to: '/superadmin/roadmap',       label: 'Roadmap',         icon: Map },
-  { to: '/superadmin/bounties',      label: 'Bounties',        icon: Zap },
+  { to: '/superadmin/automations',   label: 'Automations',     icon: Zap },
   { to: '/superadmin/cms',           label: 'CMS Site',        icon: Globe },
   { to: '/superadmin/blog',          label: 'Blog',            icon: BookOpen },
   { to: '/superadmin/newsletter',    label: 'Newsletter',      icon: Mail },
@@ -49,9 +52,10 @@ export default function SuperAdminApp() {
           <Route path="/feedback"      element={<SuperAdminFeedback />} />
           <Route path="/roadmap"       element={<StubPage title="Roadmap"    description="Gestion publique de la roadmap produit." />} />
           <Route path="/bounties"      element={<StubPage title="Bounties"   description="Programme de récompenses pour les contributions." />} />
-          <Route path="/cms"           element={<StubPage title="CMS Site"   description="Édition du contenu de la landing page." />} />
+          <Route path="/automations"   element={<AutomationsTab />} />
+          <Route path="/cms"           element={<CmsTab />} />
           <Route path="/blog"          element={<BlogTab />} />
-          <Route path="/newsletter"    element={<StubPage title="Newsletter" description="Gestion des abonnés et envoi de newsletters." />} />
+          <Route path="/newsletter"    element={<NewsletterTab />} />
           <Route path="/profil"        element={<ProfilePage />} />
         </Routes>
       </main>
