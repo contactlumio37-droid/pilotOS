@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import React, { useState, useRef } from 'react'
 import { X, Upload, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react'
 import { useCreateAction } from '@/hooks/useActions'
 import type { ActionInsertPayload } from '@/hooks/useActions'
@@ -78,7 +78,7 @@ export default function ImportActionsModal({ onClose, onImported }: Props) {
     reader.readAsText(file, 'utf-8')
   }
 
-  function handleDrop(e: DragEvent & { dataTransfer: DataTransfer }) {
+  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault()
     const file = e.dataTransfer.files[0]
     if (file) handleFile(file)

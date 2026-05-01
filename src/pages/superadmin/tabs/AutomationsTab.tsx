@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useReducer, useState } from 'react'
+import { useReducer, useState, type ReactNode } from 'react'
 import {
   Plus, Zap, ChevronLeft, Trash2, ArrowUp, ArrowDown,
   ToggleLeft, ToggleRight, Clock, X,
@@ -460,7 +460,7 @@ function LogsDrawer({ automationId, name, onClose }: { automationId: string; nam
                   {log.actions_run as number} action{(log.actions_run as number) !== 1 ? 's' : ''} exécutée{(log.actions_run as number) !== 1 ? 's' : ''}
                 </p>
                 {log.error_message && (
-                  <p className="text-xs text-red-400 mt-1 font-mono">{log.error_message as string}</p>
+                  <p className="text-xs text-red-400 mt-1 font-mono">{log.error_message as ReactNode}</p>
                 )}
               </div>
             ))}
@@ -500,7 +500,7 @@ export default function AutomationsTab() {
       name: a.name,
       trigger_type: a.trigger_type as AutomationTrigger,
       trigger_config: a.trigger_config ?? {},
-      actions: (a.actions ?? []) as AutomationAction[],
+      actions: (a.actions ?? []) as unknown as AutomationAction[],
       tags_filter: a.tags_filter ?? [],
       is_active: a.is_active,
     })
@@ -553,7 +553,7 @@ export default function AutomationsTab() {
                       {tc.emoji} {tc.label}
                     </span>
                     <span className="text-xs text-slate-500">
-                      {((a.actions ?? []) as AutomationAction[]).length} action{((a.actions ?? []) as AutomationAction[]).length !== 1 ? 's' : ''}
+                      {((a.actions ?? []) as unknown as AutomationAction[]).length} action{((a.actions ?? []) as unknown as AutomationAction[]).length !== 1 ? 's' : ''}
                     </span>
                     <span className="text-xs text-slate-500">
                       {a.run_count} run{a.run_count !== 1 ? 's' : ''}

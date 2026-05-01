@@ -6,7 +6,7 @@ import { motion } from 'framer-motion'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Settings, Shield, Bell, CreditCard, Save, Sparkles, Users,
-  Boxes, ExternalLink, Tag,
+  Boxes, Tag,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useOrganisation } from '@/hooks/useOrganisation'

@@ -358,7 +358,7 @@ function CampaignEditor({
           <div>
             <label className="text-xs text-slate-400 block mb-2">Contenu</label>
             <div className="bg-white rounded-xl">
-              <BlockEditor blocks={campaign.content_blocks} onChange={blocks => setCampaign(c => ({ ...c, content_blocks: blocks }))} />
+              <BlockEditor initialBlocks={campaign.content_blocks} onChange={blocks => setCampaign(c => ({ ...c, content_blocks: blocks }))} />
             </div>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ChevronLeft, Plus, Trash2, ArrowUp, ArrowDown,
@@ -101,7 +101,7 @@ function BlockPreview({ block, selected, onClick }: { block: CmsBlock; selected:
                 <span className="text-slate-500 text-sm">🖼 Image</span>
               </div>
             )}
-            {c.caption && <p className="text-xs text-slate-500 mt-1">{c.caption as string}</p>}
+            {c.caption && <p className="text-xs text-slate-500 mt-1">{c.caption as ReactNode}</p>}
           </div>
         )
       case 'divider':
@@ -324,7 +324,7 @@ interface PageEditorProps {
 export default function PageEditor({ page, onBack }: PageEditorProps) {
   const qc = useQueryClient()
   const toast = useToast()
-  const [blocks, setBlocks] = useState<CmsBlock[]>((page.sections ?? []) as CmsBlock[])
+  const [blocks, setBlocks] = useState<CmsBlock[]>((page.sections ?? []) as unknown as CmsBlock[])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
