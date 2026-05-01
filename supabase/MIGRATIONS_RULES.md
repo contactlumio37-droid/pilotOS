@@ -4,7 +4,7 @@
 
 ```
 YYYYMMDDNNN_description.sql        ← 11 chiffres (legacy, ok)
-YYYYMMDDHHMMSS_description.sql     ← 14 chiffres (recommandé)
+YYYYMMDDHHMMSS_description.sql     ← 14 chiffres (recommandé — généré par supabase migration new)
 ```
 
 - `YYYYMMDD` — date du jour (8 chiffres)
@@ -81,13 +81,53 @@ git push
 |---|---|---|
 | Local (commit) | git pre-commit hook | `.githooks/pre-commit` |
 | PR | CI check (ci.yml) | `scripts/check-migration-names.sh` |
-| Deploy staging | Avant db push | `scripts/db-push.sh` (étapes 1+2) |
-| Deploy prod | Avant db push | `scripts/db-push.sh` (étapes 1+2) |
+| Deploy staging/prod | Avant db push (steps 1+2+3b) | `scripts/db-push.sh` |
 
 Installer le hook local après le premier clone :
 ```bash
 bash scripts/install-hooks.sh
 ```
+
+---
+
+## Erreur : migration hors ordre
+
+```
+Found local migration files to be inserted before the last migration
+```
+
+**Cause** : une migration a été créée localement (ou récupérée par rebase/cherry-pick)
+avec une version INFÉRIEURE à la dernière migration déjà appliquée en base.
+
+Exemple concret :
+```
+Local           | Remote
+20260430016     |             ← local seulement, version < 20260501001
+20260501001     | 20260501001 ← déjà appliquée
+```
+
+**Fix — toujours la même procédure (DEV et PROD) :**
+
+```bash
+# 1. Voir le plan (dry-run, aucune modification)
+bash scripts/fix-out-of-order.sh
+
+# 2. Appliquer les renommages
+bash scripts/fix-out-of-order.sh --apply
+
+# 3. Commiter et pousser
+git add supabase/migrations/
+git commit -m "fix(migrations): reorder out-of-order migration"
+git push
+```
+
+**Pourquoi pas `--include-all` ?**
+Ce flag réapplique TOUTES les migrations depuis le début, même celles déjà en base.
+En production, cela bloque sur la première contrainte de doublon. Ne jamais utiliser.
+
+**Note importante** : les fichiers hors ordre sont locaux-only (pas en base), donc
+**aucune modification SQL de `schema_migrations` n'est nécessaire** — seul le
+renommage de fichier suffit.
 
 ---
 
@@ -114,35 +154,6 @@ bash scripts/rename-migrations-to-timestamp.sh --apply
 2. `--apply` → renommer les fichiers locaux
 3. `bash scripts/check-migration-names.sh` → vérifier
 4. `git add supabase/migrations/ && git commit`
-
----
-
-## Exception historique
-
-Le fichier `20260430_016_blog_enrichissement.sql` conserve son nom avec underscore
-car il a été appliqué en base avec la version `20260430` avant que ce check
-n'existe. **Ne pas ajouter d'autres exceptions.**
-
-Pour corriger proprement ce fichier :
-
-```bash
-# 1. Mettre à jour la version en base (dans une transaction)
-SUPABASE_DB_PASSWORD=... supabase db query --password "$SUPABASE_DB_PASSWORD" "
-BEGIN;
-UPDATE supabase_migrations.schema_migrations
-   SET version = '20260430001600',
-       name    = '20260430001600_blog_enrichissement'
- WHERE version = '20260430'
-   AND name    = '20260430_016_blog_enrichissement';
-COMMIT;
-"
-
-# 2. Renommer le fichier local
-git mv supabase/migrations/20260430_016_blog_enrichissement.sql \
-       supabase/migrations/20260430001600_blog_enrichissement.sql
-
-# 3. Retirer l'entrée KNOWN_EXCEPTIONS dans scripts/check-migration-names.sh
-```
 
 ---
 
@@ -182,8 +193,8 @@ bash scripts/repair-migrations.sh --dry-run # simulation
 | Env | Récupération recommandée | Interdite |
 |---|---|---|
 | Dev | `DEV_RESET=1 bash scripts/db-push.sh` (reset complet) | — |
-| Staging | Repair ciblé dans transaction (`repair-migrations.sh`) | `db reset` |
-| Prod | Snapshot → SQL ciblé dans transaction → validation | `db reset`, DELETE direct sans transaction |
+| Staging | Repair ciblé (`repair-migrations.sh`) + `fix-out-of-order.sh` | `db reset` |
+| Prod | `fix-out-of-order.sh` + repair ciblé en transaction | `db reset`, `--include-all` |
 
 #### Récupération DEV (reset total, détruit toutes les données)
 
@@ -192,7 +203,7 @@ bash scripts/repair-migrations.sh --dry-run # simulation
 DEV_RESET=1 bash scripts/db-push.sh
 ```
 
-#### Récupération PROD (nettoyage ciblé, préserve les données)
+#### Récupération PROD — version orpheline en base (Remote sans Local)
 
 ```sql
 -- Dans une transaction — supprimer la version fantôme uniquement
@@ -229,6 +240,7 @@ Avant de merger une PR contenant des migrations :
 - [ ] `bash scripts/check-migration-names.sh` → exit 0
 - [ ] Préfixe ≥ 11 chiffres, pas d'underscore entre date et numéro
 - [ ] Version unique (pas de doublon avec les fichiers existants)
+- [ ] Versions en ordre strictement croissant
 - [ ] Migration créée avec `supabase migration new` (pas à la main)
 - [ ] Toutes les tables ont `ENABLE ROW LEVEL SECURITY`
 - [ ] `CREATE TABLE IF NOT EXISTS` (idempotence)
