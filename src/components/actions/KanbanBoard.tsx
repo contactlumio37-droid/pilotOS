@@ -9,7 +9,8 @@ import {
   Landmark, Folder, RefreshCw, ClipboardCheck, AlertTriangle,
   Cog, Compass, Layers, Flag, Zap, Shield, Target, Award,
 } from 'lucide-react'
-import { StatusBadge, PRIORITY_DOT } from '@/components/modules/ActionBadges'
+import { StatusBadge } from '@/components/modules/ActionBadges'
+import { PRIORITY_DOT } from '@/components/modules/actionBadgeStyles'
 import { useCreateAction, type ActionWithRelations } from '@/hooks/useActions'
 import { useBreakpoint } from '@/hooks/useBreakpoint'
 import type { Category } from '@/hooks/useCategories'
