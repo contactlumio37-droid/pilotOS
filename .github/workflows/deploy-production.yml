@@ -32,19 +32,8 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
 
-      - name: Check et apply migrations
-        run: |
-          set -euo pipefail
-          echo "→ État des migrations..."
-          supabase migration list
-
-          echo "→ Application des migrations en attente..."
-          supabase db push --password "$SUPABASE_DB_PASSWORD" \
-            && echo "✅ Migrations OK" \
-            || {
-              echo "::error::Echec db push. Vérifier supabase migration list."
-              exit 1
-            }
+      - name: Apply migrations
+        run: bash scripts/db-push.sh
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
