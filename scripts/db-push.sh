@@ -149,6 +149,64 @@ echo "$PENDING" | while read -r v; do
 done
 endg
 
+# ── 3b. Out-of-order detection ────────────────────────────────────────────────
+# Supabase CLI refuses to push when a local-only migration has a version older
+# than the last applied remote version. Detect early and fail with a clear fix
+# path — never use --include-all in production.
+step "Étape 3b — Détection migrations hors ordre"
+
+LAST_REMOTE=$(
+  echo "$MIGRATION_LIST" \
+  | awk -F'|' 'NR>3 {
+      gsub(/[[:space:]]/,"",$1);
+      gsub(/[[:space:]]/,"",$2);
+      if ($1 != "" && $2 != "") print $1
+    }' \
+  | sort -n | tail -1
+)
+
+OUT_OF_ORDER_FOUND=0
+
+if [[ -n "$LAST_REMOTE" ]]; then
+  while IFS= read -r v; do
+    [[ -z "$v" ]] && continue
+    if (( 10#$v < 10#$LAST_REMOTE )); then
+      if [[ $OUT_OF_ORDER_FOUND -eq 0 ]]; then
+        err "Migration(s) locale(s) antérieure(s) à la dernière version appliquée ($LAST_REMOTE) :"
+        OUT_OF_ORDER_FOUND=1
+      fi
+      for f in "$MIGRATIONS_DIR"/*.sql; do
+        fname=$(basename "$f")
+        prefix=$(echo "$fname" | sed -E 's/^([0-9]+).*/\1/')
+        if [[ "$prefix" == "$v" ]]; then
+          echo "    • $fname  (version $v  <  dernière remote $LAST_REMOTE)"
+          break
+        fi
+      done
+    fi
+  done <<< "$PENDING"
+fi
+
+if [[ $OUT_OF_ORDER_FOUND -eq 1 ]]; then
+  echo ""
+  echo "  Cause   : migration créée localement APRÈS que des versions plus"
+  echo "            récentes ont déjà été appliquées en base."
+  echo "            (ex: rebase, cherry-pick, fichier créé avec une date passée)"
+  echo ""
+  echo "  Fix     : bash scripts/fix-out-of-order.sh --apply"
+  echo "            git add supabase/migrations/"
+  echo "            git commit -m 'fix(migrations): reorder out-of-order migration'"
+  echo "            git push"
+  echo ""
+  echo "  Note    : ces fichiers ne sont PAS en base, donc aucun SQL n'est requis."
+  echo "  Jamais  : supabase db push --include-all  (réapplique tout, dangereux)"
+  endg
+  exit 1
+fi
+
+ok "Toutes les migrations en attente sont postérieures à la version $LAST_REMOTE."
+endg
+
 # ── DRY_RUN: stop here ────────────────────────────────────────────────────────
 if [[ $DRY_RUN -eq 1 ]]; then
   warn "DRY_RUN=1 — db push non exécuté. Plan affiché ci-dessus."

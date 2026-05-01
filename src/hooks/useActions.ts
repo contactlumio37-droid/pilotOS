@@ -93,7 +93,7 @@ export function useActions(filters?: ActionFilters) {
         ...rows.map(r => r.accountable_id),
       ].filter(Boolean) as string[])]
 
-      let profileMap: Record<string, { id: string; full_name: string | null; avatar_url: string | null }> = {}
+      const profileMap: Record<string, { id: string; full_name: string | null; avatar_url: string | null }> = {}
       if (userIds.length) {
         const { data: profiles } = await supabase
           .from('profiles')

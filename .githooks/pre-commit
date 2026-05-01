@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 # =============================================================================
-# pre-commit hook — migration naming guard
+# pre-commit hook — migration naming + ordering guard
 # Installed automatically via: bash scripts/install-hooks.sh
 #
-# Blocks commits that introduce migration files with invalid names.
+# Blocks commits that introduce migration files with:
+#   - invalid names (prefix < 11 digits, wrong format)
+#   - duplicate version prefixes
+#   - versions out of order (earlier than an already-existing file)
+#
 # Same rules as scripts/check-migration-names.sh (CI mirror).
 # =============================================================================
 set -euo pipefail
@@ -15,35 +19,34 @@ STAGED_MIGRATIONS=$(git diff --cached --name-only | grep "^${MIGRATIONS_DIR}/.*\
 [[ -z "$STAGED_MIGRATIONS" ]] && exit 0
 
 echo ""
-echo "🔍 pre-commit: vérification des noms de migrations..."
+echo "🔍 pre-commit: vérification des migrations..."
 
 ERRORS=0
-KNOWN_EXCEPTIONS=("20260430_016_blog_enrichissement.sql")
-
 declare -A ALL_VERSIONS
+PREV_PREFIX=""
+PREV_FNAME=""
 
-# Check ALL files in the directory (not just staged) to catch duplicate prefixes
-for filepath in "$MIGRATIONS_DIR"/*.sql; do
+# Check ALL files in the directory (not just staged) to catch duplicates and
+# ordering issues introduced by the staged files.
+for filepath in $(ls "$MIGRATIONS_DIR"/*.sql 2>/dev/null | sort); do
   [[ -e "$filepath" ]] || continue
   fname=$(basename "$filepath")
 
-  is_exception=0
-  for ex in "${KNOWN_EXCEPTIONS[@]}"; do
-    [[ "$fname" == "$ex" ]] && is_exception=1 && break
-  done
-  [[ $is_exception -eq 1 ]] && continue
-
+  # Extract leading digit run (same logic as Supabase CLI)
   prefix="${fname%%[^0-9]*}"
 
+  # Rule 1: prefix must be ≥11 digits
   if [[ ${#prefix} -lt 11 ]]; then
     echo "  ❌ $fname"
-    echo "     Préfixe '$prefix' trop court (${#prefix} chiffres < 11)."
-    echo "     Format : YYYYMMDDNNN_description.sql"
-    echo "     Exemple : 20260501001_add_my_feature.sql"
+    echo "     Préfixe '$prefix' trop court (${#prefix} chiffres, minimum 11)."
+    echo "     Format valide : YYYYMMDDNNN_description.sql"
+    echo "     Cause commune : underscore entre date et numéro (ex: 20260430_016_...)"
+    echo "     Correction    : bash scripts/fix-out-of-order.sh --apply"
     ERRORS=$((ERRORS + 1))
     continue
   fi
 
+  # Rule 2: format must be YYYYMMDDNNN_ or YYYYMMDDHHMMSS_ with lowercase desc
   if ! [[ "$fname" =~ ^[0-9]{11,}_[a-z][a-z0-9_]*\.sql$ ]]; then
     echo "  ❌ $fname"
     echo "     Format invalide — attendu : YYYYMMDDNNN_description_minuscules.sql"
@@ -51,22 +54,36 @@ for filepath in "$MIGRATIONS_DIR"/*.sql; do
     continue
   fi
 
+  # Rule 3: version must be globally unique
   if [[ -v "ALL_VERSIONS[$prefix]" ]]; then
     echo "  ❌ Préfixe dupliqué '$prefix' :"
     echo "     ${ALL_VERSIONS[$prefix]}"
     echo "     $fname"
+    echo "     Correction : bash scripts/rename-migrations-to-timestamp.sh"
     ERRORS=$((ERRORS + 1))
   else
     ALL_VERSIONS[$prefix]="$fname"
+  fi
+
+  # Rule 4: strictly increasing order
+  if [[ -n "$PREV_PREFIX" ]] && (( 10#$prefix <= 10#$PREV_PREFIX )); then
+    echo "  ❌ Ordre cassé :"
+    echo "     '$fname' (version $prefix)"
+    echo "     doit être APRÈS '$PREV_FNAME' (version $PREV_PREFIX)"
+    echo "     Correction : bash scripts/fix-out-of-order.sh --apply"
+    ERRORS=$((ERRORS + 1))
+  else
+    PREV_PREFIX="$prefix"
+    PREV_FNAME="$fname"
   fi
 done
 
 if [[ $ERRORS -gt 0 ]]; then
   echo ""
-  echo "  🚫 Commit bloqué — $ERRORS fichier(s) de migration invalide(s)."
+  echo "  🚫 Commit bloqué — $ERRORS violation(s) dans supabase/migrations/."
   echo "     Consultez supabase/MIGRATIONS_RULES.md"
   echo ""
   exit 1
 fi
 
-echo "  ✅ Nommage migrations OK."
+echo "  ✅ Migrations OK (nommage + ordre)."

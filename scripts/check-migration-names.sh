@@ -16,19 +16,14 @@
 #        YYYYMMDDHHMMSS_description.sql  (14 digits — recommended)
 #   2. A description must follow: _lower_case_words.sql
 #   3. Every version prefix must be globally unique across the directory.
+#   4. All versions must be in strictly increasing order (no gaps allowed,
+#      but sequence numbers are not required to be consecutive).
 #
 # Exit: 0 = all good, 1 = one or more violations found.
 # =============================================================================
 set -euo pipefail
 
 MIGRATIONS_DIR="${1:-supabase/migrations}"
-
-# Files that predate this check and cannot be renamed without a SQL repair
-# in schema_migrations. Do NOT add new entries here — fix the file instead.
-# See supabase/MIGRATIONS_RULES.md — "Exception historique" for the procedure.
-KNOWN_EXCEPTIONS=(
-  "20260430_016_blog_enrichissement.sql"
-)
 
 # ── GitHub Actions annotation helpers ────────────────────────────────────────
 info()    { echo "  ✅  $*"; }
@@ -41,22 +36,14 @@ section "Vérification des noms de migrations dans $MIGRATIONS_DIR"
 
 ERRORS=0
 declare -A SEEN_VERSIONS   # version_prefix -> first filename that claimed it
+PREV_PREFIX=""
+PREV_FNAME=""
 
-for filepath in "$MIGRATIONS_DIR"/*.sql; do
+for filepath in $(ls "$MIGRATIONS_DIR"/*.sql 2>/dev/null | sort); do
   [[ -e "$filepath" ]] || { warn "Aucun fichier .sql trouvé dans $MIGRATIONS_DIR"; exit 0; }
   fname=$(basename "$filepath")
 
-  # ── Known exception bypass ──────────────────────────────────────────────
-  is_exception=0
-  for ex in "${KNOWN_EXCEPTIONS[@]}"; do
-    [[ "$fname" == "$ex" ]] && is_exception=1 && break
-  done
-  if [[ $is_exception -eq 1 ]]; then
-    warn "$fname  [exception historique — voir MIGRATIONS_RULES.md pour corriger]"
-    continue
-  fi
-
-  # ── Extract numeric prefix (leading digit run — same as Supabase CLI) ────
+  # ── Extract numeric prefix (leading digit run — same logic as Supabase CLI) ─
   prefix=$(echo "$fname" | sed -E 's/^([0-9]+).*/\1/')
 
   # Rule 1: prefix must be ≥11 digits
@@ -67,6 +54,7 @@ for filepath in "$MIGRATIONS_DIR"/*.sql; do
     echo "         Cause probable : underscore entre date et numéro"
     echo "                         ex: 20260430_017_foo.sql → version '20260430' (collision)"
     echo "         Correction     : bash scripts/rename-migrations-to-timestamp.sh"
+    echo "                          bash scripts/fix-out-of-order.sh"
     ERRORS=$((ERRORS + 1))
     continue
   fi
@@ -89,7 +77,18 @@ for filepath in "$MIGRATIONS_DIR"/*.sql; do
     ERRORS=$((ERRORS + 1))
   else
     SEEN_VERSIONS[$prefix]="$fname"
+  fi
+
+  # Rule 4: versions must be in strictly increasing order
+  if [[ -n "$PREV_PREFIX" ]] && (( 10#$prefix <= 10#$PREV_PREFIX )); then
+    fail "Ordre cassé : '$fname' (version $prefix) n'est pas après '$PREV_FNAME' (version $PREV_PREFIX)"
+    echo "         Les versions doivent être strictement croissantes."
+    echo "         Correction : bash scripts/fix-out-of-order.sh"
+    ERRORS=$((ERRORS + 1))
+  else
     info "$fname  (version: $prefix, ${#prefix} chiffres)"
+    PREV_PREFIX="$prefix"
+    PREV_FNAME="$fname"
   fi
 done
 
@@ -102,11 +101,12 @@ if [[ $ERRORS -gt 0 ]]; then
   echo "    YYYYMMDDNNN_description.sql       (11 chiffres)"
   echo "    YYYYMMDDHHMMSS_description.sql    (14 chiffres — recommandé)"
   echo ""
-  echo "  Script de correction automatique :"
-  echo "    bash scripts/rename-migrations-to-timestamp.sh"
+  echo "  Scripts de correction :"
+  echo "    Mauvais nommage  : bash scripts/rename-migrations-to-timestamp.sh"
+  echo "    Hors ordre       : bash scripts/fix-out-of-order.sh --apply"
   echo ""
   echo "  Documentation : supabase/MIGRATIONS_RULES.md"
   exit 1
 fi
 
-echo "✅  Toutes les migrations respectent la convention de nommage."
+echo "✅  Toutes les migrations respectent la convention de nommage et l'ordre."
