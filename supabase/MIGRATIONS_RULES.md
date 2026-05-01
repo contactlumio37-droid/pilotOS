@@ -93,14 +93,20 @@ Le fichier `20260430_016_blog_enrichissement.sql` conserve son nom avec undersco
 car il a été appliqué en base avec la version `20260430` avant que ce check
 n'existe. **Ne pas ajouter d'autres exceptions.**
 
-Pour corriger proprement ce fichier, exécuter d'abord dans Supabase SQL Editor :
+Pour corriger proprement ce fichier :
 
-```sql
-UPDATE supabase_migrations.schema_migrations
-SET version = '20260430016',
-    name    = '20260430016_blog_enrichissement'
-WHERE version = '20260430'
-  AND name = '20260430_016_blog_enrichissement';
+```bash
+# 1. Renommer la version en base
+SUPABASE_DB_PASSWORD=... supabase db query --password "$SUPABASE_DB_PASSWORD" \
+  "UPDATE supabase_migrations.schema_migrations
+   SET version = '20260430016', name = '20260430016_blog_enrichissement'
+   WHERE version = '20260430' AND name = '20260430_016_blog_enrichissement';"
+
+# 2. Renommer le fichier local
+git mv supabase/migrations/20260430_016_blog_enrichissement.sql \
+       supabase/migrations/20260430016_blog_enrichissement.sql
+
+# 3. Retirer l'entrée KNOWN_EXCEPTIONS dans scripts/check-migration-names.sh
 ```
 
 Puis renommer le fichier local et retirer l'entrée de `KNOWN_EXCEPTIONS`
@@ -113,11 +119,7 @@ dans `scripts/check-migration-names.sh`.
 ### Diagnostic
 
 ```bash
-# Via CLI
-supabase migration list
-
-# Via SQL Editor
--- Voir scripts/inspect-schema-migrations.sql
+SUPABASE_DB_PASSWORD=... bash scripts/diagnose-migrations.sh
 ```
 
 ### Repair
