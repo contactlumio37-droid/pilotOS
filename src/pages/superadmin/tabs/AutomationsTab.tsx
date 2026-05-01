@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useReducer, useState, type ReactNode } from 'react'
+import { useReducer, useState } from 'react'
 import {
   Plus, Zap, ChevronLeft, Trash2, ArrowUp, ArrowDown,
   ToggleLeft, ToggleRight, Clock, X,
@@ -460,7 +460,7 @@ function LogsDrawer({ automationId, name, onClose }: { automationId: string; nam
                   {log.actions_run as number} action{(log.actions_run as number) !== 1 ? 's' : ''} exécutée{(log.actions_run as number) !== 1 ? 's' : ''}
                 </p>
                 {log.error_message && (
-                  <p className="text-xs text-red-400 mt-1 font-mono">{log.error_message as ReactNode}</p>
+                  <p className="text-xs text-red-400 mt-1 font-mono">{String(log.error_message)}</p>
                 )}
               </div>
             ))}

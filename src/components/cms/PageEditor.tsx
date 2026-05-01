@@ -101,7 +101,7 @@ function BlockPreview({ block, selected, onClick }: { block: CmsBlock; selected:
                 <span className="text-slate-500 text-sm">🖼 Image</span>
               </div>
             )}
-            {c.caption && <p className="text-xs text-slate-500 mt-1">{c.caption as ReactNode}</p>}
+            {c.caption && <p className="text-xs text-slate-500 mt-1">{String(c.caption)}</p>}
           </div>
         )
       case 'divider':
@@ -305,7 +305,7 @@ function BlockConfigPanel({
   }
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div>
       <label className="text-xs text-slate-400 block mb-1">{label}</label>
