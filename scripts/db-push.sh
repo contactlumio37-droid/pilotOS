@@ -91,16 +91,40 @@ fi
 ok "Aucun doublon de version."
 endg
 
-# ── 3. Migration list (informational) ─────────────────────────────────────────
-step "Étape 3 — État des migrations (supabase migration list)"
-supabase migration list || true
-endg
+# ── 3. Orphan repair (proactive) + state + pending check ─────────────────────
+step "Étape 3 — Synchronisation locale/distante"
 
-# ── 4. Pending check ──────────────────────────────────────────────────────────
-step "Étape 4 — Détection migrations en attente"
+MIGRATION_LIST=$(supabase migration list 2>&1 || true)
+echo "$MIGRATION_LIST"
 
+# Remote-only rows = versions in DB with no matching local file → repair first
+ORPHANS=$(
+  echo "$MIGRATION_LIST" \
+  | awk -F'|' 'NR>3 {
+      gsub(/[[:space:]]/,"",$1);
+      gsub(/[[:space:]]/,"",$2);
+      if ($1 == "" && $2 != "") print $2
+    }' || true
+)
+
+if [[ -n "$ORPHANS" ]]; then
+  warn "Versions orphelines en base (Remote sans Local) — repair proactif..."
+  while IFS= read -r version; do
+    [[ -z "$version" ]] && continue
+    info "  supabase migration repair --status reverted $version"
+    supabase migration repair --status reverted "$version"
+  done <<< "$ORPHANS"
+  ok "Orphelins réparés."
+  # Re-read state after repair
+  MIGRATION_LIST=$(supabase migration list 2>&1 || true)
+  echo "$MIGRATION_LIST"
+else
+  ok "Aucun orphelin détecté."
+fi
+
+# Local-only rows = pending migrations not yet applied to remote
 PENDING=$(
-  supabase migration list 2>&1 \
+  echo "$MIGRATION_LIST" \
   | awk -F'|' 'NR>3 {
       gsub(/[[:space:]]/,"",$1);
       gsub(/[[:space:]]/,"",$2);
@@ -175,15 +199,22 @@ while [[ $attempt -le $MAX_RETRIES ]]; do
     exit 1
   fi
 
-  # ── Orphan remote versions: auto-repair then retry ─────────────────────────
+  # ── Orphan remote versions: fallback repair then retry ───────────────────────
+  # (Proactive repair in Step 3 should prevent this, but kept as safety net)
   if echo "$OUTPUT" | grep -q "Remote migration versions not found"; then
-    warn "Versions orphelines en base — repair automatique..."
-    while IFS= read -r line; do
-      version=$(echo "$line" | grep -oP 'Remote migration versions not found.*?\K[0-9]{11,}' || true)
+    warn "Versions orphelines en base — repair fallback..."
+    # Supabase CLI prints the exact command: extract version from that line
+    ORPHANS=$(echo "$OUTPUT" | grep -oP '(?<=--status reverted )[0-9]+' || true)
+    if [[ -z "$ORPHANS" ]]; then
+      err "Impossible d'extraire la version orpheline depuis l'output CLI."
+      err "Repair manuel requis : supabase migration repair --status reverted <version>"
+      exit 1
+    fi
+    while IFS= read -r version; do
       [[ -z "$version" ]] && continue
       info "  repair --status reverted $version"
-      supabase migration repair --status reverted "$version" || true
-    done <<< "$OUTPUT"
+      supabase migration repair --status reverted "$version"
+    done <<< "$ORPHANS"
     info "Nouvelle tentative après repair..."
     continue
   fi
