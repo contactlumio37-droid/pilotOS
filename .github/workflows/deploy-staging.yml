@@ -37,48 +37,9 @@ jobs:
       # Les migrations sont idempotentes — aucun repair manuel requis.
       # L'erreur 42P07 (already exists) est capturée par précaution
       # mais ne devrait plus survenir après les fixes d'idempotence.
-      - name: Vérification nommage migrations
-        run: bash scripts/check-migration-names.sh supabase/migrations
-
-      - name: Push migrations
+      - name: Apply migrations
         id: db_push
-        continue-on-error: false
-        run: |
-          set -euo pipefail
-          echo "→ Application des migrations Supabase (staging)..."
-
-          do_push() {
-            echo "Y" | supabase db push --password "$SUPABASE_DB_PASSWORD" 2>&1
-          }
-
-          output=$(do_push) || {
-            exit_code=$?
-            echo "$output"
-
-            if echo "$output" | grep -qE "SQLSTATE 42P07|already exists"; then
-              echo "⚠️  Objets déjà présents — migrations idempotentes, continuation"
-              exit 0
-            fi
-
-            if echo "$output" | grep -q "Remote migration versions not found"; then
-              echo "⚠️  Versions distantes orphelines détectées — réparation..."
-              echo "$output" | grep -oP 'reverted \K[0-9]+' | while read -r version; do
-                echo "  → supabase migration repair --status reverted $version"
-                supabase migration repair --status reverted "$version"
-              done
-              echo "→ Nouvelle tentative après réparation..."
-              output2=$(do_push) || { echo "$output2"; exit 1; }
-              echo "$output2"
-              echo "✅ Migrations appliquées avec succès (après réparation historique)"
-              exit 0
-            fi
-
-            echo "::error::Migration échouée (code $exit_code) — voir log ci-dessus"
-            exit "$exit_code"
-          }
-
-          echo "$output"
-          echo "✅ Migrations appliquées avec succès"
+        run: bash scripts/db-push.sh
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}

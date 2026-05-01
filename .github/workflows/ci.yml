@@ -40,11 +40,9 @@ jobs:
         continue-on-error: false
         run: npm run lint
 
-      # ── Nommage des migrations ────────────────────────────────
-      # Garantit que chaque fichier de migration suit la convention
-      # YYYYMMDDNNN_description.sql (préfixe numérique ≥ 11 chiffres, unique).
-      # Un underscore entre la date et le numéro (ex: 20260430_017_*) raccourcit
-      # le préfixe extrait par Supabase CLI à 8 chiffres → collision de version.
+      # ── Nommage et doublons des migrations ───────────────────
+      # Valide : préfixe ≥ 11 chiffres, unicité des versions, format description.
+      # Voir scripts/check-migration-names.sh pour la logique complète.
       - name: Vérification nommage migrations
         continue-on-error: false
         run: bash scripts/check-migration-names.sh supabase/migrations
