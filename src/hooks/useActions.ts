@@ -30,6 +30,8 @@ export interface ActionInsertPayload {
   due_date?: string
   responsible_id?: string
   accountable_id?: string
+  responsible_ids?: string[]
+  accountable_ids?: string[]
   consulted_ids?: string[]
   informed_ids?: string[]
   project_id?: string
@@ -59,7 +61,7 @@ export function useActions(filters?: ActionFilters) {
         .order('due_date', { ascending: true, nullsFirst: false })
 
       if (filters?.mine && user) {
-        q = q.eq('responsible_id', user.id)
+        q = q.contains('responsible_ids', [user.id])
       }
       if (filters?.status?.length) {
         q = q.in('status', filters.status)
@@ -74,7 +76,7 @@ export function useActions(filters?: ActionFilters) {
         q = q.eq('project_id', filters.project_id)
       }
       if (filters?.responsible_id) {
-        q = q.eq('responsible_id', filters.responsible_id)
+        q = q.contains('responsible_ids', [filters.responsible_id])
       }
       if (filters?.search) {
         q = q.ilike('title', `%${filters.search}%`)
@@ -123,7 +125,7 @@ export function useMyTodayActions() {
         .from('actions')
         .select('*')
         .eq('organisation_id', organisation!.id)
-        .eq('responsible_id', user!.id)
+        .contains('responsible_ids', [user!.id])
         .not('status', 'in', '("done","cancelled")')
         .or(`due_date.lte.${today},due_date.is.null`)
         .order('due_date', { ascending: true, nullsFirst: false })
@@ -156,6 +158,8 @@ export function useCreateAction() {
 
   return useMutation({
     mutationFn: async (payload: ActionInsertPayload) => {
+      const responsible_ids = payload.responsible_ids ?? []
+      const accountable_ids = payload.accountable_ids ?? []
       const { data, error } = await supabase
         .from('actions')
         .insert({
@@ -163,8 +167,12 @@ export function useCreateAction() {
           organisation_id: organisation!.id,
           created_by: user!.id,
           visibility: payload.visibility ?? 'public',
+          responsible_ids,
+          accountable_ids,
           consulted_ids: payload.consulted_ids ?? [],
           informed_ids: payload.informed_ids ?? [],
+          responsible_id: responsible_ids[0] ?? null,
+          accountable_id: accountable_ids[0] ?? null,
         })
         .select()
         .single()

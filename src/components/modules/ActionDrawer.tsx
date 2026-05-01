@@ -71,7 +71,6 @@ export default function ActionDrawer({ open, onClose, action, initialProcessId }
   const [showAi, setShowAi] = useState(false)
   const [comment, setComment] = useState('')
   const [raci, setRaci] = useState<RACIValue>(RACI_DEFAULT)
-  const [raciError, setRaciError] = useState('')
 
   const toast = useToast()
   const createAction = useCreateAction()
@@ -128,8 +127,12 @@ export default function ActionDrawer({ open, onClose, action, initialProcessId }
         category_id: action.category_id ?? '',
       })
       setRaci({
-        responsible_id: action.responsible_id ?? null,
-        accountable_id: action.accountable_id ?? null,
+        responsible_ids: action.responsible_ids?.length
+          ? action.responsible_ids
+          : action.responsible_id ? [action.responsible_id] : [],
+        accountable_ids: action.accountable_ids?.length
+          ? action.accountable_ids
+          : action.accountable_id ? [action.accountable_id] : [],
         consulted_ids: action.consulted_ids ?? [],
         informed_ids: action.informed_ids ?? [],
       })
@@ -146,19 +149,12 @@ export default function ActionDrawer({ open, onClose, action, initialProcessId }
       })
       setRaci(RACI_DEFAULT)
     }
-    setRaciError('')
     setShowAi(false)
     setAiInput('')
     setComment('')
   }, [action, open, reset, initialProcessId])
 
   async function onSubmit(data: FormData) {
-    if (!raci.responsible_id) {
-      setRaciError('Le responsable est obligatoire')
-      return
-    }
-    setRaciError('')
-
     const payload: ActionInsertPayload = {
       title: data.title,
       description: data.description,
@@ -166,8 +162,10 @@ export default function ActionDrawer({ open, onClose, action, initialProcessId }
       status: data.status,
       priority: data.priority,
       due_date: data.due_date || undefined,
-      responsible_id: raci.responsible_id,
-      accountable_id: raci.accountable_id || undefined,
+      responsible_ids: raci.responsible_ids,
+      accountable_ids: raci.accountable_ids,
+      responsible_id: raci.responsible_ids[0] ?? undefined,
+      accountable_id: raci.accountable_ids[0] ?? undefined,
       consulted_ids: raci.consulted_ids,
       informed_ids: raci.informed_ids,
       process_id: data.process_id || undefined,
@@ -360,8 +358,7 @@ export default function ActionDrawer({ open, onClose, action, initialProcessId }
           <RACISelector
             members={orgMembers}
             value={raci}
-            onChange={v => { setRaci(v); if (v.responsible_id) setRaciError('') }}
-            responsibleError={raciError}
+            onChange={setRaci}
           />
         </div>
       </form>

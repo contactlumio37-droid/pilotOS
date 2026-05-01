@@ -329,6 +329,8 @@ export interface Action {
   completed_at: string | null
   responsible_id: string | null
   accountable_id: string | null
+  responsible_ids: string[]
+  accountable_ids: string[]
   consulted_ids: string[]
   informed_ids: string[]
   visibility: Visibility

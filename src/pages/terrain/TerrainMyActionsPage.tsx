@@ -31,7 +31,7 @@ export default function TerrainMyActionsPage() {
       const { data, error } = await supabase
         .from('actions')
         .select('*')
-        .eq('responsible_id', user.id)
+        .contains('responsible_ids', [user.id])
         .not('status', 'in', '(done,cancelled)')
         .order('due_date', { ascending: true, nullsFirst: false })
       if (error) throw error

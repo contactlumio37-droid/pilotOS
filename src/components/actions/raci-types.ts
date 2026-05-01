@@ -4,15 +4,15 @@ export interface RACIMember {
 }
 
 export interface RACIValue {
-  responsible_id: string | null
-  accountable_id: string | null
+  responsible_ids: string[]
+  accountable_ids: string[]
   consulted_ids: string[]
   informed_ids: string[]
 }
 
 export const RACI_DEFAULT: RACIValue = {
-  responsible_id: null,
-  accountable_id: null,
+  responsible_ids: [],
+  accountable_ids: [],
   consulted_ids: [],
   informed_ids: [],
 }
