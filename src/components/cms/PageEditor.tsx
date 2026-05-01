@@ -101,7 +101,7 @@ function BlockPreview({ block, selected, onClick }: { block: CmsBlock; selected:
                 <span className="text-slate-500 text-sm">🖼 Image</span>
               </div>
             )}
-            {c.caption && <p className="text-xs text-slate-500 mt-1">{String(c.caption)}</p>}
+            {!!c.caption && <p className="text-xs text-slate-500 mt-1">{String(c.caption)}</p>}
           </div>
         )
       case 'divider':

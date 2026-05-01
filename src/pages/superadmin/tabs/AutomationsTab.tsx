@@ -459,7 +459,7 @@ function LogsDrawer({ automationId, name, onClose }: { automationId: string; nam
                 <p className="text-xs text-slate-400">
                   {log.actions_run as number} action{(log.actions_run as number) !== 1 ? 's' : ''} exécutée{(log.actions_run as number) !== 1 ? 's' : ''}
                 </p>
-                {log.error_message && (
+                {!!log.error_message && (
                   <p className="text-xs text-red-400 mt-1 font-mono">{String(log.error_message)}</p>
                 )}
               </div>
