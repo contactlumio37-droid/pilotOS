@@ -43,11 +43,14 @@ export type OrgMember = NonNullable<
 export function useMemberOptions() {
   const { data: members } = useOrgMembers()
   return (
-    members?.map(m => ({
-      value: m.user_id,
-      label: (m.profiles as { full_name: string | null; avatar_url: string | null } | null)?.full_name ?? m.user_id,
-      avatar: (m.profiles as { full_name: string | null; avatar_url: string | null } | null)?.avatar_url ?? undefined,
-    })) ?? []
+    members?.map(m => {
+      const p = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles
+      return {
+        value: m.user_id,
+        label: p?.full_name ?? m.user_id,
+        avatar: p?.avatar_url ?? undefined,
+      }
+    }) ?? []
   )
 }
 
