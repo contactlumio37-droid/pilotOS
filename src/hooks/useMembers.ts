@@ -4,12 +4,18 @@ import { useOrganisation } from '@/hooks/useOrganisation'
 import { useProfile } from '@/hooks/useProfile'
 import type { UserRole } from '@/types/database'
 
-export function useOrgMembers() {
+/**
+ * Membres actifs d'une organisation.
+ * Accepte un orgId explicite pour fonctionner en contexte superadmin
+ * (useAuth().organisation ≠ org consultée).
+ */
+export function useOrgMembers(orgId?: string) {
   const { organisation } = useOrganisation()
+  const targetOrgId = orgId ?? organisation?.id
 
   return useQuery({
-    queryKey: ['org-members', organisation?.id],
-    enabled: !!organisation?.id,
+    queryKey: ['org-members', targetOrgId],
+    enabled: !!targetOrgId,
     staleTime: 2 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -18,15 +24,13 @@ export function useOrgMembers() {
           user_id,
           role,
           is_active,
-          invited_at,
-          accepted_at,
           profiles (
             id,
             full_name,
             avatar_url
           )
         `)
-        .eq('organisation_id', organisation!.id)
+        .eq('organisation_id', targetOrgId!)
         .eq('is_active', true)
         .order('role')
 
@@ -40,14 +44,15 @@ export type OrgMember = NonNullable<
   ReturnType<typeof useOrgMembers>['data']
 >[number]
 
-export function useMemberOptions() {
-  const { data: members } = useOrgMembers()
+/** Options formatées pour Select ou MultiSelect */
+export function useMemberOptions(orgId?: string) {
+  const { data: members } = useOrgMembers(orgId)
   return (
     members?.map(m => {
       const p = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles
       return {
         value: m.user_id,
-        label: p?.full_name ?? m.user_id,
+        label: p?.full_name ?? 'Membre',
         avatar: p?.avatar_url ?? undefined,
       }
     }) ?? []
