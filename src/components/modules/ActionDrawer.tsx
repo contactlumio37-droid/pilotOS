@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useQuery } from '@tanstack/react-query'
 import { Sparkles, Send, Calendar, AlertCircle } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import Drawer from '@/components/ui/Drawer'
+import { MultiSelect } from '@/components/ui/MultiSelect'
 import { useToast } from '@/components/ui/useToast'
 import { OriginBadge, StatusBadge, PriorityBadge } from '@/components/modules/ActionBadges'
 import { useCreateAction, useUpdateAction, useActionComments, useAddComment } from '@/hooks/useActions'
@@ -14,8 +14,7 @@ import { useAiAssist } from '@/hooks/useAiAssist'
 import { useOrganisation } from '@/hooks/useOrganisation'
 import { useProcesses } from '@/hooks/useProcesses'
 import { useActionCategories } from '@/hooks/useActionCategories'
-import { supabase } from '@/lib/supabase'
-import RACISelector from '@/components/actions/RACISelector'
+import { useMemberOptions } from '@/hooks/useMembers'
 import { RACI_DEFAULT } from '@/components/actions/raci-types'
 import type { RACIValue } from '@/components/actions/raci-types'
 import type { ActionWithRelations, ActionInsertPayload } from '@/hooks/useActions'
@@ -83,24 +82,9 @@ export default function ActionDrawer({ open, onClose, action, initialProcessId }
   const { data: categories = [] } = useActionCategories()
   const aiEnabled = (organisation as (typeof organisation & { ai_enabled?: boolean }) | null)?.ai_enabled ?? false
 
-  const { data: orgMembers = [] } = useQuery({
-    queryKey: ['org-members-raci', organisation?.id],
-    enabled: !!organisation,
-    staleTime: 60_000,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('organisation_members')
-        .select('user_id, profile:profiles(id, full_name)')
-        .eq('organisation_id', organisation!.id)
-        .eq('is_active', true)
-      return (data ?? [])
-        .map(m => {
-          const p = Array.isArray(m.profile) ? m.profile[0] : m.profile
-          return p ? { id: p.id as string, full_name: p.full_name as string | null } : null
-        })
-        .filter((x): x is { id: string; full_name: string | null } => x !== null)
-    },
-  })
+  // Utilise l'org_id de l'action elle-même — corrige le contexte superadmin
+  // où useOrganisation() retourne l'org du superadmin, pas celle de l'action
+  const memberOptions = useMemberOptions(action?.organisation_id ?? organisation?.id)
 
   const { register, handleSubmit, reset, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -354,11 +338,47 @@ export default function ActionDrawer({ open, onClose, action, initialProcessId }
         </div>
 
         {/* RACI — création et modification */}
-        <div className="pt-2 border-t border-slate-100">
-          <RACISelector
-            members={orgMembers}
-            value={raci}
-            onChange={setRaci}
+        <div className="space-y-3 pt-2 border-t border-slate-100">
+          <h3 className="text-sm font-semibold text-slate-700">RACI</h3>
+          <MultiSelect
+            label="Responsable(s) — Réalise l'action"
+            options={memberOptions}
+            value={raci.responsible_ids}
+            onChange={ids => setRaci(r => ({
+              ...r,
+              responsible_ids: ids,
+            }))}
+            placeholder="Sélectionner…"
+          />
+          <MultiSelect
+            label="Approbateur(s) — Valide et rend compte"
+            options={memberOptions}
+            value={raci.accountable_ids}
+            onChange={ids => setRaci(r => ({
+              ...r,
+              accountable_ids: ids,
+            }))}
+            placeholder="Sélectionner…"
+          />
+          <MultiSelect
+            label="Consultés — Sollicités pour avis"
+            options={memberOptions}
+            value={raci.consulted_ids}
+            onChange={ids => setRaci(r => ({
+              ...r,
+              consulted_ids: ids,
+            }))}
+            placeholder="Sélectionner…"
+          />
+          <MultiSelect
+            label="Informés — Tenus informés uniquement"
+            options={memberOptions}
+            value={raci.informed_ids}
+            onChange={ids => setRaci(r => ({
+              ...r,
+              informed_ids: ids,
+            }))}
+            placeholder="Sélectionner…"
           />
         </div>
       </form>
