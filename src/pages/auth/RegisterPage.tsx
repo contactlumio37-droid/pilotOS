@@ -137,13 +137,16 @@ export default function RegisterPage() {
         accepted_at: new Date().toISOString(),
       })
 
-      // 4. Activer le module pilotage par défaut
-      await supabase.from('module_access').insert({
-        organisation_id: orgId,
-        module: 'pilotage',
-        is_active: true,
-        activated_at: new Date().toISOString(),
-      })
+      // 4. Activer tous les modules par défaut
+      const ALL_MODULES = ['pilotage', 'processus', 'ged', 'terrain', 'securite'] as const
+      await supabase.from('module_access').insert(
+        ALL_MODULES.map(module => ({
+          organisation_id: orgId,
+          module,
+          is_active: true,
+          activated_at: new Date().toISOString(),
+        })),
+      )
 
       // 5. Charger les templates du secteur
       const { data: templates } = await supabase

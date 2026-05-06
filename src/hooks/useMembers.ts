@@ -1,8 +1,55 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useOrganisation } from '@/hooks/useOrganisation'
 import { useProfile } from '@/hooks/useProfile'
 import type { UserRole } from '@/types/database'
+
+export function useOrgMembers() {
+  const { organisation } = useOrganisation()
+
+  return useQuery({
+    queryKey: ['org-members', organisation?.id],
+    enabled: !!organisation?.id,
+    staleTime: 2 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('organisation_members')
+        .select(`
+          user_id,
+          role,
+          is_active,
+          invited_at,
+          accepted_at,
+          profiles (
+            id,
+            full_name,
+            avatar_url
+          )
+        `)
+        .eq('organisation_id', organisation!.id)
+        .eq('is_active', true)
+        .order('role')
+
+      if (error) throw error
+      return data ?? []
+    },
+  })
+}
+
+export type OrgMember = NonNullable<
+  ReturnType<typeof useOrgMembers>['data']
+>[number]
+
+export function useMemberOptions() {
+  const { data: members } = useOrgMembers()
+  return (
+    members?.map(m => ({
+      value: m.user_id,
+      label: (m.profiles as { full_name: string | null; avatar_url: string | null } | null)?.full_name ?? m.user_id,
+      avatar: (m.profiles as { full_name: string | null; avatar_url: string | null } | null)?.avatar_url ?? undefined,
+    })) ?? []
+  )
+}
 
 export function useInviteMember() {
   const qc = useQueryClient()
