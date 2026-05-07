@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useOrganisation } from '@/hooks/useOrganisation'
+import { useAuth } from '@/hooks/useAuth'
 import { useProfile } from '@/hooks/useProfile'
 import type { UserRole } from '@/types/database'
 
@@ -10,8 +11,11 @@ import type { UserRole } from '@/types/database'
  * (useAuth().organisation ≠ org consultée).
  */
 export function useOrgMembers(orgId?: string) {
-  const { organisation } = useOrganisation()
-  const targetOrgId = orgId ?? organisation?.id
+  const { organisation: orgFromContext } = useOrganisation()
+  // useAuth resolves faster than useOrganisation (no extra query chain)
+  // — use it as a fallback so the query starts earlier on first render.
+  const { organisation: orgFromAuth } = useAuth()
+  const targetOrgId = orgId ?? orgFromContext?.id ?? orgFromAuth?.id
 
   return useQuery({
     queryKey: ['org-members', targetOrgId],
@@ -49,11 +53,15 @@ export function useMemberOptions(orgId?: string) {
   const { data: members } = useOrgMembers(orgId)
   return (
     members?.map(m => {
-      const p = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles
+      const p = (Array.isArray(m.profiles) ? m.profiles[0] : m.profiles) as {
+        full_name?: string | null
+        avatar_url?: string | null
+      } | null
       return {
         value: m.user_id,
-        label: p?.full_name ?? 'Membre',
+        label: p?.full_name ?? `Membre (${m.role})`,
         avatar: p?.avatar_url ?? undefined,
+        role: m.role,
       }
     }) ?? []
   )

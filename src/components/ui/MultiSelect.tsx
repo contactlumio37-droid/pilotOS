@@ -5,6 +5,7 @@ export interface MultiSelectOption {
   value: string
   label: string
   avatar?: string
+  role?: string
 }
 
 interface MultiSelectProps {
@@ -33,14 +34,18 @@ export function MultiSelect({
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
+    const handler = (e: MouseEvent | TouchEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setOpen(false)
         setSearch('')
       }
     }
     document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
+    document.addEventListener('touchstart', handler)
+    return () => {
+      document.removeEventListener('mousedown', handler)
+      document.removeEventListener('touchstart', handler)
+    }
   }, [])
 
   const toggle = (id: string) => {
@@ -51,7 +56,7 @@ export function MultiSelect({
     )
   }
 
-  const remove = (id: string, e: React.MouseEvent) => {
+  const remove = (id: string, e: React.MouseEvent | React.TouchEvent) => {
     e.stopPropagation()
     onChange(value.filter(v => v !== id))
   }
@@ -72,7 +77,7 @@ export function MultiSelect({
         </label>
       )}
 
-      {/* Trigger */}
+      {/* Trigger — min-h-[44px] for comfortable mobile tap */}
       <div
         role="combobox"
         aria-expanded={open}
@@ -90,7 +95,7 @@ export function MultiSelect({
         }}
         onClick={() => !disabled && setOpen(o => !o)}
         className={[
-          'input flex min-h-[2.5rem] flex-wrap items-center gap-1 py-1.5 pr-8',
+          'input flex min-h-[2.75rem] flex-wrap items-center gap-1 py-1.5 pr-8',
           disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer',
           open ? 'ring-2 ring-brand-600 border-brand-600' : '',
           error ? 'border-danger-DEFAULT' : '',
@@ -105,18 +110,19 @@ export function MultiSelect({
             key={opt.value}
             className="inline-flex items-center gap-1 rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700"
           >
-            {opt.avatar && (
-              <img
-                src={opt.avatar}
-                alt=""
-                className="h-4 w-4 rounded-full object-cover"
-              />
+            {opt.avatar ? (
+              <img src={opt.avatar} alt="" className="h-4 w-4 rounded-full object-cover" />
+            ) : (
+              <span className="flex h-4 w-4 items-center justify-center rounded-full bg-brand-200 text-[10px] font-bold">
+                {opt.label.charAt(0).toUpperCase()}
+              </span>
             )}
             <span className="max-w-[7rem] truncate">{opt.label}</span>
             <button
               type="button"
-              onClick={e => remove(opt.value, e)}
-              className="ml-0.5 rounded-full p-0.5 hover:bg-brand-200"
+              onMouseDown={e => remove(opt.value, e)}
+              onTouchStart={e => remove(opt.value, e)}
+              className="ml-0.5 rounded-full p-0.5 hover:bg-brand-200 active:bg-brand-300"
               aria-label={`Retirer ${opt.label}`}
             >
               <X className="h-3 w-3" />
@@ -148,26 +154,31 @@ export function MultiSelect({
           role="listbox"
           aria-multiselectable="true"
           aria-label={label}
-          className="absolute z-50 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg"
+          className="absolute z-50 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg max-h-[min(15rem,50dvh)] overflow-hidden"
         >
-          {/* Search bar */}
+          {/* Search */}
           <div className="border-b border-slate-100 p-2">
             <input
               type="text"
               autoFocus
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Rechercher…"
+              placeholder="Rechercher un membre…"
+              inputMode="search"
               className="input w-full py-1.5 text-sm"
               onClick={e => e.stopPropagation()}
             />
           </div>
 
           {/* List */}
-          <ul className="max-h-60 overflow-y-auto py-1" role="group">
+          <ul
+            className="overflow-y-auto py-1"
+            style={{ maxHeight: 'calc(min(15rem,50dvh) - 3.25rem)' }}
+            role="group"
+          >
             {filtered.length === 0 && (
-              <li className="px-3 py-2 text-sm text-slate-400 text-center">
-                Aucun résultat pour « {search} »
+              <li className="px-3 py-3 text-sm text-slate-400 text-center">
+                {search ? `Aucun résultat pour « ${search} »` : 'Aucun membre disponible'}
               </li>
             )}
             {filtered.map(opt => {
@@ -177,33 +188,27 @@ export function MultiSelect({
                   key={opt.value}
                   role="option"
                   aria-selected={checked}
-                  onClick={() => toggle(opt.value)}
+                  onMouseDown={() => toggle(opt.value)}
+                  onTouchEnd={e => { e.preventDefault(); toggle(opt.value) }}
                   className={[
-                    'flex cursor-pointer select-none items-center gap-3 px-3 py-2 text-sm transition-colors',
+                    'flex min-h-[2.75rem] cursor-pointer select-none items-center',
+                    'gap-3 px-3 py-2 text-sm transition-colors',
                     'hover:bg-slate-50 active:bg-slate-100',
-                    checked ? 'text-brand-700' : 'text-slate-700',
+                    checked ? 'font-medium text-brand-700' : 'text-slate-700',
                   ].join(' ')}
                 >
                   <span
                     aria-hidden="true"
                     className={[
                       'flex h-4 w-4 shrink-0 items-center justify-center rounded border-2 transition-colors',
-                      checked
-                        ? 'border-brand-600 bg-brand-600'
-                        : 'border-slate-300 bg-white',
+                      checked ? 'border-brand-600 bg-brand-600' : 'border-slate-300 bg-white',
                     ].join(' ')}
                   >
-                    {checked && (
-                      <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />
-                    )}
+                    {checked && <Check className="h-2.5 w-2.5 text-white" strokeWidth={3} />}
                   </span>
 
                   {opt.avatar ? (
-                    <img
-                      src={opt.avatar}
-                      alt=""
-                      className="h-6 w-6 shrink-0 rounded-full object-cover"
-                    />
+                    <img src={opt.avatar} alt="" className="h-6 w-6 shrink-0 rounded-full object-cover" />
                   ) : (
                     <span
                       aria-hidden="true"
@@ -213,7 +218,12 @@ export function MultiSelect({
                     </span>
                   )}
 
-                  <span className="truncate font-medium">{opt.label}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate">{opt.label}</p>
+                    {opt.role && (
+                      <p className="text-xs text-slate-400 capitalize">{opt.role}</p>
+                    )}
+                  </div>
                 </li>
               )
             })}
@@ -227,8 +237,9 @@ export function MultiSelect({
               </span>
               <button
                 type="button"
-                onClick={e => { e.stopPropagation(); onChange([]) }}
-                className="text-xs text-slate-400 hover:text-danger-DEFAULT transition-colors"
+                onMouseDown={e => { e.stopPropagation(); onChange([]) }}
+                onTouchEnd={e => { e.preventDefault(); e.stopPropagation(); onChange([]) }}
+                className="min-h-[2rem] px-2 text-xs text-slate-400 hover:text-danger-DEFAULT transition-colors"
               >
                 Tout désélectionner
               </button>
