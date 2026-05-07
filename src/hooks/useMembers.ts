@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useOrganisation } from '@/hooks/useOrganisation'
+import { useAuth } from '@/hooks/useAuth'
 import { useProfile } from '@/hooks/useProfile'
 import type { UserRole } from '@/types/database'
 
@@ -8,14 +9,26 @@ import type { UserRole } from '@/types/database'
 // action that belongs to a different org than the user's current context) can
 // fetch the correct member list without relying on useOrganisation().
 export function useOrgMembers(orgId?: string) {
-  const { organisation } = useOrganisation()
-  const targetOrgId = orgId ?? organisation?.id
+  const { organisation: orgFromContext } = useOrganisation()
+  // useAuth resolves faster than useOrganisation (no extra query chain)
+  // — use it as a fallback so the query starts earlier on first render.
+  const { organisation: orgFromAuth } = useAuth()
+  const targetOrgId = orgId ?? orgFromContext?.id ?? orgFromAuth?.id
 
   return useQuery({
     queryKey: ['org-members', targetOrgId],
     enabled: !!targetOrgId,
     staleTime: 2 * 60 * 1000,
     queryFn: async () => {
+      // ── DIAGNOSTIC (temporaire — supprimer après résolution RACI) ──
+      console.group('[useOrgMembers] diagnostic')
+      console.log('orgId param:', orgId)
+      console.log('orgFromContext?.id:', orgFromContext?.id)
+      console.log('orgFromAuth?.id:', orgFromAuth?.id)
+      console.log('targetOrgId final:', targetOrgId)
+      console.groupEnd()
+      // ─────────────────────────────────────────────────────────────
+
       const { data, error } = await supabase
         .from('organisation_members')
         .select(`
@@ -33,6 +46,16 @@ export function useOrgMembers(orgId?: string) {
         .eq('organisation_id', targetOrgId!)
         .eq('is_active', true)
         .order('role')
+
+      // ── DIAGNOSTIC ─────────────────────────────────────────────
+      console.group('[useOrgMembers] query result')
+      console.log('data.length:', data?.length ?? 0)
+      console.log('error:', error)
+      if (data) {
+        data.forEach((m, i) => console.log(`  [${i}]`, m.user_id, m.role, m.profiles))
+      }
+      console.groupEnd()
+      // ─────────────────────────────────────────────────────────────
 
       if (error) throw error
       return data ?? []
