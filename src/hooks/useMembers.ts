@@ -4,12 +4,16 @@ import { useOrganisation } from '@/hooks/useOrganisation'
 import { useProfile } from '@/hooks/useProfile'
 import type { UserRole } from '@/types/database'
 
-export function useOrgMembers() {
+// Accept explicit orgId so callers in superadmin context (or when editing an
+// action that belongs to a different org than the user's current context) can
+// fetch the correct member list without relying on useOrganisation().
+export function useOrgMembers(orgId?: string) {
   const { organisation } = useOrganisation()
+  const targetOrgId = orgId ?? organisation?.id
 
   return useQuery({
-    queryKey: ['org-members', organisation?.id],
-    enabled: !!organisation?.id,
+    queryKey: ['org-members', targetOrgId],
+    enabled: !!targetOrgId,
     staleTime: 2 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
@@ -26,7 +30,7 @@ export function useOrgMembers() {
             avatar_url
           )
         `)
-        .eq('organisation_id', organisation!.id)
+        .eq('organisation_id', targetOrgId!)
         .eq('is_active', true)
         .order('role')
 
@@ -40,8 +44,8 @@ export type OrgMember = NonNullable<
   ReturnType<typeof useOrgMembers>['data']
 >[number]
 
-export function useMemberOptions() {
-  const { data: members } = useOrgMembers()
+export function useMemberOptions(orgId?: string) {
+  const { data: members } = useOrgMembers(orgId)
   return (
     members?.map(m => {
       const p = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles
@@ -49,6 +53,7 @@ export function useMemberOptions() {
         value: m.user_id,
         label: p?.full_name ?? m.user_id,
         avatar: p?.avatar_url ?? undefined,
+        role: m.role,
       }
     }) ?? []
   )

@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useQuery } from '@tanstack/react-query'
 import { Sparkles, Send, Calendar, AlertCircle } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -14,7 +13,7 @@ import { useAiAssist } from '@/hooks/useAiAssist'
 import { useOrganisation } from '@/hooks/useOrganisation'
 import { useProcesses } from '@/hooks/useProcesses'
 import { useActionCategories } from '@/hooks/useActionCategories'
-import { supabase } from '@/lib/supabase'
+import { useMemberOptions } from '@/hooks/useMembers'
 import RACISelector from '@/components/actions/RACISelector'
 import { RACI_DEFAULT } from '@/components/actions/raci-types'
 import type { RACIValue } from '@/components/actions/raci-types'
@@ -83,24 +82,10 @@ export default function ActionDrawer({ open, onClose, action, initialProcessId }
   const { data: categories = [] } = useActionCategories()
   const aiEnabled = (organisation as (typeof organisation & { ai_enabled?: boolean }) | null)?.ai_enabled ?? false
 
-  const { data: orgMembers = [] } = useQuery({
-    queryKey: ['org-members-raci', organisation?.id],
-    enabled: !!organisation,
-    staleTime: 60_000,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('organisation_members')
-        .select('user_id, profile:profiles(id, full_name)')
-        .eq('organisation_id', organisation!.id)
-        .eq('is_active', true)
-      return (data ?? [])
-        .map(m => {
-          const p = Array.isArray(m.profile) ? m.profile[0] : m.profile
-          return p ? { id: p.id as string, full_name: p.full_name as string | null } : null
-        })
-        .filter((x): x is { id: string; full_name: string | null } => x !== null)
-    },
-  })
+  // Use action's own org (not the viewer's current context) so RACI members
+  // are correct when a superadmin opens an action from a foreign org.
+  const memberOptions = useMemberOptions(action?.organisation_id ?? organisation?.id)
+  const orgMembers = memberOptions.map(m => ({ id: m.value, full_name: m.label }))
 
   const { register, handleSubmit, reset, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
