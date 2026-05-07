@@ -150,7 +150,7 @@ function BlockPreview({ block, selected, onClick }: { block: CmsBlock; selected:
             <div className="h-20 bg-slate-700 rounded-lg flex items-center justify-center">
               <span className="text-slate-400 text-sm">▶ {(c.url as string) ? 'Vidéo configurée' : 'URL vidéo non définie'}</span>
             </div>
-            {c.caption && <p className="text-xs text-slate-500 mt-1">{String(c.caption)}</p>}
+            {!!c.caption && <p className="text-xs text-slate-500 mt-1">{String(c.caption)}</p>}
           </div>
         )
       case 'carousel': {
@@ -207,7 +207,7 @@ function BlockPreview({ block, selected, onClick }: { block: CmsBlock; selected:
           <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
             <div className={`flex gap-3 ${(c.image_position as string) === 'right' ? 'flex-row-reverse' : ''}`}>
               <div className="w-16 h-12 bg-slate-700 rounded shrink-0 overflow-hidden">
-                {c.image_url && <img src={c.image_url as string} alt="" className="w-full h-full object-cover" />}
+                {!!c.image_url && <img src={c.image_url as string} alt="" className="w-full h-full object-cover" />}
               </div>
               <div className="flex-1">
                 <p className="text-xs font-medium text-white mb-1">{(c.title as string) || 'Titre'}</p>

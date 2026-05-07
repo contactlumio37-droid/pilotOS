@@ -36,11 +36,11 @@ function RenderBlock({ block }: { block: CmsBlock }) {
         : {}
       return (
         <section className="relative py-24 px-6 text-center bg-slate-900" style={bgStyle}>
-          {c.bg_image && <div className="absolute inset-0 bg-slate-900/70" />}
+          {!!c.bg_image && <div className="absolute inset-0 bg-slate-900/70" />}
           <div className="relative max-w-3xl mx-auto">
-            {c.title && <h1 className="text-4xl md:text-5xl font-display font-black text-white mb-4">{String(c.title)}</h1>}
-            {c.subtitle && <p className="text-xl text-slate-300 mb-8 leading-relaxed">{String(c.subtitle)}</p>}
-            {c.cta_label && (
+            {!!c.title && <h1 className="text-4xl md:text-5xl font-display font-black text-white mb-4">{String(c.title)}</h1>}
+            {!!c.subtitle && <p className="text-xl text-slate-300 mb-8 leading-relaxed">{String(c.subtitle)}</p>}
+            {!!c.cta_label && (
               <a href={(c.cta_url as string) || '#'} className="inline-block bg-brand-600 hover:bg-brand-700 text-white font-semibold px-8 py-3 rounded-xl transition-colors">
                 {String(c.cta_label)}
               </a>
@@ -55,7 +55,7 @@ function RenderBlock({ block }: { block: CmsBlock }) {
       return (
         <section className="py-16 px-6 bg-white">
           <div className="max-w-5xl mx-auto">
-            {c.title && <h2 className="text-3xl font-bold text-slate-900 text-center mb-12">{String(c.title)}</h2>}
+            {!!c.title && <h2 className="text-3xl font-bold text-slate-900 text-center mb-12">{String(c.title)}</h2>}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {items.map((item, i) => (
                 <div key={i} className="p-6 rounded-2xl border border-slate-200 bg-slate-50">
@@ -75,7 +75,7 @@ function RenderBlock({ block }: { block: CmsBlock }) {
       return (
         <section className="py-16 px-6 bg-slate-50">
           <div className="max-w-5xl mx-auto">
-            {c.title && <h2 className="text-3xl font-bold text-slate-900 text-center mb-12">{String(c.title)}</h2>}
+            {!!c.title && <h2 className="text-3xl font-bold text-slate-900 text-center mb-12">{String(c.title)}</h2>}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {items.map((item, i) => (
                 <div key={i} className="bg-white rounded-2xl p-6 border border-slate-200">
@@ -100,9 +100,9 @@ function RenderBlock({ block }: { block: CmsBlock }) {
       return (
         <section className={`py-16 px-6 text-center ${dark ? 'bg-slate-900' : 'bg-brand-600'}`}>
           <div className="max-w-2xl mx-auto">
-            {c.title && <h2 className={`text-3xl font-bold mb-3 ${dark ? 'text-white' : 'text-white'}`}>{String(c.title)}</h2>}
-            {c.subtitle && <p className={`mb-8 ${dark ? 'text-slate-300' : 'text-brand-100'}`}>{String(c.subtitle)}</p>}
-            {c.button_label && (
+            {!!c.title && <h2 className={`text-3xl font-bold mb-3 ${dark ? 'text-white' : 'text-white'}`}>{String(c.title)}</h2>}
+            {!!c.subtitle && <p className={`mb-8 ${dark ? 'text-slate-300' : 'text-brand-100'}`}>{String(c.subtitle)}</p>}
+            {!!c.button_label && (
               <a href={(c.button_url as string) || '#'} className={`inline-block font-semibold px-8 py-3 rounded-xl transition-colors ${dark ? 'bg-brand-600 text-white hover:bg-brand-700' : 'bg-white text-brand-600 hover:bg-brand-50'}`}>
                 {String(c.button_label)}
               </a>
@@ -117,7 +117,7 @@ function RenderBlock({ block }: { block: CmsBlock }) {
       return (
         <section className="py-16 px-6 bg-white">
           <div className="max-w-3xl mx-auto">
-            {c.title && <h2 className="text-3xl font-bold text-slate-900 text-center mb-12">{String(c.title)}</h2>}
+            {!!c.title && <h2 className="text-3xl font-bold text-slate-900 text-center mb-12">{String(c.title)}</h2>}
             <div className="space-y-4">
               {items.map((item, i) => (
                 <details key={i} className="group border border-slate-200 rounded-xl">
@@ -157,7 +157,7 @@ function RenderBlock({ block }: { block: CmsBlock }) {
       return (
         <section className="py-16 px-6 bg-slate-50">
           <div className="max-w-5xl mx-auto">
-            {c.title && <h2 className="text-3xl font-bold text-slate-900 text-center mb-12">{String(c.title)}</h2>}
+            {!!c.title && <h2 className="text-3xl font-bold text-slate-900 text-center mb-12">{String(c.title)}</h2>}
             <div className={`grid gap-6 ${plans.length <= 2 ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 md:grid-cols-3'}`}>
               {plans.map((plan, i) => (
                 <div key={i} className={`rounded-2xl p-8 border ${plan.highlighted ? 'border-brand-500 bg-white shadow-lg shadow-brand-100' : 'border-slate-200 bg-white'}`}>
@@ -219,7 +219,7 @@ function RenderBlock({ block }: { block: CmsBlock }) {
             ) : (
               <div className={`${aspectClass} bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400`}>Vidéo non configurée</div>
             )}
-            {c.caption && <p className="text-center text-sm text-slate-500 mt-3">{String(c.caption)}</p>}
+            {!!c.caption && <p className="text-center text-sm text-slate-500 mt-3">{String(c.caption)}</p>}
           </div>
         </section>
       )
@@ -248,8 +248,8 @@ function RenderBlock({ block }: { block: CmsBlock }) {
       return (
         <section className="py-16 px-6 bg-slate-50">
           <div className="max-w-md mx-auto text-center">
-            {c.title && <h2 className="text-2xl font-bold text-slate-900 mb-2">{String(c.title)}</h2>}
-            {c.subtitle && <p className="text-slate-600 mb-6">{String(c.subtitle)}</p>}
+            {!!c.title && <h2 className="text-2xl font-bold text-slate-900 mb-2">{String(c.title)}</h2>}
+            {!!c.subtitle && <p className="text-slate-600 mb-6">{String(c.subtitle)}</p>}
             <form className="flex gap-2" onSubmit={e => e.preventDefault()}>
               <input type="email" placeholder={(c.placeholder as string) || 'votre@email.fr'} className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500 text-sm" />
               <button type="submit" className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-medium text-sm transition-colors whitespace-nowrap">
@@ -270,15 +270,15 @@ function RenderBlock({ block }: { block: CmsBlock }) {
       return (
         <section className="py-16 px-6 bg-white">
           <div className={`max-w-5xl mx-auto flex flex-col md:flex-row gap-10 items-center ${imageRight ? 'md:flex-row-reverse' : ''}`}>
-            {c.image_url && (
+            {!!c.image_url && (
               <div className="w-full md:w-1/2 shrink-0">
                 <img src={c.image_url as string} alt={(c.image_alt as string) || ''} className="w-full rounded-2xl object-cover" />
               </div>
             )}
             <div className="flex-1">
-              {c.title && <h2 className="text-2xl font-bold text-slate-900 mb-4">{String(c.title)}</h2>}
-              {c.content && <p className="text-slate-600 leading-relaxed mb-6">{String(c.content)}</p>}
-              {c.cta_label && (
+              {!!c.title && <h2 className="text-2xl font-bold text-slate-900 mb-4">{String(c.title)}</h2>}
+              {!!c.content && <p className="text-slate-600 leading-relaxed mb-6">{String(c.content)}</p>}
+              {!!c.cta_label && (
                 <a href={(c.cta_url as string) || '#'} className="inline-block bg-brand-600 hover:bg-brand-700 text-white font-semibold px-6 py-3 rounded-xl transition-colors">
                   {String(c.cta_label)}
                 </a>
@@ -325,7 +325,7 @@ function RenderBlock({ block }: { block: CmsBlock }) {
               <span className="text-3xl">📥</span>
               <div className="flex-1">
                 <p className="font-semibold text-slate-900 group-hover:text-brand-700">{(c.label as string) || 'Télécharger'}</p>
-                {c.description && <p className="text-xs text-slate-500 mt-0.5">{String(c.description)}</p>}
+                {!!c.description && <p className="text-xs text-slate-500 mt-0.5">{String(c.description)}</p>}
               </div>
               <span className="text-slate-400 group-hover:text-brand-500">↓</span>
             </a>
@@ -337,7 +337,7 @@ function RenderBlock({ block }: { block: CmsBlock }) {
       return (
         <section className="py-16 px-6 bg-white">
           <div className="max-w-5xl mx-auto">
-            {c.title && <h2 className="text-3xl font-bold text-slate-900 mb-12">{String(c.title)}</h2>}
+            {!!c.title && <h2 className="text-3xl font-bold text-slate-900 mb-12">{String(c.title)}</h2>}
             <p className="text-slate-400 text-sm text-center py-8 border border-dashed border-slate-200 rounded-xl">
               Les articles seront affichés ici depuis la base de données.
             </p>
@@ -362,7 +362,7 @@ function RenderBlock({ block }: { block: CmsBlock }) {
           ) : (
             <div className="max-w-3xl mx-auto">
               <img src={c.url as string} alt={(c.alt as string) || ''} className="w-full rounded-2xl object-cover" />
-              {c.caption && <p className="text-center text-sm text-slate-500 mt-3">{String(c.caption)}</p>}
+              {!!c.caption && <p className="text-center text-sm text-slate-500 mt-3">{String(c.caption)}</p>}
             </div>
           )}
         </section>
