@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Building2, Users, Bug, TrendingUp, CreditCard, CheckCircle2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/hooks/useAuth'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import type { Organisation } from '@/types/database'
@@ -140,10 +141,15 @@ function DashboardOverview() {
 export default function SuperAdminDashboard() {
   const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
+  const { organisation } = useAuth()
   const activeTab = searchParams.get('tab') ?? 'dashboard'
 
   function setTab(id: string) {
     setSearchParams(id === 'dashboard' ? {} : { tab: id })
+  }
+
+  function handleRetourOrganisation() {
+    navigate(organisation ? '/admin' : '/app')
   }
 
   return (
@@ -151,7 +157,7 @@ export default function SuperAdminDashboard() {
       <motion.div initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
         {/* Back button */}
         <button
-          onClick={() => navigate('/app/dashboard')}
+          onClick={handleRetourOrganisation}
           className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-white transition-colors mb-6"
         >
           <ArrowLeft className="w-4 h-4" />
