@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, type ReactNode } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth, signOut } from '@/hooks/useAuth'
@@ -71,6 +71,12 @@ function GlobalFeedbackButton() {
   return <FeedbackButton />
 }
 
+function SuperadminToAdminRedirect({ children }: { children: ReactNode }) {
+  const { role } = useAuth()
+  if (role === 'superadmin') return <Navigate to="/admin" replace />
+  return <>{children}</>
+}
+
 function AppRouter() {
   const { user, loading, isImpersonating } = useAuth()
   const { loading: orgLoading } = useOrganisation()
@@ -113,7 +119,7 @@ function AppRouter() {
 
         {/* Apps par rôle — lazy loaded */}
         <Route path="/terrain/*"    element={<ProtectedRoute><MFARoute><Suspense fallback={<LoadingScreen />}><TerrainApp /></Suspense></MFARoute></ProtectedRoute>} />
-        <Route path="/app/*"        element={<ProtectedRoute><MFARoute><Suspense fallback={<LoadingScreen />}><ContributorApp /></Suspense></MFARoute></ProtectedRoute>} />
+        <Route path="/app/*"        element={<ProtectedRoute><MFARoute><SuperadminToAdminRedirect><Suspense fallback={<LoadingScreen />}><ContributorApp /></Suspense></SuperadminToAdminRedirect></MFARoute></ProtectedRoute>} />
         <Route path="/manager/*"    element={<ProtectedRoute><MFARoute><Suspense fallback={<LoadingScreen />}><ManagerApp /></Suspense></MFARoute></ProtectedRoute>} />
         <Route path="/direction/*"  element={<ProtectedRoute><MFARoute><Suspense fallback={<LoadingScreen />}><DirectorApp /></Suspense></MFARoute></ProtectedRoute>} />
         <Route path="/admin/*"      element={<ProtectedRoute><MFARoute><Suspense fallback={<LoadingScreen />}><AdminApp /></Suspense></MFARoute></ProtectedRoute>} />
