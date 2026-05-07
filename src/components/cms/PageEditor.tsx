@@ -13,6 +13,9 @@ import type { CmsPage } from '@/types/database'
 export type CmsBlockType =
   | 'hero' | 'features' | 'testimonials' | 'cta'
   | 'faq' | 'stats' | 'text' | 'image' | 'divider'
+  | 'columns' | 'video' | 'carousel' | 'pricing'
+  | 'newsletter_signup' | 'html' | 'image_text'
+  | 'spacer' | 'button' | 'file_download' | 'blog_listing'
 
 export interface CmsBlock {
   id: string
@@ -25,15 +28,26 @@ function makeBlock(type: CmsBlockType): CmsBlock {
 }
 
 const BLOCK_CATALOG: { type: CmsBlockType; label: string; emoji: string; description: string }[] = [
-  { type: 'hero',         label: 'Hero',        emoji: '🎯', description: 'Titre principal + CTA' },
-  { type: 'features',     label: 'Features',    emoji: '✨', description: 'Grille de fonctionnalités' },
-  { type: 'testimonials', label: 'Témoignages', emoji: '💬', description: 'Citations clients' },
-  { type: 'cta',          label: 'CTA',         emoji: '🚀', description: 'Appel à l\'action' },
-  { type: 'faq',          label: 'FAQ',         emoji: '❓', description: 'Questions fréquentes' },
-  { type: 'stats',        label: 'Stats',       emoji: '📊', description: 'Chiffres clés' },
-  { type: 'text',         label: 'Texte libre', emoji: '📝', description: 'Contenu libre' },
-  { type: 'image',        label: 'Image',       emoji: '🖼', description: 'Image + légende' },
-  { type: 'divider',      label: 'Séparateur',  emoji: '─',  description: 'Ligne de séparation' },
+  { type: 'hero',             label: 'Hero',             emoji: '🎯', description: 'Titre principal + CTA' },
+  { type: 'features',         label: 'Features',         emoji: '✨', description: 'Grille de fonctionnalités' },
+  { type: 'testimonials',     label: 'Témoignages',      emoji: '💬', description: 'Citations clients' },
+  { type: 'cta',              label: 'CTA',              emoji: '🚀', description: 'Appel à l\'action' },
+  { type: 'faq',              label: 'FAQ',              emoji: '❓', description: 'Questions fréquentes' },
+  { type: 'stats',            label: 'Stats',            emoji: '📊', description: 'Chiffres clés' },
+  { type: 'pricing',          label: 'Tarifs',           emoji: '💰', description: 'Tableau des offres' },
+  { type: 'columns',          label: 'Colonnes',         emoji: '▦',  description: 'Mise en page multi-col' },
+  { type: 'image_text',       label: 'Image + Texte',    emoji: '🖼',  description: 'Bloc image + contenu' },
+  { type: 'carousel',         label: 'Carousel',         emoji: '🎠', description: 'Défilement d\'images' },
+  { type: 'video',            label: 'Vidéo',            emoji: '▶',  description: 'Embed YouTube/Vimeo' },
+  { type: 'newsletter_signup',label: 'Newsletter',       emoji: '📧', description: 'Formulaire d\'inscription' },
+  { type: 'blog_listing',     label: 'Blog',             emoji: '📰', description: 'Liste d\'articles' },
+  { type: 'text',             label: 'Texte libre',      emoji: '📝', description: 'Contenu libre' },
+  { type: 'image',            label: 'Image',            emoji: '🖼', description: 'Image + légende' },
+  { type: 'button',           label: 'Bouton',           emoji: '🔘', description: 'Bouton d\'action' },
+  { type: 'file_download',    label: 'Téléchargement',   emoji: '📥', description: 'Lien de fichier' },
+  { type: 'html',             label: 'HTML libre',       emoji: '</>', description: 'Code HTML arbitraire' },
+  { type: 'spacer',           label: 'Espacement',       emoji: '↕',  description: 'Espace vertical' },
+  { type: 'divider',          label: 'Séparateur',       emoji: '─',  description: 'Ligne de séparation' },
 ]
 
 // ── Block Preview ─────────────────────────────────────────────
@@ -85,10 +99,17 @@ function BlockPreview({ block, selected, onClick }: { block: CmsBlock; selected:
             </div>
           </div>
         )
+      case 'testimonials':
+        return (
+          <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
+            <p className="text-xs text-slate-400 mb-2">💬 Témoignages</p>
+            <p className="text-sm text-slate-300 italic">"Exemple de témoignage client…"</p>
+          </div>
+        )
       case 'text':
         return (
           <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
-            <p className="text-sm text-slate-300 leading-relaxed">{(c.content as string) || 'Contenu texte libre…'}</p>
+            <p className="text-sm text-slate-300 leading-relaxed line-clamp-3">{(c.content as string) || 'Contenu texte libre…'}</p>
           </div>
         )
       case 'image':
@@ -108,6 +129,126 @@ function BlockPreview({ block, selected, onClick }: { block: CmsBlock; selected:
         return (
           <div className="py-3">
             <div className={`w-full ${(c.style as string) === 'dashed' ? 'border-dashed' : (c.style as string) === 'none' ? 'opacity-0' : ''} border-t border-slate-700`} />
+          </div>
+        )
+      case 'columns': {
+        const cols = (c.columns as { content: string }[] | undefined) ?? [{ content: 'Colonne 1' }, { content: 'Colonne 2' }]
+        return (
+          <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
+            <p className="text-[10px] text-slate-500 mb-2">▦ {cols.length} colonnes</p>
+            <div className={`grid gap-2 grid-cols-${Math.min(cols.length, 4)}`}>
+              {cols.map((col, i) => (
+                <div key={i} className="bg-slate-700 rounded p-2 text-xs text-slate-300 truncate">{col.content || `Col ${i+1}`}</div>
+              ))}
+            </div>
+          </div>
+        )
+      }
+      case 'video':
+        return (
+          <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 text-center">
+            <div className="h-20 bg-slate-700 rounded-lg flex items-center justify-center">
+              <span className="text-slate-400 text-sm">▶ {(c.url as string) ? 'Vidéo configurée' : 'URL vidéo non définie'}</span>
+            </div>
+            {c.caption && <p className="text-xs text-slate-500 mt-1">{String(c.caption)}</p>}
+          </div>
+        )
+      case 'carousel': {
+        const slides = (c.slides as { url: string; caption?: string }[] | undefined) ?? []
+        return (
+          <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
+            <p className="text-[10px] text-slate-500 mb-2">🎠 {slides.length} slide{slides.length !== 1 ? 's' : ''}</p>
+            <div className="flex gap-2 overflow-hidden">
+              {slides.slice(0, 3).map((s, i) => (
+                <div key={i} className="w-16 h-10 bg-slate-700 rounded shrink-0 overflow-hidden">
+                  {s.url && <img src={s.url} alt="" className="w-full h-full object-cover" />}
+                </div>
+              ))}
+              {slides.length === 0 && <div className="text-xs text-slate-500">Aucune image</div>}
+            </div>
+          </div>
+        )
+      }
+      case 'pricing': {
+        const plans = (c.plans as { name: string; price: string }[] | undefined) ?? [{ name: 'Free', price: '0€' }, { name: 'Pro', price: '29€' }]
+        return (
+          <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
+            <p className="text-[10px] text-slate-500 mb-2">💰 Tarifs</p>
+            <div className="flex gap-2">
+              {plans.slice(0, 3).map((p, i) => (
+                <div key={i} className="flex-1 bg-slate-700 rounded p-2 text-center">
+                  <p className="text-xs font-medium text-white">{p.name}</p>
+                  <p className="text-xs text-brand-400">{p.price}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      }
+      case 'newsletter_signup':
+        return (
+          <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 text-center">
+            <p className="text-sm font-medium text-white mb-1">{(c.title as string) || 'Restez informé'}</p>
+            <div className="flex gap-2 max-w-xs mx-auto">
+              <div className="flex-1 h-8 bg-slate-700 rounded text-xs text-slate-500 flex items-center px-2">Email…</div>
+              <div className="h-8 px-3 bg-brand-600 rounded text-xs text-white flex items-center">{(c.button_label as string) || 'S\'inscrire'}</div>
+            </div>
+          </div>
+        )
+      case 'html':
+        return (
+          <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
+            <p className="text-[10px] text-slate-500 mb-1">&lt;/&gt; HTML libre</p>
+            <pre className="text-xs text-slate-400 line-clamp-3 font-mono">{(c.code as string) || '<!-- HTML ici -->'}</pre>
+          </div>
+        )
+      case 'image_text':
+        return (
+          <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
+            <div className={`flex gap-3 ${(c.image_position as string) === 'right' ? 'flex-row-reverse' : ''}`}>
+              <div className="w-16 h-12 bg-slate-700 rounded shrink-0 overflow-hidden">
+                {c.image_url && <img src={c.image_url as string} alt="" className="w-full h-full object-cover" />}
+              </div>
+              <div className="flex-1">
+                <p className="text-xs font-medium text-white mb-1">{(c.title as string) || 'Titre'}</p>
+                <p className="text-[10px] text-slate-400 line-clamp-2">{(c.content as string) || 'Contenu…'}</p>
+              </div>
+            </div>
+          </div>
+        )
+      case 'spacer':
+        return (
+          <div className="bg-slate-800/30 border border-dashed border-slate-700 rounded-xl flex items-center justify-center text-slate-600 text-xs" style={{ height: `${Math.max(20, Math.min(Number(c.height) || 40, 80))}px` }}>
+            ↕ Espacement {c.height ? `${c.height}px` : ''}
+          </div>
+        )
+      case 'button':
+        return (
+          <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 flex justify-center">
+            <span className={`inline-block text-xs px-4 py-1.5 rounded-lg ${(c.variant as string) === 'secondary' ? 'border border-brand-500 text-brand-400' : 'bg-brand-600 text-white'}`}>
+              {(c.label as string) || 'Bouton'}
+            </span>
+          </div>
+        )
+      case 'file_download':
+        return (
+          <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4 flex items-center gap-3">
+            <span className="text-2xl">📥</span>
+            <div>
+              <p className="text-sm font-medium text-white">{(c.label as string) || 'Télécharger le fichier'}</p>
+              <p className="text-xs text-slate-500">{(c.url as string) || 'URL non configurée'}</p>
+            </div>
+          </div>
+        )
+      case 'blog_listing':
+        return (
+          <div className="bg-slate-800/50 border border-slate-700 rounded-xl p-4">
+            <p className="text-[10px] text-slate-500 mb-2">📰 Articles ({(c.limit as number) || 3} max)</p>
+            <div className="space-y-1.5">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="h-6 bg-slate-700 rounded animate-pulse" />
+              ))}
+            </div>
           </div>
         )
       default:
@@ -178,6 +319,9 @@ function BlockConfigPanel({
           <Field label="URL CTA">
             <input value={(c.cta_url as string) ?? ''} onChange={e => set('cta_url', e.target.value)} placeholder="/register" className={inputClass} />
           </Field>
+          <Field label="Image de fond (URL)">
+            <input value={(c.bg_image as string) ?? ''} onChange={e => set('bg_image', e.target.value)} placeholder="https://…" className={inputClass} />
+          </Field>
         </div>
       )
 
@@ -201,6 +345,33 @@ function BlockConfigPanel({
             ))}
             <button onClick={() => addListItem('items', { icon: '⭐', title: '', description: '' })} className="text-xs text-brand-400 hover:text-brand-300 flex items-center gap-1">
               <Plus className="w-3 h-3" /> Ajouter un item
+            </button>
+          </div>
+        </div>
+      )
+
+    case 'testimonials':
+      return (
+        <div className="space-y-3">
+          <Field label="Titre section">
+            <input value={(c.title as string) ?? ''} onChange={e => set('title', e.target.value)} placeholder="Ce que disent nos clients" className={inputClass} />
+          </Field>
+          <div>
+            <p className="text-xs text-slate-400 mb-2">Témoignages</p>
+            {((c.items as { author: string; role: string; quote: string; avatar?: string }[] | undefined) ?? []).map((item, i) => (
+              <div key={i} className="bg-slate-800 border border-slate-700 rounded-lg p-3 mb-2 space-y-2">
+                <div className="flex gap-2 items-start">
+                  <div className="flex-1 space-y-2">
+                    <input value={item.author ?? ''} onChange={e => setListItem('items', i, 'author', e.target.value)} placeholder="Auteur" className={inputClass} />
+                    <input value={item.role ?? ''} onChange={e => setListItem('items', i, 'role', e.target.value)} placeholder="Rôle / Entreprise" className={inputClass} />
+                  </div>
+                  <button onClick={() => removeListItem('items', i)} className="text-slate-500 hover:text-red-400 mt-2"><Trash2 className="w-3.5 h-3.5" /></button>
+                </div>
+                <textarea value={item.quote ?? ''} onChange={e => setListItem('items', i, 'quote', e.target.value)} rows={2} placeholder="Citation…" className={`${inputClass} resize-none`} />
+              </div>
+            ))}
+            <button onClick={() => addListItem('items', { author: '', role: '', quote: '' })} className="text-xs text-brand-400 hover:text-brand-300 flex items-center gap-1">
+              <Plus className="w-3 h-3" /> Ajouter un témoignage
             </button>
           </div>
         </div>
@@ -300,6 +471,206 @@ function BlockConfigPanel({
         </Field>
       )
 
+    case 'columns': {
+      const cols = (c.columns as { content: string }[] | undefined) ?? []
+      return (
+        <div className="space-y-3">
+          <Field label="Nombre de colonnes">
+            <select value={String(cols.length || 2)} onChange={e => {
+              const n = parseInt(e.target.value)
+              const newCols = Array.from({ length: n }, (_, i) => cols[i] ?? { content: '' })
+              set('columns', newCols)
+            }} className={inputClass}>
+              <option value="2">2 colonnes</option>
+              <option value="3">3 colonnes</option>
+              <option value="4">4 colonnes</option>
+            </select>
+          </Field>
+          {cols.map((col, i) => (
+            <Field key={i} label={`Colonne ${i + 1}`}>
+              <textarea value={col.content ?? ''} onChange={e => setListItem('columns', i, 'content', e.target.value)} rows={3} placeholder="Contenu…" className={`${inputClass} resize-none`} />
+            </Field>
+          ))}
+        </div>
+      )
+    }
+
+    case 'video':
+      return (
+        <div className="space-y-3">
+          <Field label="URL YouTube / Vimeo">
+            <input value={(c.url as string) ?? ''} onChange={e => set('url', e.target.value)} placeholder="https://youtube.com/watch?v=…" className={inputClass} />
+          </Field>
+          <Field label="Légende">
+            <input value={(c.caption as string) ?? ''} onChange={e => set('caption', e.target.value)} placeholder="Légende optionnelle" className={inputClass} />
+          </Field>
+          <Field label="Rapport d'aspect">
+            <select value={(c.aspect as string) ?? '16/9'} onChange={e => set('aspect', e.target.value)} className={inputClass}>
+              <option value="16/9">16:9</option>
+              <option value="4/3">4:3</option>
+              <option value="1/1">1:1</option>
+            </select>
+          </Field>
+        </div>
+      )
+
+    case 'carousel': {
+      const slides = (c.slides as { url: string; caption?: string }[] | undefined) ?? []
+      return (
+        <div className="space-y-3">
+          <p className="text-xs text-slate-400">Slides</p>
+          {slides.map((slide, i) => (
+            <div key={i} className="bg-slate-800 border border-slate-700 rounded-lg p-3 space-y-2">
+              <div className="flex gap-2">
+                <input value={slide.url ?? ''} onChange={e => setListItem('slides', i, 'url', e.target.value)} placeholder="URL image" className={`${inputClass} flex-1`} />
+                <button onClick={() => removeListItem('slides', i)} className="text-slate-500 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
+              </div>
+              <input value={slide.caption ?? ''} onChange={e => setListItem('slides', i, 'caption', e.target.value)} placeholder="Légende (optionnel)" className={inputClass} />
+            </div>
+          ))}
+          <button onClick={() => addListItem('slides', { url: '', caption: '' })} className="text-xs text-brand-400 hover:text-brand-300 flex items-center gap-1">
+            <Plus className="w-3 h-3" /> Ajouter une slide
+          </button>
+          <Field label="Autoplay">
+            <select value={String(c.autoplay ?? 'false')} onChange={e => set('autoplay', e.target.value === 'true')} className={inputClass}>
+              <option value="false">Non</option>
+              <option value="true">Oui</option>
+            </select>
+          </Field>
+        </div>
+      )
+    }
+
+    case 'pricing': {
+      const plans = (c.plans as { name: string; price: string; period?: string; description?: string; features?: string[]; highlighted?: boolean; cta_label?: string; cta_url?: string }[] | undefined) ?? []
+      return (
+        <div className="space-y-3">
+          <Field label="Titre section">
+            <input value={(c.title as string) ?? ''} onChange={e => set('title', e.target.value)} placeholder="Nos offres" className={inputClass} />
+          </Field>
+          <p className="text-xs text-slate-400">Plans</p>
+          {plans.map((plan, i) => (
+            <div key={i} className="bg-slate-800 border border-slate-700 rounded-lg p-3 space-y-2">
+              <div className="flex gap-2">
+                <input value={plan.name ?? ''} onChange={e => setListItem('plans', i, 'name', e.target.value)} placeholder="Nom" className={`${inputClass} flex-1`} />
+                <input value={plan.price ?? ''} onChange={e => setListItem('plans', i, 'price', e.target.value)} placeholder="Prix" className="w-20 px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm focus:outline-none" />
+                <button onClick={() => removeListItem('plans', i)} className="text-slate-500 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
+              </div>
+              <input value={plan.description ?? ''} onChange={e => setListItem('plans', i, 'description', e.target.value)} placeholder="Description courte" className={inputClass} />
+              <input value={(plan.features ?? []).join('\n')} onChange={e => setListItem('plans', i, 'features', e.target.value.split('\n'))} placeholder="Features (une par ligne)" className={`${inputClass} font-mono text-xs`} />
+              <div className="flex gap-2">
+                <input value={plan.cta_label ?? ''} onChange={e => setListItem('plans', i, 'cta_label', e.target.value)} placeholder="Label CTA" className={`${inputClass} flex-1`} />
+                <input value={plan.cta_url ?? ''} onChange={e => setListItem('plans', i, 'cta_url', e.target.value)} placeholder="URL CTA" className={`${inputClass} flex-1`} />
+              </div>
+            </div>
+          ))}
+          <button onClick={() => addListItem('plans', { name: '', price: '', features: [] })} className="text-xs text-brand-400 hover:text-brand-300 flex items-center gap-1">
+            <Plus className="w-3 h-3" /> Ajouter un plan
+          </button>
+        </div>
+      )
+    }
+
+    case 'newsletter_signup':
+      return (
+        <div className="space-y-3">
+          <Field label="Titre"><input value={(c.title as string) ?? ''} onChange={e => set('title', e.target.value)} placeholder="Restez informé" className={inputClass} /></Field>
+          <Field label="Sous-titre"><input value={(c.subtitle as string) ?? ''} onChange={e => set('subtitle', e.target.value)} placeholder="Rejoignez notre newsletter" className={inputClass} /></Field>
+          <Field label="Label bouton"><input value={(c.button_label as string) ?? ''} onChange={e => set('button_label', e.target.value)} placeholder="S'inscrire" className={inputClass} /></Field>
+          <Field label="Placeholder email"><input value={(c.placeholder as string) ?? ''} onChange={e => set('placeholder', e.target.value)} placeholder="votre@email.fr" className={inputClass} /></Field>
+        </div>
+      )
+
+    case 'html':
+      return (
+        <Field label="Code HTML">
+          <textarea value={(c.code as string) ?? ''} onChange={e => set('code', e.target.value)} rows={8} placeholder="<div>…</div>" className={`${inputClass} resize-y font-mono text-xs`} />
+        </Field>
+      )
+
+    case 'image_text':
+      return (
+        <div className="space-y-3">
+          <Field label="Position de l'image">
+            <select value={(c.image_position as string) ?? 'left'} onChange={e => set('image_position', e.target.value)} className={inputClass}>
+              <option value="left">Gauche</option>
+              <option value="right">Droite</option>
+            </select>
+          </Field>
+          <Field label="URL image"><input value={(c.image_url as string) ?? ''} onChange={e => set('image_url', e.target.value)} placeholder="https://…" className={inputClass} /></Field>
+          <Field label="Alt image"><input value={(c.image_alt as string) ?? ''} onChange={e => set('image_alt', e.target.value)} placeholder="Description" className={inputClass} /></Field>
+          <Field label="Titre"><input value={(c.title as string) ?? ''} onChange={e => set('title', e.target.value)} placeholder="Titre" className={inputClass} /></Field>
+          <Field label="Contenu">
+            <textarea value={(c.content as string) ?? ''} onChange={e => set('content', e.target.value)} rows={4} placeholder="Texte descriptif…" className={`${inputClass} resize-none`} />
+          </Field>
+          <Field label="Label CTA">
+            <input value={(c.cta_label as string) ?? ''} onChange={e => set('cta_label', e.target.value)} placeholder="En savoir plus" className={inputClass} />
+          </Field>
+          <Field label="URL CTA">
+            <input value={(c.cta_url as string) ?? ''} onChange={e => set('cta_url', e.target.value)} placeholder="/features" className={inputClass} />
+          </Field>
+        </div>
+      )
+
+    case 'spacer':
+      return (
+        <Field label="Hauteur (px)">
+          <input type="number" value={(c.height as number) ?? 40} onChange={e => set('height', parseInt(e.target.value))} min={8} max={200} className={inputClass} />
+        </Field>
+      )
+
+    case 'button':
+      return (
+        <div className="space-y-3">
+          <Field label="Label"><input value={(c.label as string) ?? ''} onChange={e => set('label', e.target.value)} placeholder="Bouton" className={inputClass} /></Field>
+          <Field label="URL"><input value={(c.url as string) ?? ''} onChange={e => set('url', e.target.value)} placeholder="/register" className={inputClass} /></Field>
+          <Field label="Variante">
+            <select value={(c.variant as string) ?? 'primary'} onChange={e => set('variant', e.target.value)} className={inputClass}>
+              <option value="primary">Primary</option>
+              <option value="secondary">Secondary</option>
+              <option value="danger">Danger</option>
+            </select>
+          </Field>
+          <Field label="Alignement">
+            <select value={(c.align as string) ?? 'center'} onChange={e => set('align', e.target.value)} className={inputClass}>
+              <option value="left">Gauche</option>
+              <option value="center">Centré</option>
+              <option value="right">Droite</option>
+            </select>
+          </Field>
+          <Field label="Nouvel onglet">
+            <select value={String(c.target_blank ?? 'false')} onChange={e => set('target_blank', e.target.value === 'true')} className={inputClass}>
+              <option value="false">Non</option>
+              <option value="true">Oui</option>
+            </select>
+          </Field>
+        </div>
+      )
+
+    case 'file_download':
+      return (
+        <div className="space-y-3">
+          <Field label="Label"><input value={(c.label as string) ?? ''} onChange={e => set('label', e.target.value)} placeholder="Télécharger le document" className={inputClass} /></Field>
+          <Field label="URL du fichier"><input value={(c.url as string) ?? ''} onChange={e => set('url', e.target.value)} placeholder="https://…/fichier.pdf" className={inputClass} /></Field>
+          <Field label="Description"><input value={(c.description as string) ?? ''} onChange={e => set('description', e.target.value)} placeholder="PDF · 2 Mo" className={inputClass} /></Field>
+        </div>
+      )
+
+    case 'blog_listing':
+      return (
+        <div className="space-y-3">
+          <Field label="Titre section">
+            <input value={(c.title as string) ?? ''} onChange={e => set('title', e.target.value)} placeholder="Nos derniers articles" className={inputClass} />
+          </Field>
+          <Field label="Nombre d'articles">
+            <input type="number" value={(c.limit as number) ?? 3} onChange={e => set('limit', parseInt(e.target.value))} min={1} max={12} className={inputClass} />
+          </Field>
+          <Field label="Catégorie (filtre)">
+            <input value={(c.category as string) ?? ''} onChange={e => set('category', e.target.value)} placeholder="Laisser vide = toutes" className={inputClass} />
+          </Field>
+        </div>
+      )
+
     default:
       return <p className="text-xs text-slate-500">Aucune configuration pour ce bloc.</p>
   }
@@ -390,6 +761,8 @@ export default function PageEditor({ page, onBack }: PageEditorProps) {
     } catch { toast.error('Erreur') } finally { setSaving(false) }
   }
 
+  const publicUrl = page.page_url ?? `/p/${page.slug}`
+
   return (
     <div className="flex flex-col h-full">
       {/* Top bar */}
@@ -399,6 +772,17 @@ export default function PageEditor({ page, onBack }: PageEditorProps) {
           Retour
         </button>
         <div className="flex items-center gap-2">
+          {published && (
+            <a
+              href={publicUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-lg text-slate-300 hover:text-white transition-colors"
+            >
+              <Globe className="w-3.5 h-3.5" />
+              Voir la page
+            </a>
+          )}
           <button onClick={() => setShowPreview(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-800 border border-slate-700 rounded-lg text-slate-300 hover:text-white transition-colors">
             <Eye className="w-3.5 h-3.5" />
             Prévisualiser
@@ -416,7 +800,7 @@ export default function PageEditor({ page, onBack }: PageEditorProps) {
 
       <div className="flex gap-4 flex-1 min-h-0">
         {/* Left: catalog */}
-        <div className="w-[220px] shrink-0 space-y-1">
+        <div className="w-[220px] shrink-0 space-y-1 overflow-y-auto">
           <p className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold px-2 mb-2">Blocs disponibles</p>
           {BLOCK_CATALOG.map(item => (
             <button
@@ -424,10 +808,10 @@ export default function PageEditor({ page, onBack }: PageEditorProps) {
               onClick={() => addBlock(item.type)}
               className="w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 hover:border-brand-500 hover:bg-slate-700 transition-colors text-left"
             >
-              <span className="text-base">{item.emoji}</span>
-              <div>
+              <span className="text-base shrink-0">{item.emoji}</span>
+              <div className="min-w-0">
                 <p className="text-xs font-medium text-white">{item.label}</p>
-                <p className="text-[10px] text-slate-500">{item.description}</p>
+                <p className="text-[10px] text-slate-500 truncate">{item.description}</p>
               </div>
             </button>
           ))}
@@ -469,12 +853,12 @@ export default function PageEditor({ page, onBack }: PageEditorProps) {
         </div>
 
         {/* Right: config */}
-        <div className="w-[280px] shrink-0">
+        <div className="w-[280px] shrink-0 overflow-y-auto">
           {selectedBlock ? (
             <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4 space-y-4">
               <div className="flex items-center gap-2">
                 <span className="text-base">{BLOCK_CATALOG.find(b => b.type === selectedBlock.type)?.emoji}</span>
-                <p className="text-sm font-semibold text-white capitalize">{selectedBlock.type}</p>
+                <p className="text-sm font-semibold text-white capitalize">{BLOCK_CATALOG.find(b => b.type === selectedBlock.type)?.label ?? selectedBlock.type}</p>
               </div>
               <BlockConfigPanel
                 block={selectedBlock}

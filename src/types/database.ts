@@ -644,6 +644,8 @@ export interface CmsPage {
   og_image: string | null
   sections: Record<string, unknown>[]
   published: boolean
+  is_system: boolean
+  page_url: string | null
   created_at: string
   updated_at: string
 }
