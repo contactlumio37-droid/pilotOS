@@ -87,15 +87,6 @@ export default function ActionDrawer({ open, onClose, action, initialProcessId }
   const memberOptions = useMemberOptions(action?.organisation_id ?? organisation?.id)
   const orgMembers = memberOptions.map(m => ({ id: m.value, full_name: m.label }))
 
-  // ── DIAGNOSTIC (temporaire — supprimer après résolution RACI) ──
-  console.group('[ActionDrawer] RACI diagnostic')
-  console.log('action?.organisation_id:', action?.organisation_id)
-  console.log('organisation?.id:', organisation?.id)
-  console.log('memberOptions.length:', memberOptions.length)
-  console.log('memberOptions:', memberOptions)
-  console.groupEnd()
-  // ─────────────────────────────────────────────────────────────
-
   const { register, handleSubmit, reset, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {

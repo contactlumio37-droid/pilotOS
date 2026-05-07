@@ -20,15 +20,6 @@ export function useOrgMembers(orgId?: string) {
     enabled: !!targetOrgId,
     staleTime: 2 * 60 * 1000,
     queryFn: async () => {
-      // ── DIAGNOSTIC (temporaire — supprimer après résolution RACI) ──
-      console.group('[useOrgMembers] diagnostic')
-      console.log('orgId param:', orgId)
-      console.log('orgFromContext?.id:', orgFromContext?.id)
-      console.log('orgFromAuth?.id:', orgFromAuth?.id)
-      console.log('targetOrgId final:', targetOrgId)
-      console.groupEnd()
-      // ─────────────────────────────────────────────────────────────
-
       const { data, error } = await supabase
         .from('organisation_members')
         .select(`
@@ -47,16 +38,6 @@ export function useOrgMembers(orgId?: string) {
         .eq('is_active', true)
         .order('role')
 
-      // ── DIAGNOSTIC ─────────────────────────────────────────────
-      console.group('[useOrgMembers] query result')
-      console.log('data.length:', data?.length ?? 0)
-      console.log('error:', error)
-      if (data) {
-        data.forEach((m, i) => console.log(`  [${i}]`, m.user_id, m.role, m.profiles))
-      }
-      console.groupEnd()
-      // ─────────────────────────────────────────────────────────────
-
       if (error) throw error
       return data ?? []
     },
@@ -71,10 +52,13 @@ export function useMemberOptions(orgId?: string) {
   const { data: members } = useOrgMembers(orgId)
   return (
     members?.map(m => {
-      const p = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles
+      const p = (Array.isArray(m.profiles) ? m.profiles[0] : m.profiles) as {
+        full_name?: string | null
+        avatar_url?: string | null
+      } | null
       return {
         value: m.user_id,
-        label: p?.full_name ?? m.user_id,
+        label: p?.full_name ?? `Membre (${m.role})`,
         avatar: p?.avatar_url ?? undefined,
         role: m.role,
       }
