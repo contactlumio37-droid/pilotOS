@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { useAuth, signOut } from '@/hooks/useAuth'
 import { useAppShell } from '@/hooks/useRole'
 import { useOrganisation } from '@/hooks/useOrganisation'
@@ -8,11 +9,13 @@ import MFARoute from '@/components/auth/MFARoute'
 import ImpersonationBanner from '@/components/layout/ImpersonationBanner'
 import FeedbackButton from '@/components/layout/FeedbackButton'
 import { ToastProvider } from '@/components/ui/Toast'
+import { supabase } from '@/lib/supabase'
 
 // Pages publiques (petit poids — pas de lazy)
 import LandingPage from '@/pages/public/LandingPage'
 import PricingPage from '@/pages/public/PricingPage'
 import RoadmapPage from '@/pages/public/RoadmapPage'
+import DynamicPage from '@/pages/public/DynamicPage'
 
 // Auth
 import LoginPage from '@/pages/auth/LoginPage'
@@ -31,6 +34,33 @@ const ManagerApp     = lazy(() => import('@/pages/manager/ManagerApp'))
 const DirectorApp    = lazy(() => import('@/pages/director/DirectorApp'))
 const AdminApp       = lazy(() => import('@/pages/admin/AdminApp'))
 const SuperAdminApp  = lazy(() => import('@/pages/superadmin/SuperAdminApp'))
+
+// ── CmsOrFallback ─────────────────────────────────────────────
+// Renders DynamicPage if the CMS page has sections, otherwise the
+// hardcoded React component (Fallback). This way the landing and
+// pricing pages stay functional even when the CMS is empty.
+
+function CmsOrFallback({ slug, Fallback }: { slug: string; Fallback: React.ComponentType }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['cms_page_public', slug],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('cms_pages')
+        .select('sections, published')
+        .eq('slug', slug)
+        .eq('published', true)
+        .maybeSingle()
+      return data
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
+  if (isLoading) return null
+  if (data && Array.isArray(data.sections) && data.sections.length > 0) {
+    return <DynamicPage forceSlug={slug} />
+  }
+  return <Fallback />
+}
 
 function GlobalFeedbackButton() {
   const { user, role } = useAuth()
@@ -58,9 +88,12 @@ function AppRouter() {
       <GlobalFeedbackButton />
       <Routes>
         {/* Site public */}
-        <Route path="/"        element={<LandingPage />} />
-        <Route path="/pricing" element={<PricingPage />} />
-        <Route path="/roadmap" element={<RoadmapPage />} />
+        <Route path="/"                 element={<CmsOrFallback slug="home"           Fallback={LandingPage} />} />
+        <Route path="/pricing"          element={<CmsOrFallback slug="pricing"        Fallback={PricingPage} />} />
+        <Route path="/roadmap"          element={<RoadmapPage />} />
+        <Route path="/cgu"              element={<DynamicPage forceSlug="cgu" />} />
+        <Route path="/confidentialite"  element={<DynamicPage forceSlug="confidentialite" />} />
+        <Route path="/p/:slug"          element={<DynamicPage />} />
 
         {/* Auth */}
         <Route path="/login"          element={user ? <AppRedirect shell={appShell} /> : <LoginPage />} />

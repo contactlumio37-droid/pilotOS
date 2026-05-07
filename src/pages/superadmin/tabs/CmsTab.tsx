@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import {
-  FileText, Navigation, Search as SearchIcon, Plus, Globe, Trash2, Edit3,
+  FileText, Navigation, Search as SearchIcon, Plus, Globe, Trash2, Edit3, ExternalLink,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/ui/useToast'
@@ -32,6 +32,7 @@ function useCmsPages() {
       const { data, error } = await supabase
         .from('cms_pages')
         .select('*')
+        .order('is_system', { ascending: false })
         .order('created_at', { ascending: true })
       if (error) throw error
       return data as CmsPage[]
@@ -59,7 +60,7 @@ function NewPageModal({ onClose, onCreate }: { onClose: () => void; onCreate: (p
     try {
       const { data, error } = await supabase
         .from('cms_pages')
-        .insert({ title, slug, sections: [], published: false })
+        .insert({ title, slug, sections: [], published: false, is_system: false })
         .select()
         .single()
       if (error) throw error
@@ -90,7 +91,7 @@ function NewPageModal({ onClose, onCreate }: { onClose: () => void; onCreate: (p
             placeholder="a-propos"
             className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500"
           />
-          <p className="text-[10px] text-slate-500 mt-1">/slug</p>
+          <p className="text-[10px] text-slate-500 mt-1">/p/{slug || 'slug'}</p>
         </div>
         <div className="flex gap-2 justify-end">
           <button onClick={onClose} className="px-4 py-2 text-sm bg-slate-800 border border-slate-700 rounded-lg text-slate-300 hover:text-white transition-colors">Annuler</button>
@@ -103,15 +104,13 @@ function NewPageModal({ onClose, onCreate }: { onClose: () => void; onCreate: (p
   )
 }
 
-// ── Pages Tab ─────────────────────────────────────────────────
+// ── Page Row ──────────────────────────────────────────────────
 
-function PagesTab({ onEditPage }: { onEditPage: (page: CmsPage) => void }) {
-  const { data: pages = [], isLoading } = useCmsPages()
+function PageRow({ page, onEdit }: { page: CmsPage; onEdit: () => void }) {
   const qc = useQueryClient()
   const toast = useToast()
-  const [showNew, setShowNew] = useState(false)
 
-  async function handleTogglePublish(page: CmsPage) {
+  async function handleTogglePublish() {
     const { error } = await supabase
       .from('cms_pages')
       .update({ published: !page.published, updated_at: new Date().toISOString() })
@@ -121,29 +120,89 @@ function PagesTab({ onEditPage }: { onEditPage: (page: CmsPage) => void }) {
     toast.success(page.published ? 'Page dépubliée' : 'Page publiée')
   }
 
-  async function handleDelete(id: string) {
+  async function handleDelete() {
     if (!confirm('Supprimer cette page ?')) return
-    const { error } = await supabase.from('cms_pages').delete().eq('id', id)
+    const { error } = await supabase.from('cms_pages').delete().eq('id', page.id)
     if (error) { toast.error('Erreur lors de la suppression'); return }
     qc.invalidateQueries({ queryKey: ['cms_pages'] })
     toast.success('Page supprimée')
   }
 
-  const homePage: CmsPage = {
-    id: 'home',
-    slug: 'home',
-    title: 'Accueil (home)',
-    seo_title: null,
-    seo_description: null,
-    og_image: null,
-    sections: [],
-    published: true,
-    created_at: '',
-    updated_at: '',
-  }
+  const publicUrl = page.page_url ?? `/p/${page.slug}`
 
   return (
-    <div className="space-y-4">
+    <div className="flex items-center gap-3 px-5 py-4 bg-slate-800 rounded-xl border border-slate-700">
+      <FileText className="w-4 h-4 text-slate-500 shrink-0" />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-medium text-white truncate">{page.title}</p>
+          {page.is_system && (
+            <span className="shrink-0 text-[10px] font-medium bg-slate-700 text-slate-400 px-2 py-0.5 rounded-full border border-slate-600">
+              Système
+            </span>
+          )}
+        </div>
+        <p className="text-xs text-slate-500">
+          {page.page_url ?? `/p/${page.slug}`}
+          {page.updated_at && ` · ${new Date(page.updated_at).toLocaleDateString('fr-FR')}`}
+        </p>
+      </div>
+
+      <span className={`badge text-xs shrink-0 ${page.published ? 'badge-success' : 'badge-neutral'}`}>
+        {page.published ? 'Publié' : 'Brouillon'}
+      </span>
+
+      <div className="flex items-center gap-1 shrink-0">
+        {page.published && (
+          <a
+            href={publicUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-1.5 rounded-lg text-slate-500 hover:text-brand-400 hover:bg-slate-700 transition-colors"
+            title="Voir la page"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        )}
+        <button
+          onClick={onEdit}
+          className="text-xs px-2.5 py-1.5 rounded-lg border border-slate-600 text-slate-300 hover:border-brand-500 hover:text-brand-400 transition-colors flex items-center gap-1"
+        >
+          <Edit3 className="w-3 h-3" />
+          Éditer
+        </button>
+        <button
+          onClick={handleTogglePublish}
+          className="text-xs px-2.5 py-1.5 rounded-lg border border-slate-600 text-slate-300 hover:border-green-500 hover:text-green-400 transition-colors flex items-center gap-1"
+        >
+          <Globe className="w-3 h-3" />
+          {page.published ? 'Dépublier' : 'Publier'}
+        </button>
+        {!page.is_system && (
+          <button
+            onClick={handleDelete}
+            className="p-1.5 rounded-lg text-slate-600 hover:text-red-400 hover:bg-slate-700 transition-colors"
+            title="Supprimer"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Pages Tab ─────────────────────────────────────────────────
+
+function PagesTab({ onEditPage }: { onEditPage: (page: CmsPage) => void }) {
+  const { data: pages = [], isLoading } = useCmsPages()
+  const [showNew, setShowNew] = useState(false)
+
+  const systemPages = pages.filter(p => p.is_system)
+  const customPages = pages.filter(p => !p.is_system)
+
+  return (
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-white">Pages CMS</h2>
         <button
@@ -156,57 +215,33 @@ function PagesTab({ onEditPage }: { onEditPage: (page: CmsPage) => void }) {
       </div>
 
       {isLoading ? (
-        <div className="space-y-2">{[1,2].map(i => <div key={i} className="h-14 bg-slate-800 rounded-xl animate-pulse" />)}</div>
+        <div className="space-y-2">{[1, 2, 3].map(i => <div key={i} className="h-14 bg-slate-800 rounded-xl animate-pulse" />)}</div>
       ) : (
-        <div className="space-y-2">
-          {/* Home page row (non-deletable) */}
-          <div className="flex items-center gap-4 px-5 py-4 bg-slate-800 rounded-xl border border-slate-700">
-            <FileText className="w-4 h-4 text-slate-500 shrink-0" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white">Accueil</p>
-              <p className="text-xs text-slate-500">/home (sections site_sections)</p>
+        <>
+          {systemPages.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold px-1">Pages système</p>
+              {systemPages.map(page => (
+                <PageRow key={page.id} page={page} onEdit={() => onEditPage(page)} />
+              ))}
             </div>
-            <span className="badge badge-success text-xs">Publié</span>
-            <button onClick={() => onEditPage(homePage)} className="text-xs px-2.5 py-1.5 rounded-lg border border-slate-600 text-slate-300 hover:border-brand-500 hover:text-brand-400 transition-colors flex items-center gap-1">
-              <Edit3 className="w-3 h-3" />
-              Éditer
-            </button>
-          </div>
-
-          {/* Custom pages */}
-          {pages.map(page => (
-            <div key={page.id} className="flex items-center gap-4 px-5 py-4 bg-slate-800 rounded-xl border border-slate-700">
-              <FileText className="w-4 h-4 text-slate-500 shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate">{page.title}</p>
-                <p className="text-xs text-slate-500">/{page.slug} · {new Date(page.updated_at).toLocaleDateString('fr-FR')}</p>
-              </div>
-              <span className={`badge text-xs ${page.published ? 'badge-success' : 'badge-neutral'}`}>
-                {page.published ? 'Publié' : 'Brouillon'}
-              </span>
-              <div className="flex items-center gap-1 shrink-0">
-                <button onClick={() => onEditPage(page)} className="text-xs px-2.5 py-1.5 rounded-lg border border-slate-600 text-slate-300 hover:border-brand-500 hover:text-brand-400 transition-colors flex items-center gap-1">
-                  <Edit3 className="w-3 h-3" />
-                  Éditer
-                </button>
-                <button
-                  onClick={() => handleTogglePublish(page)}
-                  className="text-xs px-2.5 py-1.5 rounded-lg border border-slate-600 text-slate-300 hover:border-green-500 hover:text-green-400 transition-colors flex items-center gap-1"
-                >
-                  <Globe className="w-3 h-3" />
-                  {page.published ? 'Dépublier' : 'Publier'}
-                </button>
-                <button onClick={() => handleDelete(page.id)} className="p-1.5 rounded-lg text-slate-600 hover:text-red-400 hover:bg-slate-700 transition-colors">
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          ))}
-
-          {pages.length === 0 && (
-            <p className="text-center text-slate-500 py-8 text-sm">Aucune page custom. Créez votre première page.</p>
           )}
-        </div>
+
+          <div className="space-y-2">
+            <p className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold px-1">Pages personnalisées</p>
+            {customPages.map(page => (
+              <PageRow key={page.id} page={page} onEdit={() => onEditPage(page)} />
+            ))}
+            {customPages.length === 0 && (
+              <div className="text-center py-10 border-2 border-dashed border-slate-700 rounded-2xl">
+                <p className="text-slate-500 text-sm">Aucune page personnalisée.</p>
+                <button onClick={() => setShowNew(true)} className="mt-2 text-sm text-brand-400 hover:text-brand-300">
+                  Créer votre première page →
+                </button>
+              </div>
+            )}
+          </div>
+        </>
       )}
 
       {showNew && (
