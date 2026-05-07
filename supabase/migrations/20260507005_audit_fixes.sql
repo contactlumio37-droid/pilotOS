@@ -38,10 +38,17 @@ WHERE om.user_id = p.id
   AND om.is_active = true;
 
 -- ============================================================
--- [C-01] admin_audit_log — scinder SELECT et INSERT
--- SELECT réservé au superadmin
--- INSERT autorisé à tout utilisateur authentifié (audit Stripe etc.)
+-- [C-01] admin_audit_log — colonnes manquantes + scinder SELECT et INSERT
+-- logger.ts insère actor_id / organisation_id / metadata mais la table
+-- ne les avait pas → tout INSERT échouait avec erreur PostgREST 400.
+-- SELECT réservé au superadmin, INSERT pour tout utilisateur authentifié.
 -- ============================================================
+
+-- Ajouter les colonnes attendues par logger.ts (idempotent)
+ALTER TABLE admin_audit_log
+  ADD COLUMN IF NOT EXISTS actor_id        UUID REFERENCES auth.users(id),
+  ADD COLUMN IF NOT EXISTS organisation_id UUID REFERENCES organisations(id),
+  ADD COLUMN IF NOT EXISTS metadata        JSONB;
 
 DROP POLICY IF EXISTS "audit_log_superadmin"       ON admin_audit_log;
 DROP POLICY IF EXISTS "audit_log_superadmin_read"  ON admin_audit_log;

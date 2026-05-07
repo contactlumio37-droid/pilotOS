@@ -14,7 +14,7 @@
 | 🟡 Normal | 8 | Backlog — features partiellement implémentées ou dead code |
 | 🟢 Améliorations | 7 | Simplifications et dettes techniques |
 
-**Migration corrective :** `supabase/migrations/20260507004_audit_fixes.sql`
+**Migration corrective :** `supabase/migrations/20260507005_audit_fixes.sql`
 **Périmètre :** 27 migrations SQL, 22 hooks React, 8 services, ~50 tables.
 
 ---
@@ -24,9 +24,9 @@
 ### [C-01] admin_audit_log : INSERT bloqué silencieusement pour les non-superadmins
 **Fichiers :** `supabase/migrations/20260420011_rls_policies.sql`, `src/lib/logger.ts`
 
-La policy `audit_log_superadmin` est `FOR ALL USING (is_superadmin())`. En PostgreSQL RLS, `USING` sans `WITH CHECK` explicite s'applique aussi aux INSERT — seuls les superadmins peuvent donc écrire dans cette table. Or `logEvent()` dans `src/lib/logger.ts` est appelé depuis `src/services/stripe.service.ts` avec le JWT de l'utilisateur courant. Si ce dernier n'est pas superadmin, l'INSERT échoue silencieusement (le `catch` ne fait que `console.error`). **Les logs d'audit Stripe ne sont jamais persistés pour les organisations classiques.**
+La policy `audit_log_superadmin` est `FOR ALL USING (is_superadmin())` **ET** la table ne contient pas les colonnes `actor_id`, `organisation_id`, `metadata` utilisées par `logger.ts` (colonnes réelles : `admin_id`, `before_state`, `after_state`). `logEvent()` échoue donc deux fois : d'abord sur une erreur PostgREST 400 (colonne inconnue), ensuite sur le RLS. Le `try/catch` absorbe les deux silencieusement. **Aucun log d'audit Stripe n'a jamais été persisté.**
 
-**Fix migration :** Scinder la policy en SELECT superadmin-only + INSERT pour tout utilisateur authentifié.
+**Fix migration :** `ADD COLUMN IF NOT EXISTS actor_id / organisation_id / metadata` + scinder la policy en SELECT superadmin-only + INSERT pour tout utilisateur authentifié.
 
 ---
 
@@ -320,4 +320,4 @@ Toutes les tables avec `updated_at` utilisent la fonction partagée. Aucune dupl
 
 ---
 
-*Audit réalisé le 2026-05-07 — Migration corrective : `supabase/migrations/20260507004_audit_fixes.sql`*
+*Audit réalisé le 2026-05-07 — Migration corrective : `supabase/migrations/20260507005_audit_fixes.sql`*
