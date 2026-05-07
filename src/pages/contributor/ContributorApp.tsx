@@ -1,5 +1,5 @@
 import { Routes, Route } from 'react-router-dom'
-import { LayoutDashboard, ListChecks, FolderOpen, GitBranch } from 'lucide-react'
+import { LayoutDashboard, ListChecks, FolderOpen, GitBranch, AlertCircle } from 'lucide-react'
 import { useBreakpoint } from '@/hooks/useBreakpoint'
 import Sidebar from '@/components/layout/Sidebar'
 import BottomNav from '@/components/layout/BottomNav'
@@ -9,12 +9,15 @@ import ProcessesPage from '@/pages/shared/ProcessesPage'
 import DocumentsPage from '@/pages/shared/DocumentsPage'
 import ProfilePage from '@/pages/shared/ProfilePage'
 import MyReportsPage from '@/pages/shared/MyReportsPage'
+import TerrainReportPage from '@/pages/terrain/TerrainReportPage'
+import TerrainMyReportsPage from '@/pages/terrain/TerrainMyReportsPage'
 
 const NAV_ITEMS = [
-  { to: '/app', label: 'Tableau de bord', icon: LayoutDashboard, end: true },
-  { to: '/app/actions', label: 'Actions', icon: ListChecks },
-  { to: '/app/processus', label: 'Processus', icon: GitBranch },
-  { to: '/app/documents', label: 'Documents', icon: FolderOpen },
+  { to: '/app',         label: 'Tableau de bord', icon: LayoutDashboard, end: true },
+  { to: '/app/actions', label: 'Actions',          icon: ListChecks },
+  { to: '/app/processus', label: 'Processus',      icon: GitBranch },
+  { to: '/app/documents', label: 'Documents',      icon: FolderOpen },
+  { to: '/app/terrain', label: 'Terrain',           icon: AlertCircle },
 ]
 
 export default function ContributorApp() {
@@ -31,12 +34,14 @@ export default function ContributorApp() {
 
       <main className={isDesktop ? 'main-with-sidebar p-8' : 'main-with-bottom-nav p-4'}>
         <Routes>
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/actions" element={<ActionsPage />} />
-          <Route path="/processus" element={<ProcessesPage />} />
-          <Route path="/documents" element={<DocumentsPage />} />
-          <Route path="/profil" element={<ProfilePage />} />
-          <Route path="/feedback" element={<MyReportsPage />} />
+          <Route path="/"                element={<DashboardPage />} />
+          <Route path="/actions"         element={<ActionsPage />} />
+          <Route path="/processus"       element={<ProcessesPage />} />
+          <Route path="/documents"       element={<DocumentsPage />} />
+          <Route path="/terrain"         element={<TerrainReportPage />} />
+          <Route path="/terrain/remontees" element={<TerrainMyReportsPage />} />
+          <Route path="/profil"          element={<ProfilePage />} />
+          <Route path="/feedback"        element={<MyReportsPage />} />
         </Routes>
       </main>
     </div>

@@ -6,6 +6,7 @@ import { Sparkles, Send, Calendar, AlertCircle } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import Drawer from '@/components/ui/Drawer'
+import { MultiSelect } from '@/components/ui/MultiSelect'
 import { useToast } from '@/components/ui/useToast'
 import { OriginBadge, StatusBadge, PriorityBadge } from '@/components/modules/ActionBadges'
 import { useCreateAction, useUpdateAction, useActionComments, useAddComment } from '@/hooks/useActions'
@@ -14,7 +15,6 @@ import { useOrganisation } from '@/hooks/useOrganisation'
 import { useProcesses } from '@/hooks/useProcesses'
 import { useActionCategories } from '@/hooks/useActionCategories'
 import { useMemberOptions } from '@/hooks/useMembers'
-import RACISelector from '@/components/actions/RACISelector'
 import { RACI_DEFAULT } from '@/components/actions/raci-types'
 import type { RACIValue } from '@/components/actions/raci-types'
 import type { ActionWithRelations, ActionInsertPayload } from '@/hooks/useActions'
@@ -82,10 +82,9 @@ export default function ActionDrawer({ open, onClose, action, initialProcessId }
   const { data: categories = [] } = useActionCategories()
   const aiEnabled = (organisation as (typeof organisation & { ai_enabled?: boolean }) | null)?.ai_enabled ?? false
 
-  // Use action's own org (not the viewer's current context) so RACI members
-  // are correct when a superadmin opens an action from a foreign org.
+  // Utilise l'org_id de l'action elle-même — corrige le contexte superadmin
+  // où useOrganisation() retourne l'org du superadmin, pas celle de l'action
   const memberOptions = useMemberOptions(action?.organisation_id ?? organisation?.id)
-  const orgMembers = memberOptions.map(m => ({ id: m.value, full_name: m.label }))
 
   const { register, handleSubmit, reset, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -339,11 +338,47 @@ export default function ActionDrawer({ open, onClose, action, initialProcessId }
         </div>
 
         {/* RACI — création et modification */}
-        <div className="pt-2 border-t border-slate-100">
-          <RACISelector
-            members={orgMembers}
-            value={raci}
-            onChange={setRaci}
+        <div className="space-y-3 pt-2 border-t border-slate-100">
+          <h3 className="text-sm font-semibold text-slate-700">RACI</h3>
+          <MultiSelect
+            label="Responsable(s) — Réalise l'action"
+            options={memberOptions}
+            value={raci.responsible_ids}
+            onChange={ids => setRaci(r => ({
+              ...r,
+              responsible_ids: ids,
+            }))}
+            placeholder="Sélectionner…"
+          />
+          <MultiSelect
+            label="Approbateur(s) — Valide et rend compte"
+            options={memberOptions}
+            value={raci.accountable_ids}
+            onChange={ids => setRaci(r => ({
+              ...r,
+              accountable_ids: ids,
+            }))}
+            placeholder="Sélectionner…"
+          />
+          <MultiSelect
+            label="Consultés — Sollicités pour avis"
+            options={memberOptions}
+            value={raci.consulted_ids}
+            onChange={ids => setRaci(r => ({
+              ...r,
+              consulted_ids: ids,
+            }))}
+            placeholder="Sélectionner…"
+          />
+          <MultiSelect
+            label="Informés — Tenus informés uniquement"
+            options={memberOptions}
+            value={raci.informed_ids}
+            onChange={ids => setRaci(r => ({
+              ...r,
+              informed_ids: ids,
+            }))}
+            placeholder="Sélectionner…"
           />
         </div>
       </form>

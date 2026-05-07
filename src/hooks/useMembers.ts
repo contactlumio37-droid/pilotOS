@@ -5,9 +5,11 @@ import { useAuth } from '@/hooks/useAuth'
 import { useProfile } from '@/hooks/useProfile'
 import type { UserRole } from '@/types/database'
 
-// Accept explicit orgId so callers in superadmin context (or when editing an
-// action that belongs to a different org than the user's current context) can
-// fetch the correct member list without relying on useOrganisation().
+/**
+ * Membres actifs d'une organisation.
+ * Accepte un orgId explicite pour fonctionner en contexte superadmin
+ * (useAuth().organisation ≠ org consultée).
+ */
 export function useOrgMembers(orgId?: string) {
   const { organisation: orgFromContext } = useOrganisation()
   // useAuth resolves faster than useOrganisation (no extra query chain)
@@ -26,8 +28,6 @@ export function useOrgMembers(orgId?: string) {
           user_id,
           role,
           is_active,
-          invited_at,
-          accepted_at,
           profiles (
             id,
             full_name,
@@ -48,6 +48,7 @@ export type OrgMember = NonNullable<
   ReturnType<typeof useOrgMembers>['data']
 >[number]
 
+/** Options formatées pour Select ou MultiSelect */
 export function useMemberOptions(orgId?: string) {
   const { data: members } = useOrgMembers(orgId)
   return (
