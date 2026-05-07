@@ -57,18 +57,30 @@ export default function LoginPage() {
       (a, b) => (ROLE_WEIGHT[b.role] ?? 0) - (ROLE_WEIGHT[a.role] ?? 0),
     )[0]
 
+    const ROLE_ROUTES: Record<string, string> = {
+      superadmin:  '/superadmin',
+      admin:       '/admin',
+      director:    '/direction',
+      manager:     '/manager',
+      contributor: '/app',
+      reader:      '/app',
+      terrain:     '/terrain',
+    }
+
+    const defaultPath = memberRow ? (ROLE_ROUTES[memberRow.role] ?? '/app') : '/app'
+
     if (memberRow) {
       const { role, mfa_enabled, organisation } = memberRow
       const policy = (organisation as unknown as { mfa_policy: string } | null)?.mfa_policy ?? 'optional'
 
       if (isMFARequired(policy, role, mfa_enabled)) {
-        navigate('/mfa/verify', { state: { from: { pathname: from ?? '/app' } }, replace: true })
+        navigate('/mfa/verify', { state: { from: { pathname: from ?? defaultPath } }, replace: true })
         return
       }
     }
 
-    // Pas de MFA requis → redirection directe
-    navigate(from ?? '/app', { replace: true })
+    // Pas de MFA requis → redirection vers le shell du rôle
+    navigate(from ?? defaultPath, { replace: true })
   }
 
   return (
