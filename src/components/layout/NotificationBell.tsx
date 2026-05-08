@@ -2,6 +2,7 @@ import { useRef, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Bell, Check, CheckCheck } from 'lucide-react'
 import { useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead } from '@/hooks/useNotifications'
+import { useToast } from '@/components/ui/useToast'
 import type { Notification } from '@/types/database'
 
 function timeAgo(iso: string): string {
@@ -54,8 +55,19 @@ export default function NotificationBell({ collapsed = false }: { collapsed?: bo
   const { data: notifications = [] } = useNotifications()
   const markRead = useMarkNotificationRead()
   const markAll = useMarkAllNotificationsRead()
+  const toast = useToast()
 
   const unread = notifications.filter(n => !n.read).length
+
+  // Toast discret quand une nouvelle notification arrive via Realtime
+  const prevUnreadRef = useRef(unread)
+  useEffect(() => {
+    if (unread > prevUnreadRef.current) {
+      const newest = notifications.find(n => !n.read)
+      toast.info(newest?.title ?? 'Nouvelle notification')
+    }
+    prevUnreadRef.current = unread
+  }, [unread]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
