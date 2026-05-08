@@ -1,9 +1,20 @@
-// PilotOS — Wrapper SMTP unique
-// V0 : Gmail SMTP (Supabase SMTP config)
-// V1 : SMTP Infomaniak noreply@pilotos.fr (dès 2 clients payants)
-// RÈGLE : jamais appeler SMTP directement — tout passe par ce fichier
+// PilotOS — Wrapper email unique
+// RÈGLE ABSOLUE : tout email passe par ce fichier — jamais appeler SMTP directement.
+// V0 : Gmail SMTP via Supabase · V1 : Resend (RESEND_API_KEY)
 
 import { supabase } from './supabase'
+import {
+  welcomeEmailHtml,
+  invitationEmailHtml,
+  actionAssignedEmailHtml,
+  actionLateReminderEmailHtml,
+  actionDueSoonEmailHtml,
+  documentApprovalRequestEmailHtml,
+  documentApprovedEmailHtml,
+  feedbackResolvedEmailHtml,
+  mfaCodeEmailHtml,
+  weeklyDigestEmailHtml,
+} from './emailTemplates'
 
 export interface EmailPayload {
   to: string | string[]
@@ -13,44 +24,38 @@ export interface EmailPayload {
   replyTo?: string
 }
 
-// Appel à l'Edge Function Supabase (qui gère le SMTP côté serveur)
 export async function sendEmail(payload: EmailPayload): Promise<void> {
-  const { error } = await supabase.functions.invoke('send-email', {
-    body: payload,
-  })
+  const { error } = await supabase.functions.invoke('send-email', { body: payload })
   if (error) throw new Error(`Échec envoi email : ${error.message}`)
 }
 
-// ============================================================
-// Templates d'emails pré-formatés
-// ============================================================
+// ── Templates ──────────────────────────────────────────────────
+
+export async function sendWelcomeEmail(params: {
+  to: string
+  name: string
+  orgName: string
+  loginUrl: string
+}): Promise<void> {
+  await sendEmail({
+    to: params.to,
+    subject: `Bienvenue sur PilotOS — ${params.orgName}`,
+    html: welcomeEmailHtml(params),
+    text: `Bienvenue ${params.name} ! Votre organisation ${params.orgName} est prête. Connectez-vous : ${params.loginUrl}`,
+  })
+}
 
 export async function sendInvitationEmail(params: {
   to: string
   inviterName: string
   orgName: string
   inviteUrl: string
+  role?: string
 }): Promise<void> {
   await sendEmail({
     to: params.to,
     subject: `${params.inviterName} vous invite sur PilotOS — ${params.orgName}`,
-    html: `
-      <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #0F172A;">Vous avez été invité sur PilotOS</h2>
-        <p><strong>${params.inviterName}</strong> vous invite à rejoindre l'organisation <strong>${params.orgName}</strong>.</p>
-        <a href="${params.inviteUrl}" style="
-          display: inline-block;
-          background: #444ce7;
-          color: white;
-          padding: 12px 24px;
-          border-radius: 8px;
-          text-decoration: none;
-          font-weight: 600;
-          margin: 16px 0;
-        ">Rejoindre l'organisation</a>
-        <p style="color: #64748b; font-size: 14px;">Ce lien expire dans 7 jours.</p>
-      </div>
-    `,
+    html: invitationEmailHtml(params),
     text: `${params.inviterName} vous invite à rejoindre ${params.orgName} sur PilotOS. Lien : ${params.inviteUrl}`,
   })
 }
@@ -58,32 +63,81 @@ export async function sendInvitationEmail(params: {
 export async function sendActionAssignedEmail(params: {
   to: string
   assigneeName: string
+  assignerName: string
   actionTitle: string
   dueDate: string | null
+  orgName: string
   actionUrl: string
 }): Promise<void> {
   await sendEmail({
     to: params.to,
     subject: `Action assignée : ${params.actionTitle}`,
-    html: `
-      <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #0F172A;">Nouvelle action assignée</h2>
-        <p>Bonjour ${params.assigneeName},</p>
-        <p>Une action vous a été assignée : <strong>${params.actionTitle}</strong></p>
-        ${params.dueDate ? `<p>Échéance : <strong>${params.dueDate}</strong></p>` : ''}
-        <a href="${params.actionUrl}" style="
-          display: inline-block;
-          background: #444ce7;
-          color: white;
-          padding: 12px 24px;
-          border-radius: 8px;
-          text-decoration: none;
-          font-weight: 600;
-          margin: 16px 0;
-        ">Voir l'action</a>
-      </div>
-    `,
-    text: `Action assignée : ${params.actionTitle}. ${params.dueDate ? `Échéance : ${params.dueDate}.` : ''} Lien : ${params.actionUrl}`,
+    html: actionAssignedEmailHtml(params),
+    text: `Action assignée : ${params.actionTitle}${params.dueDate ? ` — Échéance : ${params.dueDate}` : ''}. Voir : ${params.actionUrl}`,
+  })
+}
+
+export async function sendActionLateReminderEmail(params: {
+  to: string
+  name: string
+  orgName: string
+  appUrl: string
+  actions: { title: string; dueDate: string }[]
+}): Promise<void> {
+  const n = params.actions.length
+  await sendEmail({
+    to: params.to,
+    subject: `${n} action${n > 1 ? 's' : ''} en retard — ${params.orgName}`,
+    html: actionLateReminderEmailHtml(params),
+    text: `Vous avez ${n} action${n > 1 ? 's' : ''} en retard dans ${params.orgName}. Accéder : ${params.appUrl}`,
+  })
+}
+
+export async function sendActionDueSoonEmail(params: {
+  to: string
+  name: string
+  orgName: string
+  appUrl: string
+  actions: { title: string; dueDate: string }[]
+}): Promise<void> {
+  const n = params.actions.length
+  await sendEmail({
+    to: params.to,
+    subject: `Actions à échéance dans 2 jours — ${params.orgName}`,
+    html: actionDueSoonEmailHtml(params),
+    text: `${n} action${n > 1 ? 's arrivent' : ' arrive'} à échéance dans 2 jours dans ${params.orgName}. Accéder : ${params.appUrl}`,
+  })
+}
+
+export async function sendDocumentApprovalRequestEmail(params: {
+  to: string
+  reviewerName: string
+  requesterName: string
+  documentTitle: string
+  orgName: string
+  documentUrl: string
+}): Promise<void> {
+  await sendEmail({
+    to: params.to,
+    subject: `Validation requise : ${params.documentTitle}`,
+    html: documentApprovalRequestEmailHtml(params),
+    text: `${params.requesterName} vous demande de valider "${params.documentTitle}". Accéder : ${params.documentUrl}`,
+  })
+}
+
+export async function sendDocumentApprovedEmail(params: {
+  to: string
+  authorName: string
+  approverName: string
+  documentTitle: string
+  orgName: string
+  documentUrl: string
+}): Promise<void> {
+  await sendEmail({
+    to: params.to,
+    subject: `Document approuvé : ${params.documentTitle}`,
+    html: documentApprovedEmailHtml(params),
+    text: `Votre document "${params.documentTitle}" a été approuvé par ${params.approverName}. Voir : ${params.documentUrl}`,
   })
 }
 
@@ -96,14 +150,7 @@ export async function sendFeedbackResolvedEmail(params: {
   await sendEmail({
     to: params.to,
     subject: `Résolu : ${params.feedbackTitle}`,
-    html: `
-      <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #16a34a;">Signalement résolu ✓</h2>
-        <p>Le signalement <strong>"${params.feedbackTitle}"</strong> a été résolu dans la version <strong>${params.version}</strong>.</p>
-        ${params.resolutionNote ? `<blockquote style="border-left: 3px solid #444ce7; padding-left: 16px; color: #475569;">${params.resolutionNote}</blockquote>` : ''}
-        <p style="color: #64748b; font-size: 14px;">Merci pour votre retour — il améliore PilotOS pour tous.</p>
-      </div>
-    `,
+    html: feedbackResolvedEmailHtml(params),
     text: `Le signalement "${params.feedbackTitle}" a été résolu dans la version ${params.version}. ${params.resolutionNote}`,
   })
 }
@@ -116,26 +163,25 @@ export async function sendMfaCodeEmail(params: {
   await sendEmail({
     to: params.to,
     subject: `Votre code de connexion PilotOS : ${params.code}`,
-    html: `
-      <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #0F172A;">Code de vérification</h2>
-        <p>Bonjour ${params.name},</p>
-        <p>Votre code de connexion à usage unique :</p>
-        <div style="
-          font-size: 36px;
-          font-weight: 700;
-          letter-spacing: 8px;
-          color: #444ce7;
-          text-align: center;
-          padding: 24px;
-          background: #f0f4ff;
-          border-radius: 12px;
-          margin: 16px 0;
-          font-family: 'JetBrains Mono', monospace;
-        ">${params.code}</div>
-        <p style="color: #64748b; font-size: 14px;">Ce code expire dans 10 minutes. Ne le partagez jamais.</p>
-      </div>
-    `,
+    html: mfaCodeEmailHtml(params),
     text: `Votre code PilotOS : ${params.code} (expire dans 10 minutes)`,
+  })
+}
+
+export async function sendWeeklyDigestEmail(params: {
+  to: string
+  name: string
+  orgName: string
+  appUrl: string
+  lateCount: number
+  dueSoonCount: number
+  doneThisWeek: number
+  newReports: number
+}): Promise<void> {
+  await sendEmail({
+    to: params.to,
+    subject: `Résumé de la semaine — ${params.orgName}`,
+    html: weeklyDigestEmailHtml(params),
+    text: `Résumé ${params.orgName} : ${params.lateCount} en retard, ${params.doneThisWeek} terminées cette semaine. Accéder : ${params.appUrl}`,
   })
 }

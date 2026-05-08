@@ -5,6 +5,8 @@ import { useFolders, useDocuments, useRenameFolder, DOC_STATUS_CLASS, DOC_STATUS
 import { useIsAtLeast } from '@/hooks/useRole'
 import { useCreateFolder } from '@/hooks/useDocuments'
 import DocumentDrawer from '@/components/modules/DocumentDrawer'
+import { usePlanLimits } from '@/hooks/usePlanLimits'
+import PlanLimitBanner from '@/components/ui/PlanLimitBanner'
 import type { Document, DocumentFolder } from '@/types/database'
 
 function FolderCard({ folder, count, onClick, canManage }: { folder: DocumentFolder; count: number; onClick: () => void; canManage: boolean }) {
@@ -144,6 +146,8 @@ export default function DocumentsPage() {
   const canEdit = useIsAtLeast('contributor')
   const canManage = useIsAtLeast('manager')
 
+  const { documents: documentsLimit, isFreePlan, checkout } = usePlanLimits()
+
   const [activeFolderId, setActiveFolderId] = useState<string | null | undefined>(undefined)
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -184,6 +188,7 @@ export default function DocumentsPage() {
   return (
     <div className="max-w-5xl">
       <motion.div initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
+        {isFreePlan && <PlanLimitBanner feature="documents" limit={documentsLimit} onUpgrade={() => void checkout()} />}
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>

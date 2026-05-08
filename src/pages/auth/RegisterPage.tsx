@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -60,6 +60,8 @@ type Step = 'account' | 'org' | 'sector' | 'done'
 // ── Composant ─────────────────────────────────────────────────
 export default function RegisterPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const pendingPlan = searchParams.get('plan') ?? ''
 
   const [step, setStep] = useState<Step>('account')
   const [showPassword, setShowPassword] = useState(false)
@@ -234,6 +236,9 @@ export default function RegisterPage() {
       })
 
       setStep('done')
+      if (pendingPlan && pendingPlan !== 'free') {
+        localStorage.setItem('pilotos_pending_plan', JSON.stringify({ plan: pendingPlan, org_id: orgId }))
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Une erreur est survenue. Réessayez.')
     } finally {
@@ -255,6 +260,11 @@ export default function RegisterPage() {
           <p className="text-slate-500 mb-6">
             Vérifiez votre email pour confirmer votre compte, puis connectez-vous.
           </p>
+          {pendingPlan && pendingPlan !== 'free' && (
+            <p className="text-sm text-brand-600 bg-brand-50 border border-brand-200 rounded-xl px-4 py-3 mb-6">
+              Votre plan sera activé dès votre première connexion.
+            </p>
+          )}
           <button onClick={() => navigate('/login')} className="btn-primary">
             Se connecter
           </button>

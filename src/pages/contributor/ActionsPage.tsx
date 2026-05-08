@@ -1,9 +1,12 @@
 import { useMemo, useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, Search, SlidersHorizontal, Inbox, LayoutList, Columns, Download, Upload } from 'lucide-react'
+import { Plus, Search, SlidersHorizontal, Inbox, LayoutList, Columns, Download, Upload, FileDown } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import PageHeader from '@/components/layout/PageHeader'
+import PlanLimitBanner from '@/components/ui/PlanLimitBanner'
+import EmptyState from '@/components/ui/EmptyState'
+import { usePlanLimits } from '@/hooks/usePlanLimits'
 import ActionDrawer from '@/components/modules/ActionDrawer'
 import KanbanBoard from '@/components/actions/KanbanBoard'
 import ImportActionsModal from '@/components/actions/ImportActionsModal'
@@ -12,6 +15,8 @@ import { PRIORITY_DOT } from '@/components/modules/actionBadgeStyles'
 import { useActions } from '@/hooks/useActions'
 import { useCategories } from '@/hooks/useCategories'
 import { useBreakpoint } from '@/hooks/useBreakpoint'
+import { useAuth } from '@/hooks/useAuth'
+import { exportActionsPDF } from '@/lib/export'
 import type { ActionWithRelations } from '@/hooks/useActions'
 import type { ActionStatus, ActionOrigin } from '@/types/database'
 
@@ -55,6 +60,8 @@ export default function ActionsPage() {
 
   const breakpoint = useBreakpoint()
   const isDesktop = breakpoint === 'desktop'
+  const { organisation } = useAuth()
+  const { actions: actionsLimit, isFreePlan, checkout } = usePlanLimits()
   const effectiveView = isDesktop ? viewMode : 'list'
 
   const { data: actions = [], isLoading, isError } = useActions({
@@ -142,6 +149,19 @@ export default function ActionsPage() {
     URL.revokeObjectURL(url)
   }
 
+  function handleExportPDF() {
+    exportActionsPDF(
+      listActions.map(a => ({
+        title: a.title,
+        status: a.status,
+        responsible: a.responsible_profile?.full_name,
+        due_date: a.due_date ?? undefined,
+        origin: a.origin,
+      })),
+      organisation?.name ?? 'Organisation'
+    )
+  }
+
   return (
     <div className="max-w-5xl">
       <PageHeader
@@ -154,6 +174,8 @@ export default function ActionsPage() {
           </button>
         }
       />
+
+      {isFreePlan && <PlanLimitBanner feature="actions" limit={actionsLimit} onUpgrade={() => void checkout()} />}
 
       {/* Toolbar */}
       <div className="flex gap-2 mb-4 flex-wrap">
@@ -209,6 +231,17 @@ export default function ActionsPage() {
           >
             <Download className="w-4 h-4" />
             <span className="hidden sm:inline">Exporter</span>
+          </button>
+        )}
+
+        {listActions.length > 0 && (
+          <button
+            onClick={handleExportPDF}
+            className="btn-secondary flex items-center gap-1.5 text-sm"
+            title="Exporter les actions filtrées (PDF)"
+          >
+            <FileDown className="w-4 h-4" />
+            <span className="hidden sm:inline">Export PDF</span>
           </button>
         )}
 
@@ -270,15 +303,18 @@ export default function ActionsPage() {
 
       {/* Empty */}
       {!isLoading && actions.length === 0 && (
-        <div className="card text-center py-12">
-          <Inbox className="w-10 h-10 text-slate-200 mx-auto mb-3" />
-          <p className="font-medium text-slate-500">
-            {search || activeFilters > 0 ? 'Aucune action ne correspond aux filtres.' : "Aucune action pour l'instant."}
-          </p>
-          {!search && !activeFilters && (
-            <button onClick={openCreate} className="btn-primary mt-4 text-sm">Créer la première action</button>
-          )}
-        </div>
+        search || activeFilters > 0 ? (
+          <div className="card text-center py-10">
+            <p className="text-slate-500 font-medium">Aucune action ne correspond aux filtres.</p>
+          </div>
+        ) : (
+          <EmptyState
+            icon={Inbox}
+            title="Aucune action pour l'instant"
+            description="Créez votre première action pour commencer le suivi."
+            cta={{ label: '+ Nouvelle action', onClick: openCreate }}
+          />
+        )
       )}
 
       {/* Kanban view */}

@@ -17,6 +17,8 @@ import { useCategories } from '@/hooks/useCategories'
 import { useIsAtLeast } from '@/hooks/useRole'
 import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
+import { usePlanLimits } from '@/hooks/usePlanLimits'
+import PlanLimitBanner from '@/components/ui/PlanLimitBanner'
 import type { Process, ProcessType, NcSeverity, NcStatus, KaizenStatus, KaizenPlan } from '@/types/database'
 import type { Category } from '@/hooks/useCategories'
 
@@ -230,6 +232,8 @@ export default function ProcessesPage() {
   const canEdit   = useIsAtLeast('manager')
   const canCreate = useIsAtLeast('manager')
 
+  const { processes: processesLimit, isFreePlan, checkout } = usePlanLimits()
+
   const { data: processes = [], isLoading: procLoading } = useProcesses()
   const { data: ncs = [],       isLoading: ncLoading }   = useNonConformities()
   const { data: kaizens = [],   isLoading: kaizenLoading } = useKaizenPlans()
@@ -292,6 +296,7 @@ export default function ProcessesPage() {
 
   return (
     <div className="max-w-4xl">
+      {isFreePlan && <PlanLimitBanner feature="processus" limit={processesLimit} onUpgrade={() => void checkout()} />}
       <PageHeader
         title="Processus"
         subtitle="Cartographie, non-conformités, Kaizen et revues"

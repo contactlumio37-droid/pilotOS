@@ -6,14 +6,18 @@ import { motion } from 'framer-motion'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Settings, Shield, Bell, CreditCard, Save, Sparkles, Users,
-  Boxes, Tag,
+  Boxes, Tag, ArrowRight, ExternalLink, CheckCircle2,
 } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useOrganisation } from '@/hooks/useOrganisation'
 import ActionCategories from '@/pages/admin/ActionCategories'
 import CategoryManager from '@/components/admin/CategoryManager'
 import { useActiveModules } from '@/hooks/useModuleAccess'
+import { useStripeCheckout } from '@/hooks/useStripeCheckout'
 import { supabase } from '@/lib/supabase'
+import { PLANS } from '@/lib/stripe'
+import { format } from 'date-fns'
+import { fr } from 'date-fns/locale'
 import type { MfaPolicy, Module, Organisation } from '@/types/database'
 
 // ── Schema / Types ────────────────────────────────────────────
@@ -225,40 +229,140 @@ function ModulesTab({ activeModules }: { activeModules: Module[] }) {
   )
 }
 
+const PLAN_BADGE: Record<string, string> = {
+  free:       'bg-slate-100 text-slate-600 border-slate-200',
+  team:       'bg-blue-50 text-blue-700 border-blue-200',
+  business:   'bg-emerald-50 text-emerald-700 border-emerald-200',
+  pro:        'bg-purple-50 text-purple-700 border-purple-200',
+  enterprise: 'bg-amber-50 text-amber-700 border-amber-200',
+}
+
 function FacturationTab({ organisation, billing }: {
   organisation: Organisation | null
   billing: { used: number; seat_limit: number; has_capacity: boolean } | undefined
 }) {
+  const { checkout, openPortal, loading } = useStripeCheckout()
+
+  const plan = organisation?.plan ?? 'free'
+  const isFree = plan === 'free'
+  const planInfo = PLANS[plan as keyof typeof PLANS]
+
+  const { data: subscription } = useQuery({
+    queryKey: ['subscription', organisation?.id],
+    enabled: !!organisation && !isFree,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('subscriptions')
+        .select('current_period_end, status')
+        .eq('organisation_id', organisation!.id)
+        .eq('status', 'active')
+        .maybeSingle()
+      return data
+    },
+  })
+
   return (
-    <div className="card">
-      <div className="flex items-center gap-3 mb-4">
-        <CreditCard className="w-5 h-5 text-brand-600" />
-        <h2 className="font-semibold text-slate-900">Abonnement & Facturation</h2>
-      </div>
-      <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
-        <div>
-          <p className="font-medium text-slate-900">Plan {PLAN_LABELS[organisation?.plan ?? 'free']}</p>
-          <p className="text-sm text-slate-500">
-            {organisation?.seats_included ?? 0} sièges inclus
-            {(organisation?.seats_extra ?? 0) > 0 && ` + ${organisation!.seats_extra} extra`}
-          </p>
+    <div className="space-y-4">
+      {/* Plan actuel */}
+      <div className="card">
+        <div className="flex items-center gap-3 mb-4">
+          <CreditCard className="w-5 h-5 text-brand-600" />
+          <h2 className="font-semibold text-slate-900">Abonnement</h2>
         </div>
-        <a href="mailto:contact@pilotos.app" className="btn-secondary text-sm">Contacter le support</a>
-      </div>
-      {billing && (
-        <div className="mt-3 flex items-center gap-2">
-          <Users className="w-4 h-4 text-slate-400" />
-          <div className="flex-1 bg-slate-100 rounded-full h-2">
-            <div
-              className={`h-2 rounded-full transition-all ${billing.has_capacity ? 'bg-brand-500' : 'bg-danger'}`}
-              style={{ width: `${Math.min(100, Math.round((billing.used / billing.seat_limit) * 100))}%` }}
-            />
+
+        <div className="flex items-start justify-between gap-4 p-4 bg-slate-50 rounded-xl">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="font-semibold text-slate-900 text-lg">{PLAN_LABELS[plan]}</span>
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${PLAN_BADGE[plan]}`}>
+                {plan.toUpperCase()}
+              </span>
+            </div>
+            <p className="text-sm text-slate-500">
+              {planInfo?.seats != null ? `${planInfo.seats} sièges inclus` : 'Sièges illimités'}
+              {(organisation?.seats_extra ?? 0) > 0 && ` + ${organisation!.seats_extra} extra`}
+              {planInfo && 'price' in planInfo && planInfo.price != null && planInfo.price > 0
+                ? ` · ${planInfo.price} €/mois`
+                : isFree ? ' · Gratuit' : ''}
+            </p>
+            {subscription?.current_period_end && (
+              <p className="text-xs text-slate-400 mt-1">
+                Prochain renouvellement : {format(new Date(subscription.current_period_end), 'd MMMM yyyy', { locale: fr })}
+              </p>
+            )}
           </div>
-          <span className="text-xs text-slate-500 shrink-0">{billing.used} / {billing.seat_limit} sièges</span>
+
+          <div className="flex flex-col gap-2 shrink-0">
+            {isFree ? (
+              <button
+                onClick={() => checkout('team')}
+                disabled={loading}
+                className="btn-primary flex items-center gap-1.5 text-sm"
+              >
+                <ArrowRight className="w-4 h-4" />
+                Passer à Team
+              </button>
+            ) : (
+              <button
+                onClick={openPortal}
+                disabled={loading}
+                className="btn-secondary flex items-center gap-1.5 text-sm"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Gérer l'abonnement
+              </button>
+            )}
+            <Link to="/pricing" className="text-xs text-brand-600 hover:text-brand-700 text-center transition-colors">
+              Voir toutes les offres
+            </Link>
+          </div>
         </div>
-      )}
-      {organisation?.stripe_customer_id && (
-        <p className="text-xs text-slate-400 mt-2">Client Stripe : {organisation.stripe_customer_id}</p>
+
+        {/* Upgrade features if free */}
+        {isFree && (
+          <div className="mt-4 grid grid-cols-3 gap-3">
+            {[
+              'Sièges illimités',
+              'Export PDF sans filigrane',
+              'Support prioritaire',
+            ].map(f => (
+              <div key={f} className="flex items-center gap-1.5 text-sm text-slate-600">
+                <CheckCircle2 className="w-4 h-4 text-brand-500 shrink-0" />
+                {f}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Sièges */}
+      {billing && (
+        <div className="card">
+          <div className="flex items-center gap-3 mb-3">
+            <Users className="w-5 h-5 text-brand-600" />
+            <h2 className="font-semibold text-slate-900">Utilisateurs</h2>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="flex-1 bg-slate-100 rounded-full h-2.5">
+              <div
+                className={`h-2.5 rounded-full transition-all ${billing.has_capacity ? 'bg-brand-500' : 'bg-danger-500'}`}
+                style={{ width: `${Math.min(100, Math.round((billing.used / billing.seat_limit) * 100))}%` }}
+              />
+            </div>
+            <span className="text-sm font-medium text-slate-700 shrink-0">
+              {billing.used} / {billing.seat_limit}
+            </span>
+          </div>
+          {!billing.has_capacity && (
+            <p className="text-xs text-danger-600 mt-2">
+              Limite de sièges atteinte.{' '}
+              {isFree
+                ? <button onClick={() => checkout('team')} className="underline font-medium">Passer à Team</button>
+                : <button onClick={openPortal} className="underline font-medium">Ajouter des sièges</button>
+              }
+            </p>
+          )}
+        </div>
       )}
     </div>
   )
@@ -292,24 +396,103 @@ function IaTab({ organisation, updateOrg }: { organisation: Organisation | null;
   )
 }
 
+type NotifPrefs = {
+  email_late_actions: boolean
+  email_due_soon: boolean
+  email_digest_weekly: boolean
+  email_document_approval: boolean
+}
+
+const DEFAULT_PREFS: NotifPrefs = {
+  email_late_actions: true,
+  email_due_soon: true,
+  email_digest_weekly: true,
+  email_document_approval: true,
+}
+
 function NotificationsTab() {
+  const { organisation, member } = useOrganisation()
+  const qc = useQueryClient()
+  const [saving, setSaving] = useState(false)
+
+  const { data: prefs = DEFAULT_PREFS } = useQuery({
+    queryKey: ['notif_prefs', member?.id],
+    enabled: !!member,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('organisation_members')
+        .select('notification_prefs')
+        .eq('id', member!.id)
+        .single()
+      return (data?.notification_prefs as NotifPrefs | null) ?? DEFAULT_PREFS
+    },
+  })
+
+  async function toggle(key: keyof NotifPrefs) {
+    if (!member) return
+    setSaving(true)
+    const next = { ...prefs, [key]: !prefs[key] }
+    await supabase
+      .from('organisation_members')
+      .update({ notification_prefs: next })
+      .eq('id', member.id)
+    qc.setQueryData(['notif_prefs', member.id], next)
+    setSaving(false)
+  }
+
+  void organisation
+
+  const PREFS_CONFIG: { key: keyof NotifPrefs; label: string; description: string }[] = [
+    {
+      key: 'email_late_actions',
+      label: "Rappels d'actions en retard",
+      description: "Email quotidien à 8h listant vos actions dont l'échéance est dépassée.",
+    },
+    {
+      key: 'email_due_soon',
+      label: 'Échéances proches (J-2)',
+      description: "Email 2 jours avant l'échéance de vos actions.",
+    },
+    {
+      key: 'email_digest_weekly',
+      label: 'Résumé hebdomadaire',
+      description: 'Bilan envoyé chaque lundi matin : actions en retard, terminées, signalements.',
+    },
+    {
+      key: 'email_document_approval',
+      label: 'Demandes de validation GED',
+      description: 'Notification quand un document passe en revue et nécessite votre validation.',
+    },
+  ]
+
   return (
     <div className="card">
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex items-center gap-3 mb-5">
         <Bell className="w-5 h-5 text-brand-600" />
-        <h2 className="font-semibold text-slate-900">Notifications</h2>
-        <span className="badge badge-neutral text-xs">Bientôt disponible</span>
+        <h2 className="font-semibold text-slate-900">Préférences de notification</h2>
+        {saving && <span className="text-xs text-slate-400">Enregistrement…</span>}
       </div>
-      <div className="space-y-3 text-sm text-slate-400">
-        {['Actions en retard (rappel quotidien)', 'Nouveaux signalements terrain', 'Revues de processus à venir (J-7)', 'Résumé hebdomadaire par email'].map(label => (
-          <label key={label} className="flex items-center gap-3 cursor-not-allowed">
-            <input type="checkbox" disabled className="rounded border-slate-200 text-slate-300 focus:ring-0" />
-            <span>{label}</span>
-          </label>
+      <div className="space-y-4">
+        {PREFS_CONFIG.map(({ key, label, description }) => (
+          <div key={key} className="flex items-start justify-between gap-4 py-3 border-b border-slate-100 last:border-0">
+            <div>
+              <p className="text-sm font-medium text-slate-800">{label}</p>
+              <p className="text-xs text-slate-500 mt-0.5">{description}</p>
+            </div>
+            <button
+              onClick={() => toggle(key)}
+              disabled={saving}
+              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${prefs[key] ? 'bg-brand-600' : 'bg-slate-200'}`}
+              role="switch"
+              aria-checked={prefs[key]}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${prefs[key] ? 'translate-x-6' : 'translate-x-1'}`} />
+            </button>
+          </div>
         ))}
       </div>
       <p className="text-xs text-slate-400 mt-4">
-        La configuration des notifications par membre sera disponible dans une prochaine version.
+        Ces préférences s'appliquent uniquement à votre compte dans cette organisation.
       </p>
     </div>
   )
@@ -320,11 +503,8 @@ function NotificationsTab() {
 export default function AdminSettings() {
   const { organisation } = useOrganisation()
   const updateOrg = useUpdateOrganisation()
-  const navigate = useNavigate()
   const activeModules = useActiveModules()
   const [activeTab, setActiveTab] = useState<SettingsTab>('organisation')
-
-  void navigate
 
   const { data: memberCount = 0 } = useQuery({
     queryKey: ['member_count', organisation?.id],

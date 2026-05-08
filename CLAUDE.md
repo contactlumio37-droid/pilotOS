@@ -135,6 +135,31 @@ Pro/Enterprise → Illimité
 
 Toujours vérifier le quota avant appel IA : `checkAiQuota(organisationId)`
 
+## Variables d'environnement
+
+### Frontend (`.env` / Vercel)
+
+```
+VITE_SUPABASE_URL=          # URL du projet Supabase
+VITE_SUPABASE_ANON_KEY=     # Clé anonyme Supabase
+VITE_APP_URL=               # URL publique de l'app (ex : https://pilotos.app)
+VITE_STRIPE_PUBLISHABLE_KEY= # Clé publique Stripe (optionnel, non utilisé côté client direct)
+```
+
+### Edge Functions (Supabase Secrets)
+
+```
+SUPABASE_URL                # Injecté automatiquement par Supabase
+SUPABASE_SERVICE_ROLE_KEY   # Injecté automatiquement par Supabase
+RESEND_API_KEY              # Clé API Resend pour l'envoi d'emails (V1)
+APP_URL                     # URL publique (ex : https://pilotos.app) — utilisé dans les emails
+STRIPE_SECRET_KEY           # Clé secrète Stripe
+STRIPE_WEBHOOK_SECRET       # Secret webhook Stripe (stripe listen --forward-to ...)
+ANTHROPIC_API_KEY           # Clé API Anthropic pour l'assistant IA
+```
+
+Configurer les secrets : `supabase secrets set RESEND_API_KEY=re_xxx`
+
 ## SMTP — Ne JAMAIS bypasser email.ts
 
 ```typescript
@@ -144,6 +169,13 @@ await sendInvitationEmail({ to, inviterName, orgName, inviteUrl })
 
 // ❌ INTERDIT — jamais appeler directement Supabase functions ou nodemailer
 ```
+
+### Templates email
+
+Tous les templates HTML sont dans `src/lib/emailTemplates.ts`.
+Chaque template exporte une fonction `*Html(params)` → HTML string.
+`email.ts` encapsule ces fonctions avec `sendEmail()`.
+Jamais écrire du HTML email inline dans les composants ou Edge Functions.
 
 ## Design System
 

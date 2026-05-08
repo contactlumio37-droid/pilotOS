@@ -16,6 +16,8 @@ import LandingPage from '@/pages/public/LandingPage'
 import PricingPage from '@/pages/public/PricingPage'
 import RoadmapPage from '@/pages/public/RoadmapPage'
 import DynamicPage from '@/pages/public/DynamicPage'
+import DemoPage from '@/pages/public/DemoPage'
+import CommandPalette from '@/components/features/CommandPalette'
 
 // Auth
 import LoginPage from '@/pages/auth/LoginPage'
@@ -99,11 +101,13 @@ function AppRouter() {
       <ImpersonationBanner />
       {isImpersonating && <div className="h-10 shrink-0" />}
       <GlobalFeedbackButton />
+      {user && <CommandPalette />}
       <Routes>
         {/* Site public */}
         <Route path="/"                 element={<CmsOrFallback slug="home"           Fallback={LandingPage} />} />
         <Route path="/pricing"          element={<CmsOrFallback slug="pricing"        Fallback={PricingPage} />} />
         <Route path="/roadmap"          element={<RoadmapPage />} />
+        <Route path="/demo"             element={<DemoPage />} />
         <Route path="/cgu"              element={<DynamicPage forceSlug="cgu" />} />
         <Route path="/confidentialite"  element={<DynamicPage forceSlug="confidentialite" />} />
         <Route path="/p/:slug"          element={<DynamicPage />} />

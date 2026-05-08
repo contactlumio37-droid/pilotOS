@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { ListChecks, GitBranch, FileText, Users, AlertTriangle, TrendingUp } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useOrganisation } from '@/hooks/useOrganisation'
+import OrgHealthScore from '@/components/features/OrgHealthScore'
 
 interface StatCard {
   label: string
@@ -183,6 +184,10 @@ export default function AdminDashboard() {
 
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
           {stats.map(s => <Stat key={s.label} {...s} />)}
+        </div>
+
+        <div className="mt-6">
+          <OrgHealthScore />
         </div>
 
         {lateActions > 0 && (
