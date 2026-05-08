@@ -5,15 +5,15 @@ import { useHasModule } from '@/hooks/useOrganisation'
 import Sidebar from '@/components/layout/Sidebar'
 import BottomNav from '@/components/layout/BottomNav'
 import ManagerDashboard from './ManagerDashboard'
-import TerrainReportsManager from './TerrainReportsManager'
-import ActionsPage from '@/pages/contributor/ActionsPage'
+import TerrainReportsManager from '@/pages/shared/TerrainReportsManager'
+import ActionsPage from '@/pages/shared/ActionsPage'
 import StrategyPage from '@/pages/shared/StrategyPage'
 import ProcessesPage from '@/pages/shared/ProcessesPage'
 import IndicatorsPage from '@/pages/shared/IndicatorsPage'
 import DocumentsPage from '@/pages/shared/DocumentsPage'
 import MembersPage from '@/pages/shared/MembersPage'
 import ProfilePage from '@/pages/shared/ProfilePage'
-import SecurityApp from '@/pages/security/SecurityApp'
+import SecurityApp from '@/pages/shared/SecurityApp'
 
 const BASE_NAV = [
   { to: '/manager',             label: 'Vue d\'ensemble', icon: LayoutDashboard, end: true },

@@ -5,6 +5,7 @@ import { z } from 'zod'
 import { Save, X } from 'lucide-react'
 import Drawer from '@/components/ui/Drawer'
 import { useCreateNC, useUpdateNC } from '@/hooks/useProcesses'
+import { useToast } from '@/components/ui/useToast'
 import type { NonConformity, NcSeverity, NcStatus, Process } from '@/types/database'
 
 const schema = z.object({
@@ -48,6 +49,7 @@ export default function NcDrawer({ open, onClose, nc, processes = [], defaultPro
   const isEdit  = !!nc
   const createNC = useCreateNC()
   const updateNC = useUpdateNC()
+  const toast = useToast()
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -93,7 +95,9 @@ export default function NcDrawer({ open, onClose, nc, processes = [], defaultPro
         })
       }
       onClose()
-    } catch { /* mutation error handled by React Query state */ }
+    } catch (err) {
+      toast.error((err as Error).message ?? 'Erreur lors de l\'enregistrement')
+    }
   }
 
   const isPending = createNC.isPending || updateNC.isPending

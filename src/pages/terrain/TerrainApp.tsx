@@ -2,8 +2,8 @@ import { Routes, Route } from 'react-router-dom'
 import { AlertCircle, ClipboardList, CheckSquare } from 'lucide-react'
 import BottomNav from '@/components/layout/BottomNav'
 import ProfilePage from '@/pages/shared/ProfilePage'
-import TerrainReportPage from './TerrainReportPage'
-import TerrainMyReportsPage from './TerrainMyReportsPage'
+import TerrainReportPage from '@/pages/shared/TerrainReportPage'
+import TerrainMyReportsPage from '@/pages/shared/TerrainMyReportsPage'
 import TerrainMyActionsPage from './TerrainMyActionsPage'
 
 const NAV_ITEMS = [

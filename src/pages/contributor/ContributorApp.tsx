@@ -4,13 +4,13 @@ import { useBreakpoint } from '@/hooks/useBreakpoint'
 import Sidebar from '@/components/layout/Sidebar'
 import BottomNav from '@/components/layout/BottomNav'
 import DashboardPage from './DashboardPage'
-import ActionsPage from './ActionsPage'
+import ActionsPage from '@/pages/shared/ActionsPage'
 import ProcessesPage from '@/pages/shared/ProcessesPage'
 import DocumentsPage from '@/pages/shared/DocumentsPage'
 import ProfilePage from '@/pages/shared/ProfilePage'
 import MyReportsPage from '@/pages/shared/MyReportsPage'
-import TerrainReportPage from '@/pages/terrain/TerrainReportPage'
-import TerrainMyReportsPage from '@/pages/terrain/TerrainMyReportsPage'
+import TerrainReportPage from '@/pages/shared/TerrainReportPage'
+import TerrainMyReportsPage from '@/pages/shared/TerrainMyReportsPage'
 
 const NAV_ITEMS = [
   { to: '/app',         label: 'Tableau de bord', icon: LayoutDashboard, end: true },

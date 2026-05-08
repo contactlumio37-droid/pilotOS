@@ -6,14 +6,14 @@ import Sidebar from '@/components/layout/Sidebar'
 import BottomNav from '@/components/layout/BottomNav'
 import DirectorDashboard from './DirectorDashboard'
 import StrategyPage from '@/pages/shared/StrategyPage'
-import ActionsPage from '@/pages/contributor/ActionsPage'
+import ActionsPage from '@/pages/shared/ActionsPage'
 import ProcessesPage from '@/pages/shared/ProcessesPage'
 import IndicatorsPage from '@/pages/shared/IndicatorsPage'
 import DocumentsPage from '@/pages/shared/DocumentsPage'
 import MembersPage from '@/pages/shared/MembersPage'
-import TerrainReportsManager from '@/pages/manager/TerrainReportsManager'
+import TerrainReportsManager from '@/pages/shared/TerrainReportsManager'
 import ProfilePage from '@/pages/shared/ProfilePage'
-import SecurityApp from '@/pages/security/SecurityApp'
+import SecurityApp from '@/pages/shared/SecurityApp'
 
 const BASE_NAV = [
   { to: '/direction',             label: 'Synthèse',    icon: LayoutDashboard, end: true },
