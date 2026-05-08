@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useParams, Navigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import SEOHead from '@/components/ui/SEOHead'
 import type { CmsPage } from '@/types/database'
 import type { CmsBlock } from '@/components/cms/PageEditor'
 
@@ -398,17 +399,7 @@ export default function DynamicPage({ forceSlug }: { forceSlug?: string }) {
   const slug = forceSlug ?? paramSlug ?? ''
   const { data: page, isLoading, isError } = useDynamicPage(slug)
 
-  useEffect(() => {
-    if (!page) return
-    document.title = page.seo_title ?? page.title
-    let desc = document.querySelector<HTMLMetaElement>('meta[name="description"]')
-    if (!desc) {
-      desc = document.createElement('meta')
-      desc.name = 'description'
-      document.head.appendChild(desc)
-    }
-    desc.content = page.seo_description ?? ''
-  }, [page])
+  useEffect(() => {}, []) // SEOHead handles title + OG below
 
   if (isLoading) {
     return (
@@ -426,6 +417,12 @@ export default function DynamicPage({ forceSlug }: { forceSlug?: string }) {
 
   return (
     <main>
+      <SEOHead
+        title={page.seo_title ?? page.title}
+        description={page.seo_description ?? undefined}
+        ogImage={(page as Record<string, unknown>).cover_image as string | undefined}
+        ogType="article"
+      />
       {blocks.map(block => (
         <RenderBlock key={block.id} block={block} />
       ))}
