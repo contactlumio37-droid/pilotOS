@@ -19,7 +19,7 @@ SELECT cron.schedule(
       body := '{}'::jsonb
     );
   $$
-) ON CONFLICT (jobname) DO UPDATE SET schedule = EXCLUDED.schedule, command = EXCLUDED.command;
+);
 
 -- Weekly digest: every Monday at 07:00 UTC
 SELECT cron.schedule(
@@ -35,4 +35,4 @@ SELECT cron.schedule(
       body := '{}'::jsonb
     );
   $$
-) ON CONFLICT (jobname) DO UPDATE SET schedule = EXCLUDED.schedule, command = EXCLUDED.command;
+);
