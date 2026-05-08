@@ -24,11 +24,11 @@ SELECT
   d.title,
   d.status::text AS status,
   d.created_at,
-  d.created_by AS user_id,
+  d.uploaded_by AS user_id,
   p.full_name AS user_name,
   p.avatar_url AS user_avatar
 FROM documents d
-LEFT JOIN profiles p ON p.id = d.created_by
+LEFT JOIN profiles p ON p.id = d.uploaded_by
 
 UNION ALL
 
