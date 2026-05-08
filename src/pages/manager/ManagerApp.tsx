@@ -13,7 +13,7 @@ import IndicatorsPage from '@/pages/shared/IndicatorsPage'
 import DocumentsPage from '@/pages/shared/DocumentsPage'
 import MembersPage from '@/pages/shared/MembersPage'
 import ProfilePage from '@/pages/shared/ProfilePage'
-import SecurityApp from '@/pages/security/SecurityApp'
+import SecurityApp from '@/pages/shared/SecurityApp'
 
 const BASE_NAV = [
   { to: '/manager',             label: 'Vue d\'ensemble', icon: LayoutDashboard, end: true },

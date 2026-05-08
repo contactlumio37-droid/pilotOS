@@ -20,7 +20,7 @@ import IndicatorsPage from '@/pages/shared/IndicatorsPage'
 import DocumentsPage from '@/pages/shared/DocumentsPage'
 import ProfilePage from '@/pages/shared/ProfilePage'
 import TerrainReportsManager from '@/pages/shared/TerrainReportsManager'
-import SecurityApp from '@/pages/security/SecurityApp'
+import SecurityApp from '@/pages/shared/SecurityApp'
 
 const BASE_NAV = [
   { to: '/admin',             label: 'Tableau de bord', icon: LayoutDashboard, end: true },

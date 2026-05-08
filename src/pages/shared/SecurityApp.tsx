@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { ShieldCheck, AlertTriangle, CalendarCheck, FileText, LayoutDashboard } from 'lucide-react'
-import SecurityDashboard from './SecurityDashboard'
-import DuerPage from './DuerPage'
-import IncidentsPage from './IncidentsPage'
-import SafetyVisitsPage from './SafetyVisitsPage'
-import RegulatoryPage from './RegulatoryPage'
+import SecurityDashboard from '@/pages/security/SecurityDashboard'
+import DuerPage from '@/pages/security/DuerPage'
+import IncidentsPage from '@/pages/security/IncidentsPage'
+import SafetyVisitsPage from '@/pages/security/SafetyVisitsPage'
+import RegulatoryPage from '@/pages/security/RegulatoryPage'
 
 type Tab = 'dashboard' | 'duer' | 'incidents' | 'visits' | 'regulatory'
 

@@ -13,7 +13,7 @@ import DocumentsPage from '@/pages/shared/DocumentsPage'
 import MembersPage from '@/pages/shared/MembersPage'
 import TerrainReportsManager from '@/pages/shared/TerrainReportsManager'
 import ProfilePage from '@/pages/shared/ProfilePage'
-import SecurityApp from '@/pages/security/SecurityApp'
+import SecurityApp from '@/pages/shared/SecurityApp'
 
 const BASE_NAV = [
   { to: '/direction',             label: 'Synthèse',    icon: LayoutDashboard, end: true },
