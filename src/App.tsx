@@ -88,13 +88,17 @@ function SuperadminGuard({ children }: { children: ReactNode }) {
 
 function AppRouter() {
   const { user, loading, isImpersonating } = useAuth()
-  const { loading: orgLoading } = useOrganisation()
+  const { loading: orgLoading, isError: orgError } = useOrganisation()
   const appShell = useAppShell()
 
   // Wait for both useAuth AND useOrganisation before evaluating redirects.
   // Without this guard, AppRedirect fires while useOrganisation is still
   // fetching (shell = null) and sends authenticated users to /onboarding.
   if (loading || (!!user && orgLoading)) return <LoadingScreen />
+
+  // If authenticated but data failed to load (e.g. RLS error / network) — show
+  // a retry screen rather than silently bouncing to /onboarding.
+  if (user && orgError) return <ConnectionErrorScreen />
 
   return (
     <>
@@ -183,6 +187,32 @@ function NoOrgScreen() {
         </a>
         <button
           onClick={() => signOut()}
+          className="block w-full text-sm text-slate-500 hover:text-slate-700 transition-colors"
+        >
+          Se déconnecter
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function ConnectionErrorScreen() {
+  return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div className="max-w-sm w-full text-center">
+        <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <span className="text-2xl">⚠</span>
+        </div>
+        <h1 className="text-xl font-bold text-slate-900 mb-2">Erreur de connexion</h1>
+        <p className="text-slate-500 text-sm mb-6">
+          Impossible de charger vos données.<br />
+          Vérifiez votre connexion et réessayez.
+        </p>
+        <button onClick={() => window.location.reload()} className="btn-primary inline-block mb-3 w-full">
+          Réessayer
+        </button>
+        <button
+          onClick={() => void signOut()}
           className="block w-full text-sm text-slate-500 hover:text-slate-700 transition-colors"
         >
           Se déconnecter

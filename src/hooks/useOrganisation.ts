@@ -118,9 +118,10 @@ export function useOrganisation(): OrganisationContext {
     member: member ?? null,
     modules,
     // Treat "user exists but member not yet fetched" as loading.
-    // [H-04] memberError = true on network failure → keep loading=true to avoid
-    // spurious /onboarding redirect when Supabase is temporarily unreachable.
-    loading: memberLoading || orgLoading || (!!user && member === undefined) || memberError,
+    // Do NOT include memberError here — a permanently failing query (e.g. RLS error)
+    // must resolve the loading state so the app can show an error screen rather than
+    // blocking forever. isError is already returned for AppRouter to act on.
+    loading: !memberError && (memberLoading || orgLoading || (!!user && member === undefined)),
     isError: memberError,
   }
 }
