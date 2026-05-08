@@ -77,6 +77,13 @@ function SuperadminToAdminRedirect({ children }: { children: ReactNode }) {
   return <>{children}</>
 }
 
+function SuperadminGuard({ children }: { children: ReactNode }) {
+  const { role, loading } = useAuth()
+  if (loading) return null
+  if (role !== 'superadmin') return <Navigate to="/app" replace />
+  return <>{children}</>
+}
+
 function AppRouter() {
   const { user, loading, isImpersonating } = useAuth()
   const { loading: orgLoading } = useOrganisation()
@@ -123,7 +130,7 @@ function AppRouter() {
         <Route path="/manager/*"    element={<ProtectedRoute><MFARoute><Suspense fallback={<LoadingScreen />}><ManagerApp /></Suspense></MFARoute></ProtectedRoute>} />
         <Route path="/direction/*"  element={<ProtectedRoute><MFARoute><Suspense fallback={<LoadingScreen />}><DirectorApp /></Suspense></MFARoute></ProtectedRoute>} />
         <Route path="/admin/*"      element={<ProtectedRoute><MFARoute><Suspense fallback={<LoadingScreen />}><AdminApp /></Suspense></MFARoute></ProtectedRoute>} />
-        <Route path="/superadmin/*" element={<ProtectedRoute><MFARoute><Suspense fallback={<LoadingScreen />}><SuperAdminApp /></Suspense></MFARoute></ProtectedRoute>} />
+        <Route path="/superadmin/*" element={<ProtectedRoute><SuperadminGuard><MFARoute><Suspense fallback={<LoadingScreen />}><SuperAdminApp /></Suspense></MFARoute></SuperadminGuard></ProtectedRoute>} />
 
         {/* Catch-all */}
         <Route path="*" element={user ? <AppRedirect shell={appShell} /> : <Navigate to="/" replace />} />

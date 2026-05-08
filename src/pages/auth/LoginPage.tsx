@@ -46,12 +46,19 @@ export default function LoginPage() {
       manager: 60, contributor: 40, reader: 20, terrain: 10,
     }
 
-    const { data: allMembers } = await supabase
-      .from('organisation_members')
-      .select('role, mfa_enabled, organisation:organisations(mfa_policy)')
-      .eq('user_id', userId)
-      .eq('is_active', true)
-      .limit(10)
+    const [{ data: allMembers }, { data: profileData }] = await Promise.all([
+      supabase
+        .from('organisation_members')
+        .select('role, mfa_enabled, organisation:organisations(mfa_policy)')
+        .eq('user_id', userId)
+        .eq('is_active', true)
+        .limit(10),
+      supabase
+        .from('profiles')
+        .select('is_superadmin')
+        .eq('id', userId)
+        .maybeSingle(),
+    ])
 
     const memberRow = (allMembers ?? []).sort(
       (a, b) => (ROLE_WEIGHT[b.role] ?? 0) - (ROLE_WEIGHT[a.role] ?? 0),
@@ -67,13 +74,17 @@ export default function LoginPage() {
       terrain:     '/terrain',
     }
 
-    const defaultPath = memberRow ? (ROLE_ROUTES[memberRow.role] ?? '/app') : '/app'
+    // profiles.is_superadmin overrides membership role — mirrors useAuth logic
+    const isSuperadmin = (profileData as { is_superadmin?: boolean } | null)?.is_superadmin === true
+    const effectiveRole = isSuperadmin ? 'superadmin' : (memberRow?.role ?? '')
+    const defaultPath = ROLE_ROUTES[effectiveRole] ?? '/app'
 
     if (memberRow) {
       const { role, mfa_enabled, organisation } = memberRow
+      const mfaRole = isSuperadmin ? 'superadmin' : role
       const policy = (organisation as unknown as { mfa_policy: string } | null)?.mfa_policy ?? 'optional'
 
-      if (isMFARequired(policy, role, mfa_enabled)) {
+      if (isMFARequired(policy, mfaRole, mfa_enabled)) {
         navigate('/mfa/verify', { state: { from: { pathname: from ?? defaultPath } }, replace: true })
         return
       }

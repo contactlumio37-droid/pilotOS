@@ -141,7 +141,11 @@ export function useAuth(): AuthState {
     const organisation = rawOrg
       ? (Array.isArray(rawOrg) ? rawOrg[0] : rawOrg) as Organisation
       : null
-    const role = (memberRow?.role ?? null) as UserRole | null
+    const memberRole = (memberRow?.role ?? null) as UserRole | null
+    // profiles.is_superadmin is the authoritative source for platform-level superadmin.
+    // Overrides organisation_members.role so BUG-001 (org creator inserted as 'admin')
+    // does not prevent the superadmin from reaching the superadmin interface.
+    const role: UserRole | null = profile?.is_superadmin === true ? 'superadmin' : memberRole
 
     if (!organisation && user) {
       console.warn('[useAuth] organisation=null pour user', user.id)
