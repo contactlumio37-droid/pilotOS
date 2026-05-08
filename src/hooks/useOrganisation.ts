@@ -67,7 +67,7 @@ export function useOrganisation(): OrganisationContext {
         .select('*')
         .eq('user_id', user.id)
         .eq('is_active', true)
-        .order('created_at', { ascending: true })
+        .order('invited_at', { ascending: true })
         .limit(1)
       if (error) {
         console.error('[useOrganisation] membership query failed:', error)

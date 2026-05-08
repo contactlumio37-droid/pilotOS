@@ -110,7 +110,7 @@ export function useAuth(): AuthState {
         .from('organisation_members')
         .select('role, organisation_id, site_id, kpi_config, organisation:organisations(*)')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
+        .order('invited_at', { ascending: false })
         .limit(5)
 
       const fallbackRows = (fallbackData ?? []) as typeof allRows
