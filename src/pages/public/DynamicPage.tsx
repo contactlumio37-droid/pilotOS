@@ -420,7 +420,7 @@ export default function DynamicPage({ forceSlug }: { forceSlug?: string }) {
       <SEOHead
         title={page.seo_title ?? page.title}
         description={page.seo_description ?? undefined}
-        ogImage={(page as Record<string, unknown>).cover_image as string | undefined}
+        ogImage={(page as unknown as Record<string, unknown>).cover_image as string | undefined}
         ogType="article"
       />
       {blocks.map(block => (

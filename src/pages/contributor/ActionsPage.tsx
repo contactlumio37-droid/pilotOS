@@ -154,7 +154,7 @@ export default function ActionsPage() {
       listActions.map(a => ({
         title: a.title,
         status: a.status,
-        responsible: a.responsible_profile?.full_name,
+        responsible: a.responsible_profile?.full_name ?? undefined,
         due_date: a.due_date ?? undefined,
         origin: a.origin,
       })),
