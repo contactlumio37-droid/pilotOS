@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /app/
+Disallow: /superadmin/
+
+Sitemap: https://pilotos.app/sitemap.xml

@@ -1,13 +1,14 @@
 import { useState } from 'react'
-import { motion } from 'framer-motion'
-import { Plus, TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Plus, TrendingUp, TrendingDown, Minus, PenLine, X } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { LineChart, Line, ResponsiveContainer, Tooltip } from 'recharts'
 import PageHeader from '@/components/layout/PageHeader'
 import IndicatorDrawer from '@/components/modules/IndicatorDrawer'
-import { useIndicators, useIndicatorValues } from '@/hooks/useIndicators'
+import { useIndicators, useIndicatorValues, useAddIndicatorValue } from '@/hooks/useIndicators'
 import { useIsAtLeast } from '@/hooks/useRole'
+import { useToast } from '@/components/ui/useToast'
 import type { Indicator, IndicatorFrequency } from '@/types/database'
 
 const FREQ_LABELS: Record<IndicatorFrequency, string> = {
@@ -18,14 +19,78 @@ const FREQ_LABELS: Record<IndicatorFrequency, string> = {
   yearly:    'Annuel',
 }
 
+// ── Value entry mini-modal ────────────────────────────────────
+
+function ValueEntryModal({ indicator, onClose }: { indicator: Indicator; onClose: () => void }) {
+  const [value, setValue] = useState('')
+  const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'))
+  const [note, setNote] = useState('')
+  const addValue = useAddIndicatorValue()
+  const toast = useToast()
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    const num = parseFloat(value)
+    if (isNaN(num)) return
+    try {
+      await addValue.mutateAsync({ indicator_id: indicator.id, value: num, measured_at: date, note: note || null, entered_by: null })
+      toast.success('Valeur enregistrée')
+      onClose()
+    } catch {
+      toast.error('Erreur lors de l\'enregistrement')
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h3 className="font-semibold text-slate-900">Saisir une valeur</h3>
+            <p className="text-xs text-slate-500 truncate max-w-[200px]">{indicator.title}</p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="label">Valeur{indicator.unit ? ` (${indicator.unit})` : ''} *</label>
+            <input type="number" step="any" value={value} onChange={e => setValue(e.target.value)} className="input" placeholder="0" autoFocus required />
+          </div>
+          <div>
+            <label className="label">Date de mesure *</label>
+            <input type="date" value={date} onChange={e => setDate(e.target.value)} className="input" required />
+          </div>
+          <div>
+            <label className="label">Note (optionnel)</label>
+            <input value={note} onChange={e => setNote(e.target.value)} className="input" placeholder="Commentaire..." />
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose} className="btn-secondary flex-1">Annuler</button>
+            <button type="submit" disabled={addValue.isPending} className="btn-primary flex-1">
+              {addValue.isPending ? 'Enregistrement...' : 'Enregistrer'}
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </div>
+  )
+}
+
 // ── Sparkline card per indicator ──────────────────────────────
 
 function IndicatorCard({
   indicator,
   onClick,
+  onAddValue,
 }: {
   indicator: Indicator
   onClick: () => void
+  onAddValue: () => void
 }) {
   const { data: values = [] } = useIndicatorValues(indicator.id)
   const sorted = [...values].sort((a, b) => a.measured_at.localeCompare(b.measured_at))
@@ -125,6 +190,14 @@ function IndicatorCard({
           </div>
         </div>
       )}
+
+      <button
+        onClick={e => { e.stopPropagation(); onAddValue() }}
+        className="mt-3 w-full flex items-center justify-center gap-1.5 text-xs text-brand-600 hover:text-brand-700 font-medium py-1.5 rounded-lg hover:bg-brand-50 transition-colors border border-brand-100"
+      >
+        <PenLine className="w-3.5 h-3.5" />
+        Saisir une valeur
+      </button>
     </motion.div>
   )
 }
@@ -132,10 +205,12 @@ function IndicatorCard({
 // ── Page ─────────────────────────────────────────────────────
 
 export default function IndicatorsPage() {
-  const [drawerOpen, setDrawerOpen]     = useState(false)
-  const [selected, setSelected]         = useState<Indicator | null>(null)
+  const [drawerOpen, setDrawerOpen]         = useState(false)
+  const [selected, setSelected]             = useState<Indicator | null>(null)
+  const [valueModalFor, setValueModalFor]   = useState<Indicator | null>(null)
 
   const canCreate = useIsAtLeast('manager')
+  const canAddValue = useIsAtLeast('contributor')
 
   const { data: indicators = [], isLoading } = useIndicators()
 
@@ -180,7 +255,12 @@ export default function IndicatorsPage() {
       {!isLoading && indicators.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {indicators.map(ind => (
-            <IndicatorCard key={ind.id} indicator={ind} onClick={() => openEdit(ind)} />
+            <IndicatorCard
+              key={ind.id}
+              indicator={ind}
+              onClick={() => openEdit(ind)}
+              onAddValue={canAddValue ? () => setValueModalFor(ind) : () => openEdit(ind)}
+            />
           ))}
         </div>
       )}
@@ -190,6 +270,12 @@ export default function IndicatorsPage() {
         onClose={() => setDrawerOpen(false)}
         indicator={selected}
       />
+
+      <AnimatePresence>
+        {valueModalFor && (
+          <ValueEntryModal indicator={valueModalFor} onClose={() => setValueModalFor(null)} />
+        )}
+      </AnimatePresence>
     </div>
   )
 }
