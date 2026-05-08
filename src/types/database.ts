@@ -85,6 +85,7 @@ export interface Profile {
   phone: string | null
   job_title: string | null
   updated_at: string
+  is_superadmin: boolean
 }
 
 export interface OrganisationMember {

@@ -25,6 +25,7 @@ interface OrganisationContext {
   member: OrganisationMember | null
   modules: ModuleAccess[]
   loading: boolean
+  isError: boolean
 }
 
 export function useOrganisation(): OrganisationContext {
@@ -39,9 +40,10 @@ export function useOrganisation(): OrganisationContext {
     return () => window.removeEventListener(ORG_CONTEXT_EVENT, sync)
   }, [])
 
-  const { data: member, isLoading: memberLoading } = useQuery({
+  const { data: member, isLoading: memberLoading, isError: memberError } = useQuery({
     queryKey: ['organisation_member', user?.id, ctxOrgId],
     enabled: !!user,
+    retry: 2,
     queryFn: async () => {
       if (!user) return null
 
@@ -54,8 +56,9 @@ export function useOrganisation(): OrganisationContext {
           .eq('organisation_id', ctxOrgId)
           .eq('is_active', true)
           .limit(1)
-        // If found, use it — otherwise fall through to default
         if (ctxRows?.[0]) return ctxRows[0] as OrganisationMember
+        // [H-03] ctxOrgId set but user not found in that org — clear the stale context
+        clearOrgContext()
       }
 
       // Default: oldest membership (the user's own original org)
@@ -68,7 +71,7 @@ export function useOrganisation(): OrganisationContext {
         .limit(1)
       if (error) {
         console.error('[useOrganisation] membership query failed:', error)
-        return null
+        throw error
       }
       return (data?.[0] ?? null) as OrganisationMember | null
     },
@@ -114,9 +117,11 @@ export function useOrganisation(): OrganisationContext {
     organisation: organisation ?? null,
     member: member ?? null,
     modules,
-    // Treat "user exists but member not yet fetched" as loading to prevent
-    // a transient undefined member from propagating to callers.
-    loading: memberLoading || orgLoading || (!!user && member === undefined),
+    // Treat "user exists but member not yet fetched" as loading.
+    // [H-04] memberError = true on network failure → keep loading=true to avoid
+    // spurious /onboarding redirect when Supabase is temporarily unreachable.
+    loading: memberLoading || orgLoading || (!!user && member === undefined) || memberError,
+    isError: memberError,
   }
 }
 
