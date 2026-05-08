@@ -30,7 +30,7 @@ function load(): ChecklistState {
 }
 
 function save(state: ChecklistState) {
-  try { localStorage.setItem(KEY, JSON.stringify(state)) } catch {}
+  try { localStorage.setItem(KEY, JSON.stringify(state)) } catch { /* localStorage indisponible (navigation privée, quota) */ }
 }
 
 export default function OnboardingChecklist() {
