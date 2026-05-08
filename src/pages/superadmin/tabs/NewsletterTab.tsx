@@ -145,10 +145,12 @@ function SubscribersTab() {
 
   async function handleToggleTag(subscriberId: string, tagId: string, hasTag: boolean) {
     if (hasTag) {
-      await supabase.from('newsletter_subscriber_tags').delete()
+      const { error } = await supabase.from('newsletter_subscriber_tags').delete()
         .eq('subscriber_id', subscriberId).eq('tag_id', tagId)
+      if (error) { toast.error('Erreur lors de la suppression du tag'); return }
     } else {
-      await supabase.from('newsletter_subscriber_tags').insert({ subscriber_id: subscriberId, tag_id: tagId })
+      const { error } = await supabase.from('newsletter_subscriber_tags').insert({ subscriber_id: subscriberId, tag_id: tagId })
+      if (error) { toast.error('Erreur lors de l\'ajout du tag'); return }
     }
     qc.invalidateQueries({ queryKey: ['newsletter_subscribers'] })
   }

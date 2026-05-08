@@ -5,6 +5,7 @@ import { z } from 'zod'
 import Drawer from '@/components/ui/Drawer'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
+import { useToast } from '@/components/ui/useToast'
 
 const PAGE_NAMES: Record<string, string> = {
   '/app':            'Dashboard',
@@ -41,6 +42,7 @@ interface FeedbackDrawerProps {
 
 export default function FeedbackDrawer({ open, onClose }: FeedbackDrawerProps) {
   const { user, role } = useAuth()
+  const toast = useToast()
   const [success, setSuccess] = useState(false)
 
   const { register, handleSubmit, reset, watch, formState: { errors, isSubmitting } } = useForm<FormData>({
@@ -64,14 +66,16 @@ export default function FeedbackDrawer({ open, onClose }: FeedbackDrawerProps) {
       is_anonymous: false,
     })
 
-    if (!error) {
-      setSuccess(true)
-      reset()
-      setTimeout(() => {
-        setSuccess(false)
-        onClose()
-      }, 1800)
+    if (error) {
+      toast.error('Erreur lors de l\'envoi — réessayez.')
+      return
     }
+    setSuccess(true)
+    reset()
+    setTimeout(() => {
+      setSuccess(false)
+      onClose()
+    }, 1800)
   }
 
   function handleClose() {

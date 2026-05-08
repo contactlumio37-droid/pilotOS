@@ -6,6 +6,7 @@ import { Download, ExternalLink, FileText, Save, Upload, X } from 'lucide-react'
 import Drawer from '@/components/ui/Drawer'
 import { useUploadDocument, useUpdateDocument, useDocumentUrl, DOC_STATUS_LABEL, DOC_STATUS_CLASS, DOC_TYPE_LABEL } from '@/hooks/useDocuments'
 import { useIsAtLeast } from '@/hooks/useRole'
+import { useToast } from '@/components/ui/useToast'
 import type { Document, DocumentFolder, DocType, DocStatus } from '@/types/database'
 
 const schema = z.object({
@@ -39,6 +40,7 @@ export default function DocumentDrawer({ open, onClose, document, folders = [], 
   const canAdvance = useIsAtLeast('manager')
   const fileRef   = useRef<HTMLInputElement>(null)
   const [file, setFile] = useState<File | null>(null)
+  const toast = useToast()
 
   const upload       = useUploadDocument()
   const updateDoc    = useUpdateDocument()
@@ -85,7 +87,9 @@ export default function DocumentDrawer({ open, onClose, document, folders = [], 
         })
       }
       onClose()
-    } catch { /* mutation error handled by React Query state */ }
+    } catch (err) {
+      toast.error((err as Error).message ?? 'Erreur lors de l\'enregistrement')
+    }
   }
 
   const isPending = upload.isPending || updateDoc.isPending

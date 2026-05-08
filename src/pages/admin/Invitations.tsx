@@ -6,6 +6,7 @@ import { fr } from 'date-fns/locale'
 import { supabase } from '@/lib/supabase'
 import { useOrganisation } from '@/hooks/useOrganisation'
 import { useAuth } from '@/hooks/useAuth'
+import { useToast } from '@/components/ui/useToast'
 import PageHeader from '@/components/layout/PageHeader'
 
 const ROLE_OPTIONS = [
@@ -51,6 +52,7 @@ export default function Invitations() {
   const { organisation } = useOrganisation()
   const { user } = useAuth()
   const qc = useQueryClient()
+  const toast = useToast()
 
   const [showModal, setShowModal] = useState(false)
   const [email, setEmail]         = useState('')
@@ -100,6 +102,7 @@ export default function Invitations() {
       if (error) throw error
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['invitations', organisation?.id] }),
+    onError: (err: Error) => toast.error(err.message ?? 'Erreur lors de l\'annulation'),
   })
 
   const resendMutation = useMutation({
@@ -114,6 +117,7 @@ export default function Invitations() {
       if (error) throw error
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['invitations', organisation?.id] }),
+    onError: (err: Error) => toast.error(err.message ?? 'Erreur lors du renvoi'),
   })
 
   async function handleCreate(e: FormEvent) {

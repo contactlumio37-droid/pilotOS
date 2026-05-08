@@ -12,6 +12,7 @@ import { useCreateProcess, useUpdateProcess } from '@/hooks/useProcesses'
 import { useActions } from '@/hooks/useActions'
 import { useIsAtLeast } from '@/hooks/useRole'
 import { useCategories } from '@/hooks/useCategories'
+import { useToast } from '@/components/ui/useToast'
 import type { Process, ProcessType, ReviewFrequency, Visibility } from '@/types/database'
 import type { ActionWithRelations } from '@/hooks/useActions'
 
@@ -73,6 +74,7 @@ export default function ProcessDrawer({ open, onClose, process }: Props) {
   const [tab, setTab] = useState<'form' | 'nc' | 'kaizen' | 'actions'>('form')
   const [actionDrawerOpen, setActionDrawerOpen] = useState(false)
   const [editAction, setEditAction] = useState<ActionWithRelations | null>(null)
+  const toast = useToast()
 
   const createProcess = useCreateProcess()
   const updateProcess = useUpdateProcess()
@@ -151,7 +153,9 @@ export default function ProcessDrawer({ open, onClose, process }: Props) {
         })
       }
       onClose()
-    } catch { /* mutation error handled by React Query state */ }
+    } catch (err) {
+      toast.error((err as Error).message ?? 'Erreur lors de l\'enregistrement')
+    }
   }
 
   const isPending = createProcess.isPending || updateProcess.isPending

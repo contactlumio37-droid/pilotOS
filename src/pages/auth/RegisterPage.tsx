@@ -132,16 +132,17 @@ export default function RegisterPage() {
       const orgId = org.id
 
       // 3. Ajouter l'utilisateur comme admin
-      await supabase.from('organisation_members').insert({
+      const { error: memberError } = await supabase.from('organisation_members').insert({
         organisation_id: orgId,
         user_id: userId,
         role: 'admin',
         accepted_at: new Date().toISOString(),
       })
+      if (memberError) throw memberError
 
       // 4. Activer tous les modules par défaut
       const ALL_MODULES = ['pilotage', 'processus', 'ged', 'terrain', 'securite'] as const
-      await supabase.from('module_access').insert(
+      const { error: moduleError } = await supabase.from('module_access').insert(
         ALL_MODULES.map(module => ({
           organisation_id: orgId,
           module,
@@ -149,6 +150,7 @@ export default function RegisterPage() {
           activated_at: new Date().toISOString(),
         })),
       )
+      if (moduleError) throw moduleError
 
       // 5. Charger les templates du secteur
       const { data: templates } = await supabase
@@ -164,7 +166,7 @@ export default function RegisterPage() {
             const content = template.content as { processes?: Array<{ title: string; process_code: string; type: string }> }
             const processes = content.processes ?? []
             if (processes.length) {
-              await supabase.from('processes').insert(
+              const { error: processError } = await supabase.from('processes').insert(
                 processes.map((p) => ({
                   organisation_id: orgId,
                   title: p.title,
@@ -173,19 +175,21 @@ export default function RegisterPage() {
                   status: 'active',
                 })),
               )
+              if (processError) throw processError
             }
           }
           if (template.type === 'document_tree') {
             const content = template.content as { folders?: Array<{ name: string; children?: Array<{ name: string }> }> }
             const folders = content.folders ?? []
             for (let i = 0; i < folders.length; i++) {
-              const { data: parentFolder } = await supabase
+              const { data: parentFolder, error: folderError } = await supabase
                 .from('document_folders')
                 .insert({ organisation_id: orgId, name: folders[i].name, sort_order: i + 1, is_system: true })
                 .select()
                 .single()
+              if (folderError) throw folderError
               if (parentFolder && folders[i].children) {
-                await supabase.from('document_folders').insert(
+                const { error: childError } = await supabase.from('document_folders').insert(
                   (folders[i].children ?? []).map((child, j) => ({
                     organisation_id: orgId,
                     parent_id: parentFolder.id,
@@ -194,6 +198,7 @@ export default function RegisterPage() {
                     is_system: true,
                   })),
                 )
+                if (childError) throw childError
               }
             }
           }
@@ -203,13 +208,14 @@ export default function RegisterPage() {
       // Dossiers ISO par défaut si aucun template document_tree
       const hasDocTree = templates?.some((t) => t.type === 'document_tree')
       if (!hasDocTree) {
-        await supabase.from('document_folders').insert(
+        const { error: isoError } = await supabase.from('document_folders').insert(
           ISO_FOLDERS.map((f) => ({ ...f, organisation_id: orgId, is_system: true })),
         )
+        if (isoError) throw isoError
       }
 
-      // 6. Envoyer l'email de bienvenue
-      await sendEmail({
+      // 6. Envoyer l'email de bienvenue (non bloquant)
+      try { await sendEmail({
         to: accountData.email,
         subject: `Bienvenue sur PilotOS, ${accountData.full_name.split(' ')[0]} !`,
         html: `
@@ -233,7 +239,7 @@ export default function RegisterPage() {
           </div>
         `,
         text: `Bienvenue sur PilotOS ! Votre espace ${orgData.org_name} est prêt. Accédez à votre espace : ${window.location.origin}/app`,
-      })
+      }) } catch { /* non bloquant */ }
 
       setStep('done')
       if (pendingPlan && pendingPlan !== 'free') {

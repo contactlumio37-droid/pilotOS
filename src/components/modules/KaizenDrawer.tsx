@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import Drawer from '@/components/ui/Drawer'
 import { useCreateKaizen, useUpdateKaizen } from '@/hooks/useProcesses'
+import { useToast } from '@/components/ui/useToast'
 import type { KaizenPlan } from '@/types/database'
 
 const schema = z.object({
@@ -28,6 +29,7 @@ export default function KaizenDrawer({ open, onClose, kaizen, processId }: Kaize
   const isEdit = !!kaizen
   const create = useCreateKaizen()
   const update = useUpdateKaizen()
+  const toast = useToast()
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -60,12 +62,16 @@ export default function KaizenDrawer({ open, onClose, kaizen, processId }: Kaize
       process_id:              processId ?? kaizen?.process_id ?? null,
       created_by:              null,
     }
-    if (isEdit) {
-      await update.mutateAsync({ id: kaizen.id, ...payload })
-    } else {
-      await create.mutateAsync(payload)
+    try {
+      if (isEdit) {
+        await update.mutateAsync({ id: kaizen.id, ...payload })
+      } else {
+        await create.mutateAsync(payload)
+      }
+      onClose()
+    } catch (err) {
+      toast.error((err as Error).message ?? 'Erreur lors de l\'enregistrement')
     }
-    onClose()
   }
 
   return (

@@ -3,6 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import Drawer from '@/components/ui/Drawer'
 import { useCreateCodirDecision } from '@/hooks/usePilotage'
+import { useToast } from '@/components/ui/useToast'
 
 const schema = z.object({
   title: z.string().min(3, 'Titre requis'),
@@ -20,6 +21,7 @@ interface CodirDecisionDrawerProps {
 
 export default function CodirDecisionDrawer({ open, onClose }: CodirDecisionDrawerProps) {
   const create = useCreateCodirDecision()
+  const toast = useToast()
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -30,14 +32,18 @@ export default function CodirDecisionDrawer({ open, onClose }: CodirDecisionDraw
   })
 
   async function onSubmit(data: FormData) {
-    await create.mutateAsync({
-      title: data.title,
-      description: data.description || undefined,
-      decision_date: data.decision_date,
-      visibility: data.visibility,
-    })
-    reset()
-    onClose()
+    try {
+      await create.mutateAsync({
+        title: data.title,
+        description: data.description || undefined,
+        decision_date: data.decision_date,
+        visibility: data.visibility,
+      })
+      reset()
+      onClose()
+    } catch (err) {
+      toast.error((err as Error).message ?? 'Erreur lors de la création')
+    }
   }
 
   function handleClose() {

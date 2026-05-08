@@ -9,6 +9,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ReferenceLine, ResponsiveContai
 import Drawer from '@/components/ui/Drawer'
 import { useCreateIndicator, useUpdateIndicator, useIndicatorValues, useAddIndicatorValue } from '@/hooks/useIndicators'
 import { useIsAtLeast } from '@/hooks/useRole'
+import { useToast } from '@/components/ui/useToast'
 import type { Indicator, IndicatorFrequency, Visibility } from '@/types/database'
 
 // ── Indicator form ────────────────────────────────────────────
@@ -63,6 +64,7 @@ export default function IndicatorDrawer({ open, onClose, indicator }: Props) {
   const canEdit   = useIsAtLeast('manager')
   const [tab, setTab] = useState<'form' | 'values'>('form')
   const [addingValue, setAddingValue] = useState(false)
+  const toast = useToast()
 
   const createIndicator = useCreateIndicator()
   const updateIndicator = useUpdateIndicator()
@@ -133,7 +135,9 @@ export default function IndicatorDrawer({ open, onClose, indicator }: Props) {
         await createIndicator.mutateAsync(payload)
       }
       onClose()
-    } catch { /* mutation error handled by React Query state */ }
+    } catch (err) {
+      toast.error((err as Error).message ?? 'Erreur lors de l\'enregistrement')
+    }
   }
 
   async function onSubmitValue(data: ValueForm) {
@@ -148,7 +152,9 @@ export default function IndicatorDrawer({ open, onClose, indicator }: Props) {
       })
       resetVal({ value: 0, measured_at: new Date().toISOString().slice(0, 10), note: '' })
       setAddingValue(false)
-    } catch { /* mutation error handled by React Query state */ }
+    } catch (err) {
+      toast.error((err as Error).message ?? 'Erreur lors de l\'ajout de la mesure')
+    }
   }
 
   const chartData = values.map(v => ({

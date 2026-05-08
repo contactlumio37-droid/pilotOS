@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import Drawer from '@/components/ui/Drawer'
 import { useCreateObjective, useUpdateObjective } from '@/hooks/usePilotage'
+import { useToast } from '@/components/ui/useToast'
 import type { StrategicObjective } from '@/types/database'
 
 const schema = z.object({
@@ -31,6 +32,7 @@ export default function ObjectiveDrawer({ open, onClose, objective }: ObjectiveD
   const isEdit = !!objective
   const create = useCreateObjective()
   const update = useUpdateObjective()
+  const toast = useToast()
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -63,12 +65,16 @@ export default function ObjectiveDrawer({ open, onClose, objective }: ObjectiveD
       start_date: data.start_date || undefined,
       end_date: data.end_date || undefined,
     }
-    if (isEdit) {
-      await update.mutateAsync({ id: objective.id, ...payload })
-    } else {
-      await create.mutateAsync(payload)
+    try {
+      if (isEdit) {
+        await update.mutateAsync({ id: objective.id, ...payload })
+      } else {
+        await create.mutateAsync(payload)
+      }
+      onClose()
+    } catch (err) {
+      toast.error((err as Error).message ?? 'Erreur lors de l\'enregistrement')
     }
-    onClose()
   }
 
   return (

@@ -4,6 +4,7 @@ import Drawer from '@/components/ui/Drawer'
 import {
   ALL_KPI_DEFINITIONS, DEFAULT_KPI_CONFIG, useKpiConfig, useSaveKpiConfig,
 } from '@/hooks/useDashboardKPIs'
+import { useToast } from '@/components/ui/useToast'
 import type { KpiId, KpiConfig } from '@/hooks/useDashboardKPIs'
 
 interface KPIConfigDrawerProps {
@@ -14,6 +15,7 @@ interface KPIConfigDrawerProps {
 export default function KPIConfigDrawer({ open, onClose }: KPIConfigDrawerProps) {
   const { data: savedConfig } = useKpiConfig()
   const save = useSaveKpiConfig()
+  const toast = useToast()
 
   const [config, setConfig] = useState<KpiConfig>(DEFAULT_KPI_CONFIG)
 
@@ -56,8 +58,12 @@ export default function KPIConfigDrawer({ open, onClose }: KPIConfigDrawerProps)
   }
 
   async function handleSave() {
-    await save.mutateAsync(config)
-    onClose()
+    try {
+      await save.mutateAsync(config)
+      onClose()
+    } catch (err) {
+      toast.error((err as Error).message ?? 'Erreur lors de l\'enregistrement')
+    }
   }
 
   // Items sorted: enabled first (in order), then disabled

@@ -8,6 +8,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { summarizeProcessReview } from '@/lib/ai'
+import { useToast } from '@/components/ui/useToast'
 import type { ProcessReview } from '@/types/database'
 
 const schema = z.object({
@@ -63,6 +64,7 @@ export default function ProcessReviewDrawer({ open, onClose, review, processes }
   const create = useCreateReview()
   const update = useUpdateReview()
   const { organisation } = useAuth()
+  const toast = useToast()
   const [aiLoading, setAiLoading] = useState(false)
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors, isSubmitting } } = useForm<FormData>({
@@ -104,8 +106,9 @@ export default function ProcessReviewDrawer({ open, onClose, review, processes }
     try {
       const result = await summarizeProcessReview(findings)
       setValue('conclusions', result.conclusions)
-    } catch { /* silent */ }
-    finally { setAiLoading(false) }
+    } catch (err) {
+      toast.error((err as Error).message ?? 'Erreur lors de la génération IA')
+    } finally { setAiLoading(false) }
   }
 
   async function onSubmit(data: FormData) {
@@ -118,12 +121,16 @@ export default function ProcessReviewDrawer({ open, onClose, review, processes }
       status:           data.status,
       reviewer_id:      null,
     }
-    if (isEdit) {
-      await update.mutateAsync({ id: review.id, ...payload })
-    } else {
-      await create.mutateAsync(payload)
+    try {
+      if (isEdit) {
+        await update.mutateAsync({ id: review.id, ...payload })
+      } else {
+        await create.mutateAsync(payload)
+      }
+      onClose()
+    } catch (err) {
+      toast.error((err as Error).message ?? 'Erreur lors de l\'enregistrement')
     }
-    onClose()
   }
 
   return (
