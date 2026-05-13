@@ -94,33 +94,25 @@ CREATE INDEX IF NOT EXISTS idx_hab_attr_user   ON habilitation_attributions(user
 CREATE INDEX IF NOT EXISTS idx_hab_attr_expiry ON habilitation_attributions(expires_at) WHERE status = 'active';
 
 -- ── 5. Triggers updated_at ────────────────────────────────────
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_epi_items_updated_at') THEN
-    CREATE TRIGGER trg_epi_items_updated_at
-      BEFORE UPDATE ON epi_items
-      FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-  END IF;
+DROP TRIGGER IF EXISTS trg_epi_items_updated_at ON epi_items;
+CREATE TRIGGER trg_epi_items_updated_at
+  BEFORE UPDATE ON epi_items
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
-  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_epi_attr_updated_at') THEN
-    CREATE TRIGGER trg_epi_attr_updated_at
-      BEFORE UPDATE ON epi_attributions
-      FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-  END IF;
+DROP TRIGGER IF EXISTS trg_epi_attr_updated_at ON epi_attributions;
+CREATE TRIGGER trg_epi_attr_updated_at
+  BEFORE UPDATE ON epi_attributions
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
-  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_habilitations_updated_at') THEN
-    CREATE TRIGGER trg_habilitations_updated_at
-      BEFORE UPDATE ON habilitations
-      FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-  END IF;
+DROP TRIGGER IF EXISTS trg_habilitations_updated_at ON habilitations;
+CREATE TRIGGER trg_habilitations_updated_at
+  BEFORE UPDATE ON habilitations
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
-  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_hab_attr_updated_at') THEN
-    CREATE TRIGGER trg_hab_attr_updated_at
-      BEFORE UPDATE ON habilitation_attributions
-      FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-  END IF;
-END;
-$$;
+DROP TRIGGER IF EXISTS trg_hab_attr_updated_at ON habilitation_attributions;
+CREATE TRIGGER trg_hab_attr_updated_at
+  BEFORE UPDATE ON habilitation_attributions
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- ── 6. Mise à jour auto du statut habilitation ────────────────
 CREATE OR REPLACE FUNCTION sync_habilitation_status()
@@ -136,15 +128,10 @@ BEGIN
 END;
 $$;
 
-DO $$
-BEGIN
-  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'trg_hab_attr_status') THEN
-    CREATE TRIGGER trg_hab_attr_status
-      BEFORE INSERT OR UPDATE ON habilitation_attributions
-      FOR EACH ROW EXECUTE FUNCTION sync_habilitation_status();
-  END IF;
-END;
-$$;
+DROP TRIGGER IF EXISTS trg_hab_attr_status ON habilitation_attributions;
+CREATE TRIGGER trg_hab_attr_status
+  BEFORE INSERT OR UPDATE ON habilitation_attributions
+  FOR EACH ROW EXECUTE FUNCTION sync_habilitation_status();
 
 -- ── 7. RLS Policies ───────────────────────────────────────────
 
