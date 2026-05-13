@@ -1,25 +1,28 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { ShieldCheck, AlertTriangle, CalendarCheck, FileText, LayoutDashboard } from 'lucide-react'
+import { ShieldCheck, AlertTriangle, CalendarCheck, FileText, LayoutDashboard, Shield, GraduationCap } from 'lucide-react'
 import SecurityDashboard from '@/pages/security/SecurityDashboard'
 import DuerPage from '@/pages/security/DuerPage'
 import IncidentsPage from '@/pages/security/IncidentsPage'
 import SafetyVisitsPage from '@/pages/security/SafetyVisitsPage'
 import RegulatoryPage from '@/pages/security/RegulatoryPage'
+import EpiPage from '@/pages/security/EpiPage'
+import HabilitationsPage from '@/pages/security/HabilitationsPage'
 
-type Tab = 'dashboard' | 'duer' | 'incidents' | 'visits' | 'regulatory'
+type Tab = 'dashboard' | 'duer' | 'incidents' | 'visits' | 'regulatory' | 'epi' | 'habilitations'
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
-  { id: 'dashboard',  label: 'Tableau de bord', icon: LayoutDashboard },
-  { id: 'duer',       label: 'DUER',            icon: ShieldCheck },
-  { id: 'incidents',  label: 'Incidents',       icon: AlertTriangle },
-  { id: 'visits',     label: 'Visites',         icon: CalendarCheck },
-  { id: 'regulatory', label: 'Réglementaire',   icon: FileText },
+  { id: 'dashboard',     label: 'Tableau de bord', icon: LayoutDashboard },
+  { id: 'duer',          label: 'DUER',            icon: ShieldCheck },
+  { id: 'incidents',     label: 'Incidents',       icon: AlertTriangle },
+  { id: 'epi',           label: 'EPI',             icon: Shield },
+  { id: 'habilitations', label: 'Habilitations',   icon: GraduationCap },
+  { id: 'visits',        label: 'Visites',         icon: CalendarCheck },
+  { id: 'regulatory',    label: 'Réglementaire',   icon: FileText },
 ]
 
 export default function SecurityApp() {
   const [tab, setTab] = useState<Tab>('dashboard')
-  const active = TABS.find(t => t.id === tab)!
 
   return (
     <div className="space-y-6">
@@ -44,14 +47,6 @@ export default function SecurityApp() {
         })}
       </div>
 
-      {/* Page header */}
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-brand-50 flex items-center justify-center">
-          <active.icon className="w-5 h-5 text-brand-600" />
-        </div>
-        <h1 className="text-xl font-bold text-slate-900">{active.label}</h1>
-      </div>
-
       {/* Content */}
       <motion.div
         key={tab}
@@ -59,11 +54,13 @@ export default function SecurityApp() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.2 }}
       >
-        {tab === 'dashboard'  && <SecurityDashboard />}
-        {tab === 'duer'       && <DuerPage />}
-        {tab === 'incidents'  && <IncidentsPage />}
-        {tab === 'visits'     && <SafetyVisitsPage />}
-        {tab === 'regulatory' && <RegulatoryPage />}
+        {tab === 'dashboard'     && <SecurityDashboard />}
+        {tab === 'duer'          && <DuerPage />}
+        {tab === 'incidents'     && <IncidentsPage />}
+        {tab === 'epi'           && <EpiPage />}
+        {tab === 'habilitations' && <HabilitationsPage />}
+        {tab === 'visits'        && <SafetyVisitsPage />}
+        {tab === 'regulatory'    && <RegulatoryPage />}
       </motion.div>
     </div>
   )

@@ -316,3 +316,246 @@ export function useSecurityKPIs(): { data: SecurityKPIs | null; isLoading: boole
   })
   return { data: result.data ?? null, isLoading: result.isLoading }
 }
+
+// ── EPI ───────────────────────────────────────────────────────
+
+export interface EpiItem {
+  id: string
+  organisation_id: string
+  site_id: string | null
+  category: string
+  designation: string
+  reference: string | null
+  norm: string | null
+  supplier: string | null
+  storage_location: string | null
+  renewal_months: number | null
+  notes: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface EpiAttribution {
+  id: string
+  organisation_id: string
+  epi_item_id: string
+  user_id: string
+  assigned_at: string
+  quantity: number
+  condition: string
+  next_control_date: string | null
+  last_control_date: string | null
+  last_control_result: string | null
+  notes: string | null
+  is_active: boolean
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type EpiAttributionWithItem = EpiAttribution & {
+  epi_items: EpiItem | null
+  profiles: { full_name: string | null; avatar_url: string | null } | null
+}
+
+export function useEpiItems() {
+  const { organisation } = useOrganisation()
+  const orgId = organisation?.id
+  return useQuery({
+    queryKey: ['epi_items', orgId],
+    enabled: !!orgId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('epi_items')
+        .select('*')
+        .eq('organisation_id', orgId!)
+        .order('category', { ascending: true })
+      if (error) throw error
+      return (data ?? []) as EpiItem[]
+    },
+  })
+}
+
+export function useEpiAttributions() {
+  const { organisation } = useOrganisation()
+  const orgId = organisation?.id
+  return useQuery({
+    queryKey: ['epi_attributions', orgId],
+    enabled: !!orgId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('epi_attributions')
+        .select('*, epi_items(*), profiles(full_name, avatar_url)')
+        .eq('organisation_id', orgId!)
+        .eq('is_active', true)
+        .order('next_control_date', { ascending: true, nullsFirst: false })
+      if (error) throw error
+      return (data ?? []) as EpiAttributionWithItem[]
+    },
+  })
+}
+
+export function useUpsertEpiItem() {
+  const qc = useQueryClient()
+  const { organisation } = useOrganisation()
+  return useMutation({
+    mutationFn: async (values: Partial<EpiItem> & { designation: string; category: string }) => {
+      const payload = { ...values, organisation_id: organisation!.id }
+      if (values.id) {
+        const { error } = await supabase.from('epi_items').update(payload).eq('id', values.id)
+        if (error) throw error
+      } else {
+        const { error } = await supabase.from('epi_items').insert(payload)
+        if (error) throw error
+      }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['epi_items', organisation?.id] }),
+  })
+}
+
+export function useUpsertEpiAttribution() {
+  const qc = useQueryClient()
+  const { organisation } = useOrganisation()
+  return useMutation({
+    mutationFn: async (values: Partial<EpiAttribution> & { epi_item_id: string; user_id: string }) => {
+      const payload = { ...values, organisation_id: organisation!.id }
+      if (values.id) {
+        const { error } = await supabase.from('epi_attributions').update(payload).eq('id', values.id)
+        if (error) throw error
+      } else {
+        const { error } = await supabase.from('epi_attributions').insert(payload)
+        if (error) throw error
+      }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['epi_attributions', organisation?.id] }),
+  })
+}
+
+export function useRecordEpiControl() {
+  const qc = useQueryClient()
+  const { organisation } = useOrganisation()
+  return useMutation({
+    mutationFn: async ({ id, result, nextControlDate }: { id: string; result: string; nextControlDate: string }) => {
+      const { error } = await supabase
+        .from('epi_attributions')
+        .update({
+          last_control_date: new Date().toISOString().slice(0, 10),
+          last_control_result: result,
+          next_control_date: nextControlDate,
+          condition: result === 'remplacé' ? 'neuf' : result === 'nok' ? 'hs' : 'bon',
+        })
+        .eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['epi_attributions', organisation?.id] }),
+  })
+}
+
+// ── Habilitations ─────────────────────────────────────────────
+
+export interface Habilitation {
+  id: string
+  organisation_id: string
+  code: string
+  label: string
+  category: string
+  description: string | null
+  validity_months: number | null
+  renewal_delay_days: number
+  created_at: string
+  updated_at: string
+}
+
+export interface HabilitationAttribution {
+  id: string
+  organisation_id: string
+  habilitation_id: string
+  user_id: string
+  issued_at: string
+  expires_at: string | null
+  issuer: string | null
+  certificate_url: string | null
+  status: 'active' | 'expired' | 'suspended'
+  notes: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type HabAttributionWithType = HabilitationAttribution & {
+  habilitations: Habilitation | null
+  profiles: { full_name: string | null; avatar_url: string | null } | null
+}
+
+export function useHabilitations() {
+  const { organisation } = useOrganisation()
+  const orgId = organisation?.id
+  return useQuery({
+    queryKey: ['habilitations', orgId],
+    enabled: !!orgId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('habilitations')
+        .select('*')
+        .eq('organisation_id', orgId!)
+        .order('category', { ascending: true })
+      if (error) throw error
+      return (data ?? []) as Habilitation[]
+    },
+  })
+}
+
+export function useHabilitationAttributions() {
+  const { organisation } = useOrganisation()
+  const orgId = organisation?.id
+  return useQuery({
+    queryKey: ['habilitation_attributions', orgId],
+    enabled: !!orgId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('habilitation_attributions')
+        .select('*, habilitations(*), profiles(full_name, avatar_url)')
+        .eq('organisation_id', orgId!)
+        .order('expires_at', { ascending: true, nullsFirst: false })
+      if (error) throw error
+      return (data ?? []) as HabAttributionWithType[]
+    },
+  })
+}
+
+export function useUpsertHabilitation() {
+  const qc = useQueryClient()
+  const { organisation } = useOrganisation()
+  return useMutation({
+    mutationFn: async (values: Partial<Habilitation> & { code: string; label: string; category: string }) => {
+      const payload = { ...values, organisation_id: organisation!.id }
+      if (values.id) {
+        const { error } = await supabase.from('habilitations').update(payload).eq('id', values.id)
+        if (error) throw error
+      } else {
+        const { error } = await supabase.from('habilitations').insert(payload)
+        if (error) throw error
+      }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['habilitations', organisation?.id] }),
+  })
+}
+
+export function useUpsertHabAttribution() {
+  const qc = useQueryClient()
+  const { organisation } = useOrganisation()
+  return useMutation({
+    mutationFn: async (values: Partial<HabilitationAttribution> & { habilitation_id: string; user_id: string; issued_at: string }) => {
+      const payload = { ...values, organisation_id: organisation!.id }
+      if (values.id) {
+        const { error } = await supabase.from('habilitation_attributions').update(payload).eq('id', values.id)
+        if (error) throw error
+      } else {
+        const { error } = await supabase.from('habilitation_attributions').insert(payload)
+        if (error) throw error
+      }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['habilitation_attributions', organisation?.id] }),
+  })
+}

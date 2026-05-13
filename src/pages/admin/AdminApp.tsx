@@ -2,7 +2,7 @@ import { Routes, Route } from 'react-router-dom'
 import {
   LayoutDashboard, ListChecks, GitBranch, FolderOpen,
   Users, Settings, BarChart2, Target, AlertCircle, ShieldCheck,
-  Gauge, Shield,
+  Gauge,
 } from 'lucide-react'
 import { useBreakpoint } from '@/hooks/useBreakpoint'
 import { ORG_CONTEXT_KEY, useHasModule } from '@/hooks/useOrganisation'
@@ -61,21 +61,12 @@ export default function AdminApp() {
   const hasBanner   = !!sessionStorage.getItem(ORG_CONTEXT_KEY)
   const hasSecurite = useHasModule('securite')
 
-  const securiteGroup: NavItem = {
-    to: '',
-    label: 'Sécurité',
-    icon: Shield,
-    children: [
-      { to: '/admin/securite', label: 'Sécurité', icon: ShieldCheck },
-    ],
-  }
-
   const sidebarItems: NavItem[] = [
     PILOTAGE_GROUP,
     QUALITE_GROUP,
+    ...(hasSecurite ? [{ to: '/admin/securite', label: 'Sécurité', icon: ShieldCheck } as NavItem] : []),
     { to: '/admin/membres',    label: 'Membres',    icon: Users },
     { to: '/admin/parametres', label: 'Paramètres', icon: Settings },
-    ...(hasSecurite ? [securiteGroup] : []),
   ]
 
   return (
