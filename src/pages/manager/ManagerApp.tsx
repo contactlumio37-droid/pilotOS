@@ -1,8 +1,13 @@
 import { Routes, Route } from 'react-router-dom'
-import { LayoutDashboard, ListChecks, GitBranch, FolderOpen, AlertCircle, BarChart2, Target, ShieldCheck, Users } from 'lucide-react'
+import {
+  LayoutDashboard, ListChecks, GitBranch, FolderOpen,
+  AlertCircle, BarChart2, Target, ShieldCheck, Users,
+  Gauge, Shield,
+} from 'lucide-react'
 import { useBreakpoint } from '@/hooks/useBreakpoint'
 import { useHasModule } from '@/hooks/useOrganisation'
 import Sidebar from '@/components/layout/Sidebar'
+import type { NavItem } from '@/components/layout/Sidebar'
 import BottomNav from '@/components/layout/BottomNav'
 import ManagerDashboard from './ManagerDashboard'
 import TerrainReportsManager from '@/pages/shared/TerrainReportsManager'
@@ -15,13 +20,33 @@ import MembersPage from '@/pages/shared/MembersPage'
 import ProfilePage from '@/pages/shared/ProfilePage'
 import SecurityApp from '@/pages/shared/SecurityApp'
 
-const BASE_NAV = [
+const PILOTAGE_GROUP: NavItem = {
+  to: '',
+  label: 'Pilotage',
+  icon: Gauge,
+  children: [
+    { to: '/manager',             label: 'Vue d\'ensemble', icon: LayoutDashboard, end: true },
+    { to: '/manager/actions',     label: 'Actions',          icon: ListChecks },
+    { to: '/manager/strategie',   label: 'Stratégie',        icon: Target },
+    { to: '/manager/indicateurs', label: 'Indicateurs',      icon: BarChart2 },
+  ],
+}
+
+const QUALITE_GROUP: NavItem = {
+  to: '',
+  label: 'Qualité',
+  icon: GitBranch,
+  children: [
+    { to: '/manager/processus',   label: 'Processus',        icon: GitBranch },
+    { to: '/manager/documents',   label: 'Documents',        icon: FolderOpen },
+    { to: '/manager/terrain',     label: 'Terrain',          icon: AlertCircle },
+  ],
+}
+
+const BOTTOM_ITEMS: NavItem[] = [
   { to: '/manager',             label: 'Vue d\'ensemble', icon: LayoutDashboard, end: true },
   { to: '/manager/actions',     label: 'Actions',          icon: ListChecks },
-  { to: '/manager/strategie',   label: 'Stratégie',        icon: Target },
   { to: '/manager/processus',   label: 'Processus',        icon: GitBranch },
-  { to: '/manager/indicateurs', label: 'Indicateurs',      icon: BarChart2 },
-  { to: '/manager/terrain',     label: 'Terrain',          icon: AlertCircle },
   { to: '/manager/documents',   label: 'Documents',        icon: FolderOpen },
   { to: '/manager/membres',     label: 'Membres',          icon: Users },
 ]
@@ -31,13 +56,28 @@ export default function ManagerApp() {
   const isDesktop   = breakpoint === 'desktop'
   const hasSecurite = useHasModule('securite')
 
-  const NAV_ITEMS = hasSecurite
-    ? [...BASE_NAV, { to: '/manager/securite', label: 'Sécurité', icon: ShieldCheck }]
-    : BASE_NAV
+  const securiteGroup: NavItem = {
+    to: '',
+    label: 'Sécurité',
+    icon: Shield,
+    children: [
+      { to: '/manager/securite', label: 'Sécurité', icon: ShieldCheck },
+    ],
+  }
+
+  const sidebarItems: NavItem[] = [
+    PILOTAGE_GROUP,
+    QUALITE_GROUP,
+    { to: '/manager/membres', label: 'Membres', icon: Users },
+    ...(hasSecurite ? [securiteGroup] : []),
+  ]
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {isDesktop ? <Sidebar items={NAV_ITEMS} profileTo="/manager/profil" /> : <BottomNav items={NAV_ITEMS.slice(0, 5)} />}
+      {isDesktop
+        ? <Sidebar items={sidebarItems} profileTo="/manager/profil" />
+        : <BottomNav items={BOTTOM_ITEMS.slice(0, 5)} />
+      }
 
       <main className={isDesktop ? 'main-with-sidebar p-8' : 'main-with-bottom-nav p-4'}>
         <Routes>
