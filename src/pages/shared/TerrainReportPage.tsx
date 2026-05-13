@@ -6,9 +6,7 @@ import { motion } from 'framer-motion'
 import {
   AlertTriangle, Star, Wrench, GitBranch, HelpCircle, Camera, Send,
 } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
-import { useAuth } from '@/hooks/useAuth'
-import { useOrganisation } from '@/hooks/useOrganisation'
+import { useCreateTerrainReport } from '@/hooks/useTerrainReports'
 
 const CATEGORIES = [
   { id: 'safety', label: 'Sécurité', icon: AlertTriangle, color: 'text-danger bg-danger-light' },
@@ -31,33 +29,26 @@ type FormData = z.infer<typeof schema>
 export default function TerrainReportPage() {
   const [category, setCategory] = useState<Category>('other')
   const [submitted, setSubmitted] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
-  const { user } = useAuth()
-  const { organisation } = useOrganisation()
+
+  const createReport = useCreateTerrainReport()
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
 
   async function onSubmit(data: FormData) {
-    if (!organisation || !user) return
-    setSubmitting(true)
     try {
-      const { error } = await supabase.from('terrain_reports').insert({
-        organisation_id: organisation.id,
-        reported_by: user.id,
+      await createReport.mutateAsync({
         title: data.title,
         location: data.location || null,
         description: data.description || null,
         category,
-        status: 'pending',
       })
-      if (error) throw error
       setSubmitted(true)
       reset()
       setTimeout(() => setSubmitted(false), 3000)
-    } finally {
-      setSubmitting(false)
+    } catch {
+      // error silently swallowed — user sees button re-enable
     }
   }
 
@@ -154,11 +145,11 @@ export default function TerrainReportPage() {
 
           <button
             type="submit"
-            disabled={submitting}
+            disabled={createReport.isPending}
             className="btn-primary w-full text-base py-3"
           >
             <Send className="w-4 h-4" />
-            {submitting ? 'Envoi...' : 'Envoyer le signalement'}
+            {createReport.isPending ? 'Envoi...' : 'Envoyer le signalement'}
           </button>
         </form>
       </motion.div>

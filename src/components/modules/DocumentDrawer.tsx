@@ -2,9 +2,19 @@ import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Download, ExternalLink, FileText, Save, Upload, X } from 'lucide-react'
+import { CheckCircle, Clock, Download, ExternalLink, FileText, Save, Upload, X } from 'lucide-react'
 import Drawer from '@/components/ui/Drawer'
-import { useUploadDocument, useUpdateDocument, useDocumentUrl, DOC_STATUS_LABEL, DOC_STATUS_CLASS, DOC_TYPE_LABEL } from '@/hooks/useDocuments'
+import {
+  useUploadDocument,
+  useUpdateDocument,
+  useDocumentUrl,
+  useDocumentVersions,
+  useDocumentAcknowledgment,
+  useAcknowledgeDocument,
+  DOC_STATUS_LABEL,
+  DOC_STATUS_CLASS,
+  DOC_TYPE_LABEL,
+} from '@/hooks/useDocuments'
 import { useIsAtLeast } from '@/hooks/useRole'
 import { useToast } from '@/components/ui/useToast'
 import type { Document, DocumentFolder, DocType, DocStatus } from '@/types/database'
@@ -42,9 +52,12 @@ export default function DocumentDrawer({ open, onClose, document, folders = [], 
   const [file, setFile] = useState<File | null>(null)
   const toast = useToast()
 
-  const upload       = useUploadDocument()
-  const updateDoc    = useUpdateDocument()
-  const { data: signedUrl } = useDocumentUrl(document?.file_path ?? null)
+  const upload        = useUploadDocument()
+  const updateDoc     = useUpdateDocument()
+  const acknowledge   = useAcknowledgeDocument()
+  const { data: signedUrl }    = useDocumentUrl(document?.file_path ?? null)
+  const { data: versions = [] } = useDocumentVersions(document?.id)
+  const { data: myAck }         = useDocumentAcknowledgment(document?.id)
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -251,6 +264,58 @@ export default function DocumentDrawer({ open, onClose, document, folders = [], 
         <p className="text-sm text-danger-500 mt-3">
           Erreur lors du dépôt. Vérifiez que le bucket "documents" existe dans Supabase Storage.
         </p>
+      )}
+
+      {/* Acknowledgment (edit mode + required) */}
+      {isEdit && document?.acknowledgment_required && (
+        <div className="mt-6 p-4 rounded-lg border border-slate-200 bg-slate-50">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">Émargement requis</p>
+          {myAck ? (
+            <div className="flex items-center gap-2 text-sm text-success-600">
+              <CheckCircle className="w-4 h-4 shrink-0" />
+              <span>
+                Vous avez émargé le{' '}
+                {new Date(myAck.acknowledged_at).toLocaleDateString('fr-FR', {
+                  day: 'numeric', month: 'long', year: 'numeric',
+                })}
+              </span>
+            </div>
+          ) : (
+            <button
+              onClick={() => acknowledge.mutate(document!.id)}
+              disabled={acknowledge.isPending}
+              className="btn-primary text-sm"
+            >
+              <CheckCircle className="w-4 h-4" />
+              {acknowledge.isPending ? 'Enregistrement…' : 'J\'ai pris connaissance de ce document'}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Version history */}
+      {isEdit && versions.length > 0 && (
+        <div className="mt-6">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest mb-3">Historique des versions</p>
+          <div className="space-y-2">
+            {versions.map((v) => (
+              <div key={v.id} className="flex items-start gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100">
+                <Clock className="w-4 h-4 text-slate-400 mt-0.5 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-mono font-medium text-slate-700">{v.version_label}</p>
+                  {v.change_summary && (
+                    <p className="text-xs text-slate-500 mt-0.5 truncate">{v.change_summary}</p>
+                  )}
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    {new Date(v.archived_at).toLocaleDateString('fr-FR', {
+                      day: 'numeric', month: 'short', year: 'numeric',
+                    })}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </Drawer>
   )
