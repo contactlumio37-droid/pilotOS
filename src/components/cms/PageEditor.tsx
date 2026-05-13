@@ -705,6 +705,7 @@ export default function PageEditor({ page, onBack }: PageEditorProps) {
     setBlocks((page.sections ?? []) as unknown as CmsBlock[])
     setPublished(page.published)
     setSelectedId(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page.id])
 
   const selectedBlock = blocks.find(b => b.id === selectedId) ?? null
