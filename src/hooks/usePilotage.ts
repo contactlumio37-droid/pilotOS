@@ -127,6 +127,17 @@ export function useCreateCodirDecision() {
   })
 }
 
+export function useDeleteCodirDecision() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('codir_decisions').delete().eq('id', id)
+      if (error) throw error
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['codir'] }),
+  })
+}
+
 // ─── Projects ────────────────────────────────────────────────────────────────
 
 export function useProjects() {

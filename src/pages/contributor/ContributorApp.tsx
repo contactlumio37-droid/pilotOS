@@ -1,5 +1,8 @@
 import { Routes, Route } from 'react-router-dom'
-import { LayoutDashboard, ListChecks, FolderOpen, GitBranch, AlertCircle, Gauge, BarChart2, ShieldCheck } from 'lucide-react'
+import {
+  LayoutDashboard, ListChecks, FolderOpen, GitBranch,
+  AlertCircle, Gauge, BarChart2, ShieldCheck, Bell, Award,
+} from 'lucide-react'
 import { useBreakpoint } from '@/hooks/useBreakpoint'
 import Sidebar from '@/components/layout/Sidebar'
 import type { NavItem } from '@/components/layout/Sidebar'
@@ -15,6 +18,8 @@ import TerrainReportPage from '@/pages/shared/TerrainReportPage'
 import TerrainMyReportsPage from '@/pages/shared/TerrainMyReportsPage'
 import IndicatorsPage from '@/pages/shared/IndicatorsPage'
 import SecurityApp from '@/pages/shared/SecurityApp'
+import GamificationPage from '@/pages/shared/GamificationPage'
+import NotificationsPage from '@/pages/shared/NotificationsPage'
 
 const PILOTAGE_GROUP: NavItem = {
   to: '',
@@ -55,6 +60,8 @@ export default function ContributorApp() {
     PILOTAGE_GROUP,
     QUALITE_GROUP,
     ...(hasSecurite ? [{ to: '/app/securite', label: 'Sécurité', icon: ShieldCheck } as NavItem] : []),
+    { to: '/app/progression',   label: 'Progression',   icon: Award },
+    { to: '/app/notifications', label: 'Notifications', icon: Bell },
   ]
 
   return (
@@ -67,16 +74,18 @@ export default function ContributorApp() {
 
       <main className={isDesktop ? 'main-with-sidebar p-8' : 'main-with-bottom-nav p-4'}>
         <Routes>
-          <Route path="/"                element={<DashboardPage />} />
-          <Route path="/actions"         element={<ActionsPage />} />
-          <Route path="/indicateurs"     element={<IndicatorsPage />} />
-          <Route path="/processus"       element={<ProcessesPage />} />
-          <Route path="/documents"       element={<DocumentsPage />} />
-          <Route path="/terrain"         element={<TerrainReportPage />} />
-          <Route path="/terrain/remontees" element={<TerrainMyReportsPage />} />
-          <Route path="/profil"          element={<ProfilePage />} />
-          <Route path="/feedback"        element={<MyReportsPage />} />
-          <Route path="/securite/*"      element={<SecurityApp />} />
+          <Route path="/"                    element={<DashboardPage />} />
+          <Route path="/actions"             element={<ActionsPage />} />
+          <Route path="/indicateurs"         element={<IndicatorsPage />} />
+          <Route path="/processus"           element={<ProcessesPage />} />
+          <Route path="/documents"           element={<DocumentsPage />} />
+          <Route path="/terrain"             element={<TerrainReportPage />} />
+          <Route path="/terrain/remontees"   element={<TerrainMyReportsPage />} />
+          <Route path="/profil"              element={<ProfilePage />} />
+          <Route path="/feedback"            element={<MyReportsPage />} />
+          <Route path="/securite/*"          element={<SecurityApp />} />
+          <Route path="/progression"         element={<GamificationPage />} />
+          <Route path="/notifications"       element={<NotificationsPage />} />
         </Routes>
       </main>
     </div>

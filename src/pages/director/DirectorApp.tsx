@@ -1,7 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import {
   LayoutDashboard, Target, ListChecks, GitBranch, FolderOpen,
-  BarChart2, AlertCircle, Users, ShieldCheck,
+  BarChart2, AlertCircle, Users, ShieldCheck, Bell, Award, MessageSquare,
   Gauge,
 } from 'lucide-react'
 import { useBreakpoint } from '@/hooks/useBreakpoint'
@@ -11,6 +11,7 @@ import type { NavItem } from '@/components/layout/Sidebar'
 import BottomNav from '@/components/layout/BottomNav'
 import DirectorDashboard from './DirectorDashboard'
 import StrategyPage from '@/pages/shared/StrategyPage'
+import CodirPage from '@/pages/shared/CodirPage'
 import ActionsPage from '@/pages/shared/ActionsPage'
 import ProcessesPage from '@/pages/shared/ProcessesPage'
 import IndicatorsPage from '@/pages/shared/IndicatorsPage'
@@ -19,6 +20,8 @@ import MembersPage from '@/pages/shared/MembersPage'
 import TerrainReportsManager from '@/pages/shared/TerrainReportsManager'
 import ProfilePage from '@/pages/shared/ProfilePage'
 import SecurityApp from '@/pages/shared/SecurityApp'
+import NotificationsPage from '@/pages/shared/NotificationsPage'
+import GamificationPage from '@/pages/shared/GamificationPage'
 
 const PILOTAGE_GROUP: NavItem = {
   to: '',
@@ -27,6 +30,7 @@ const PILOTAGE_GROUP: NavItem = {
   children: [
     { to: '/direction',             label: 'Synthèse',    icon: LayoutDashboard, end: true },
     { to: '/direction/strategie',   label: 'Stratégie',   icon: Target },
+    { to: '/direction/codir',       label: 'CODIR',       icon: MessageSquare },
     { to: '/direction/actions',     label: 'Actions',     icon: ListChecks },
     { to: '/direction/indicateurs', label: 'Indicateurs', icon: BarChart2 },
   ],
@@ -60,7 +64,9 @@ export default function DirectorApp() {
     PILOTAGE_GROUP,
     QUALITE_GROUP,
     ...(hasSecurite ? [{ to: '/direction/securite', label: 'Sécurité', icon: ShieldCheck } as NavItem] : []),
-    { to: '/direction/membres', label: 'Membres', icon: Users },
+    { to: '/direction/membres',       label: 'Membres',       icon: Users },
+    { to: '/direction/progression',   label: 'Progression',   icon: Award },
+    { to: '/direction/notifications', label: 'Notifications', icon: Bell },
   ]
 
   return (
@@ -72,16 +78,19 @@ export default function DirectorApp() {
 
       <main className={isDesktop ? 'main-with-sidebar p-8' : 'main-with-bottom-nav p-4'}>
         <Routes>
-          <Route path="/"            element={<DirectorDashboard />} />
-          <Route path="/strategie"   element={<StrategyPage />} />
-          <Route path="/actions"     element={<ActionsPage />} />
-          <Route path="/processus"   element={<ProcessesPage />} />
-          <Route path="/indicateurs" element={<IndicatorsPage />} />
-          <Route path="/terrain"     element={<TerrainReportsManager />} />
-          <Route path="/documents"   element={<DocumentsPage />} />
-          <Route path="/membres"     element={<MembersPage />} />
-          <Route path="/securite/*"  element={<SecurityApp />} />
-          <Route path="/profil"      element={<ProfilePage />} />
+          <Route path="/"               element={<DirectorDashboard />} />
+          <Route path="/strategie"      element={<StrategyPage />} />
+          <Route path="/codir"          element={<CodirPage />} />
+          <Route path="/actions"        element={<ActionsPage />} />
+          <Route path="/processus"      element={<ProcessesPage />} />
+          <Route path="/indicateurs"    element={<IndicatorsPage />} />
+          <Route path="/terrain"        element={<TerrainReportsManager />} />
+          <Route path="/documents"      element={<DocumentsPage />} />
+          <Route path="/membres"        element={<MembersPage />} />
+          <Route path="/securite/*"     element={<SecurityApp />} />
+          <Route path="/progression"    element={<GamificationPage />} />
+          <Route path="/notifications"  element={<NotificationsPage />} />
+          <Route path="/profil"         element={<ProfilePage />} />
         </Routes>
       </main>
     </div>

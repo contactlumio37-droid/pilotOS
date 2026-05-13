@@ -2,7 +2,7 @@ import { Routes, Route } from 'react-router-dom'
 import {
   LayoutDashboard, ListChecks, GitBranch, FolderOpen,
   AlertCircle, BarChart2, Target, ShieldCheck, Users,
-  Gauge,
+  Gauge, Bell, Award, MessageSquare,
 } from 'lucide-react'
 import { useBreakpoint } from '@/hooks/useBreakpoint'
 import { useHasModule } from '@/hooks/useOrganisation'
@@ -13,12 +13,15 @@ import ManagerDashboard from './ManagerDashboard'
 import TerrainReportsManager from '@/pages/shared/TerrainReportsManager'
 import ActionsPage from '@/pages/shared/ActionsPage'
 import StrategyPage from '@/pages/shared/StrategyPage'
+import CodirPage from '@/pages/shared/CodirPage'
 import ProcessesPage from '@/pages/shared/ProcessesPage'
 import IndicatorsPage from '@/pages/shared/IndicatorsPage'
 import DocumentsPage from '@/pages/shared/DocumentsPage'
 import MembersPage from '@/pages/shared/MembersPage'
 import ProfilePage from '@/pages/shared/ProfilePage'
 import SecurityApp from '@/pages/shared/SecurityApp'
+import NotificationsPage from '@/pages/shared/NotificationsPage'
+import GamificationPage from '@/pages/shared/GamificationPage'
 
 const PILOTAGE_GROUP: NavItem = {
   to: '',
@@ -28,6 +31,7 @@ const PILOTAGE_GROUP: NavItem = {
     { to: '/manager',             label: 'Vue d\'ensemble', icon: LayoutDashboard, end: true },
     { to: '/manager/actions',     label: 'Actions',          icon: ListChecks },
     { to: '/manager/strategie',   label: 'Stratégie',        icon: Target },
+    { to: '/manager/codir',       label: 'CODIR',            icon: MessageSquare },
     { to: '/manager/indicateurs', label: 'Indicateurs',      icon: BarChart2 },
   ],
 }
@@ -60,7 +64,9 @@ export default function ManagerApp() {
     PILOTAGE_GROUP,
     QUALITE_GROUP,
     ...(hasSecurite ? [{ to: '/manager/securite', label: 'Sécurité', icon: ShieldCheck } as NavItem] : []),
-    { to: '/manager/membres', label: 'Membres', icon: Users },
+    { to: '/manager/membres',       label: 'Membres',       icon: Users },
+    { to: '/manager/progression',   label: 'Progression',   icon: Award },
+    { to: '/manager/notifications', label: 'Notifications', icon: Bell },
   ]
 
   return (
@@ -72,16 +78,19 @@ export default function ManagerApp() {
 
       <main className={isDesktop ? 'main-with-sidebar p-8' : 'main-with-bottom-nav p-4'}>
         <Routes>
-          <Route path="/"            element={<ManagerDashboard />} />
-          <Route path="/actions"     element={<ActionsPage />} />
-          <Route path="/strategie"   element={<StrategyPage />} />
-          <Route path="/processus"   element={<ProcessesPage />} />
-          <Route path="/indicateurs" element={<IndicatorsPage />} />
-          <Route path="/terrain"     element={<TerrainReportsManager />} />
-          <Route path="/documents"   element={<DocumentsPage />} />
-          <Route path="/membres"     element={<MembersPage />} />
-          <Route path="/securite/*"  element={<SecurityApp />} />
-          <Route path="/profil"      element={<ProfilePage />} />
+          <Route path="/"               element={<ManagerDashboard />} />
+          <Route path="/actions"        element={<ActionsPage />} />
+          <Route path="/strategie"      element={<StrategyPage />} />
+          <Route path="/codir"          element={<CodirPage />} />
+          <Route path="/processus"      element={<ProcessesPage />} />
+          <Route path="/indicateurs"    element={<IndicatorsPage />} />
+          <Route path="/terrain"        element={<TerrainReportsManager />} />
+          <Route path="/documents"      element={<DocumentsPage />} />
+          <Route path="/membres"        element={<MembersPage />} />
+          <Route path="/securite/*"     element={<SecurityApp />} />
+          <Route path="/progression"    element={<GamificationPage />} />
+          <Route path="/notifications"  element={<NotificationsPage />} />
+          <Route path="/profil"         element={<ProfilePage />} />
         </Routes>
       </main>
     </div>

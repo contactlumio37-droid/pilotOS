@@ -2,7 +2,7 @@ import { Routes, Route } from 'react-router-dom'
 import {
   LayoutDashboard, ListChecks, GitBranch, FolderOpen,
   Users, Settings, BarChart2, Target, AlertCircle, ShieldCheck,
-  Gauge,
+  Gauge, Bell, Award, CreditCard, MessageSquare,
 } from 'lucide-react'
 import { useBreakpoint } from '@/hooks/useBreakpoint'
 import { ORG_CONTEXT_KEY, useHasModule } from '@/hooks/useOrganisation'
@@ -23,6 +23,10 @@ import DocumentsPage from '@/pages/shared/DocumentsPage'
 import ProfilePage from '@/pages/shared/ProfilePage'
 import TerrainReportsManager from '@/pages/shared/TerrainReportsManager'
 import SecurityApp from '@/pages/shared/SecurityApp'
+import CodirPage from '@/pages/shared/CodirPage'
+import NotificationsPage from '@/pages/shared/NotificationsPage'
+import GamificationPage from '@/pages/shared/GamificationPage'
+import BillingPage from './BillingPage'
 
 const PILOTAGE_GROUP: NavItem = {
   to: '',
@@ -32,6 +36,7 @@ const PILOTAGE_GROUP: NavItem = {
     { to: '/admin',             label: 'Tableau de bord', icon: LayoutDashboard, end: true },
     { to: '/admin/actions',     label: 'Actions',          icon: ListChecks },
     { to: '/admin/strategie',   label: 'Stratégie',        icon: Target },
+    { to: '/admin/codir',       label: 'CODIR',            icon: MessageSquare },
     { to: '/admin/indicateurs', label: 'Indicateurs',      icon: BarChart2 },
   ],
 }
@@ -65,8 +70,11 @@ export default function AdminApp() {
     PILOTAGE_GROUP,
     QUALITE_GROUP,
     ...(hasSecurite ? [{ to: '/admin/securite', label: 'Sécurité', icon: ShieldCheck } as NavItem] : []),
-    { to: '/admin/membres',    label: 'Membres',    icon: Users },
-    { to: '/admin/parametres', label: 'Paramètres', icon: Settings },
+    { to: '/admin/membres',       label: 'Membres',       icon: Users },
+    { to: '/admin/facturation',   label: 'Facturation',   icon: CreditCard },
+    { to: '/admin/progression',   label: 'Progression',   icon: Award },
+    { to: '/admin/notifications', label: 'Notifications', icon: Bell },
+    { to: '/admin/parametres',    label: 'Paramètres',    icon: Settings },
   ]
 
   return (
@@ -87,11 +95,15 @@ export default function AdminApp() {
           <Route path="/terrain"     element={<TerrainReportsManager />} />
           <Route path="/documents"   element={<DocumentsPage />} />
           <Route path="/securite/*"  element={<SecurityApp />} />
-          <Route path="/membres"     element={<AdminMembers />} />
-          <Route path="/invitations"  element={<Invitations />} />
-          <Route path="/import-users" element={<ImportUsers />} />
-          <Route path="/parametres"   element={<AdminSettings />} />
-          <Route path="/profil"       element={<ProfilePage />} />
+          <Route path="/codir"          element={<CodirPage />} />
+          <Route path="/membres"        element={<AdminMembers />} />
+          <Route path="/invitations"    element={<Invitations />} />
+          <Route path="/import-users"   element={<ImportUsers />} />
+          <Route path="/facturation"    element={<BillingPage />} />
+          <Route path="/progression"    element={<GamificationPage />} />
+          <Route path="/notifications"  element={<NotificationsPage />} />
+          <Route path="/parametres"     element={<AdminSettings />} />
+          <Route path="/profil"         element={<ProfilePage />} />
         </Routes>
       </main>
     </div>
