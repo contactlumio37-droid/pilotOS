@@ -3,6 +3,25 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import type { Document, DocumentFolder, DocType, DocStatus } from '@/types/database'
 
+export interface DocumentVersion {
+  id: string
+  document_id: string
+  version_label: string
+  file_path: string | null
+  content: Record<string, unknown> | null
+  change_summary: string | null
+  archived_at: string
+  archived_by: string | null
+}
+
+export interface DocumentAcknowledgment {
+  id: string
+  document_id: string
+  user_id: string
+  acknowledged_at: string
+  ip_address: string | null
+}
+
 // ── Folders ──────────────────────────────────────────────────
 
 export function useFolders() {
@@ -182,6 +201,82 @@ export const DOC_STATUS_CLASS: Record<DocStatus, string> = {
   active:     'badge-success',
   archived:   'badge bg-slate-100 text-slate-400',
   obsolete:   'badge bg-slate-100 text-slate-400',
+}
+
+// ── Document versions ─────────────────────────────────────────
+
+export function useDocumentVersions(documentId: string | undefined) {
+  return useQuery({
+    queryKey: ['document_versions', documentId],
+    enabled: !!documentId,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('document_versions')
+        .select('*')
+        .eq('document_id', documentId!)
+        .order('archived_at', { ascending: false })
+      if (error) throw error
+      return data as DocumentVersion[]
+    },
+  })
+}
+
+export function useCreateDocumentVersion() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (payload: {
+      document_id: string
+      version_label: string
+      change_summary?: string | null
+      file_path?: string | null
+      archived_by?: string | null
+    }) => {
+      const { error } = await supabase
+        .from('document_versions')
+        .insert(payload)
+      if (error) throw error
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['document_versions', vars.document_id] })
+    },
+  })
+}
+
+// ── Document acknowledgments ──────────────────────────────────
+
+export function useDocumentAcknowledgment(documentId: string | undefined) {
+  const { user } = useAuth()
+  return useQuery({
+    queryKey: ['document_acknowledgment', documentId, user?.id],
+    enabled: !!documentId && !!user,
+    staleTime: 300_000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('document_acknowledgments')
+        .select('*')
+        .eq('document_id', documentId!)
+        .eq('user_id', user!.id)
+        .maybeSingle()
+      return data as DocumentAcknowledgment | null
+    },
+  })
+}
+
+export function useAcknowledgeDocument() {
+  const qc = useQueryClient()
+  const { user } = useAuth()
+  return useMutation({
+    mutationFn: async (documentId: string) => {
+      const { error } = await supabase
+        .from('document_acknowledgments')
+        .insert({ document_id: documentId, user_id: user!.id })
+      if (error) throw error
+    },
+    onSuccess: (_, documentId) => {
+      qc.invalidateQueries({ queryKey: ['document_acknowledgment', documentId] })
+    },
+  })
 }
 
 export const DOC_TYPE_LABEL: Record<string, string> = {

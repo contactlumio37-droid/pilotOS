@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import Drawer from '@/components/ui/Drawer'
+import { useMutation } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/components/ui/useToast'
@@ -45,37 +46,43 @@ export default function FeedbackDrawer({ open, onClose }: FeedbackDrawerProps) {
   const toast = useToast()
   const [success, setSuccess] = useState(false)
 
-  const { register, handleSubmit, reset, watch, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const { register, handleSubmit, reset, watch, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { category: 'bug' },
   })
 
   const selectedCategory = watch('category')
 
-  async function onSubmit(data: FormData) {
-    const { error } = await supabase.from('feedback_reports').insert({
-      title: data.title,
-      description: data.description || null,
-      category: data.category,
-      status: 'new',
-      priority: 'normal',
-      page_url: window.location.href,
-      browser: navigator.userAgent,
-      reporter_id: user?.id ?? null,
-      user_role: role ?? null,
-      is_anonymous: false,
-    })
+  const submitFeedback = useMutation({
+    mutationFn: async (data: FormData) => {
+      const { error } = await supabase.from('feedback_reports').insert({
+        title: data.title,
+        description: data.description || null,
+        category: data.category,
+        status: 'new',
+        priority: 'normal',
+        page_url: window.location.href,
+        browser: navigator.userAgent,
+        reporter_id: user?.id ?? null,
+        user_role: role ?? null,
+        is_anonymous: false,
+      })
+      if (error) throw error
+    },
+  })
 
-    if (error) {
+  async function onSubmit(data: FormData) {
+    try {
+      await submitFeedback.mutateAsync(data)
+      setSuccess(true)
+      reset()
+      setTimeout(() => {
+        setSuccess(false)
+        onClose()
+      }, 1800)
+    } catch {
       toast.error('Erreur lors de l\'envoi — réessayez.')
-      return
     }
-    setSuccess(true)
-    reset()
-    setTimeout(() => {
-      setSuccess(false)
-      onClose()
-    }, 1800)
   }
 
   function handleClose() {
@@ -94,8 +101,8 @@ export default function FeedbackDrawer({ open, onClose }: FeedbackDrawerProps) {
         !success ? (
           <div className="flex justify-between">
             <button type="button" onClick={handleClose} className="btn-secondary">Annuler</button>
-            <button type="submit" form="feedback-form" disabled={isSubmitting} className="btn-primary">
-              {isSubmitting ? 'Envoi…' : 'Envoyer'}
+            <button type="submit" form="feedback-form" disabled={submitFeedback.isPending} className="btn-primary">
+              {submitFeedback.isPending ? 'Envoi…' : 'Envoyer'}
             </button>
           </div>
         ) : undefined

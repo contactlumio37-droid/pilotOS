@@ -124,5 +124,54 @@ export async function checkAndAwardBadges(
     if (streak.current_streak >= 30) awards.push('streak_30')
   }
 
+  // Run all count queries in parallel to minimise latency
+  const [
+    { count: actionsCreated },
+    { count: actionsDone },
+    { count: processCount },
+    { count: kaizenCount },
+    { count: docCount },
+    { count: commentCount },
+  ] = await Promise.all([
+    supabase
+      .from('actions')
+      .select('id', { count: 'exact', head: true })
+      .eq('organisation_id', organisationId)
+      .eq('created_by', userId),
+    supabase
+      .from('actions')
+      .select('id', { count: 'exact', head: true })
+      .eq('organisation_id', organisationId)
+      .eq('responsible_id', userId)
+      .eq('status', 'done'),
+    supabase
+      .from('processes')
+      .select('id', { count: 'exact', head: true })
+      .eq('organisation_id', organisationId)
+      .eq('created_by', userId),
+    supabase
+      .from('kaizen_plans')
+      .select('id', { count: 'exact', head: true })
+      .eq('organisation_id', organisationId)
+      .eq('created_by', userId),
+    supabase
+      .from('documents')
+      .select('id', { count: 'exact', head: true })
+      .eq('organisation_id', organisationId)
+      .eq('uploaded_by', userId),
+    supabase
+      .from('action_comments')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId),
+  ])
+
+  if ((actionsCreated ?? 0) >= 1)  awards.push('first_action')
+  if ((actionsDone   ?? 0) >= 10)  awards.push('action_10')
+  if ((actionsDone   ?? 0) >= 50)  awards.push('action_50')
+  if ((processCount  ?? 0) >= 1)   awards.push('process_author')
+  if ((kaizenCount   ?? 0) >= 1)   awards.push('kaizen_starter')
+  if ((docCount      ?? 0) >= 5)   awards.push('document_uploader')
+  if ((commentCount  ?? 0) >= 10)  awards.push('team_player')
+
   await Promise.all(awards.map((b) => awardBadge(userId, organisationId, b)))
 }

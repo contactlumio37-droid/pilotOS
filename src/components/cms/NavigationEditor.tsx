@@ -1,65 +1,50 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Plus, Trash2, ArrowUp, ArrowDown, Eye, EyeOff } from 'lucide-react'
-import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/ui/useToast'
-
-interface NavItem {
-  id: string
-  label: string
-  url: string
-  sort_order: number
-  is_visible: boolean
-}
+import {
+  useCmsNavItems,
+  useAddNavItem,
+  useDeleteNavItem,
+  useToggleNavItem,
+  useSaveNavOrder,
+  type NavItem,
+} from '@/hooks/useCmsNav'
 
 export default function NavigationEditor() {
-  const qc = useQueryClient()
   const toast = useToast()
   const [newLabel, setNewLabel] = useState('')
   const [newUrl, setNewUrl] = useState('')
-  const [savingOrder, setSavingOrder] = useState(false)
-
-  const { data: items = [], isLoading } = useQuery({
-    queryKey: ['cms_nav_items'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('cms_nav_items')
-        .select('*')
-        .order('sort_order')
-      if (error) throw error
-      return data as NavItem[]
-    },
-  })
-
   const [localItems, setLocalItems] = useState<NavItem[] | null>(null)
+
+  const { data: items = [], isLoading } = useCmsNavItems()
+  const addItem     = useAddNavItem()
+  const deleteItem  = useDeleteNavItem()
+  const toggleItem  = useToggleNavItem()
+  const saveOrder   = useSaveNavOrder()
+
   const displayItems = localItems ?? items
 
   async function handleAdd() {
     if (!newLabel || !newUrl) return
-    const { error } = await supabase.from('cms_nav_items').insert({
-      label: newLabel,
-      url: newUrl,
-      sort_order: displayItems.length,
-      is_visible: true,
-    })
-    if (error) { toast.error('Erreur lors de l\'ajout'); return }
-    qc.invalidateQueries({ queryKey: ['cms_nav_items'] })
-    setNewLabel('')
-    setNewUrl('')
-    toast.success('Item ajouté')
+    try {
+      await addItem.mutateAsync({ label: newLabel, url: newUrl, sort_order: displayItems.length })
+      setNewLabel('')
+      setNewUrl('')
+      toast.success('Item ajouté')
+    } catch { toast.error('Erreur lors de l\'ajout') }
   }
 
   async function handleDelete(id: string) {
-    const { error } = await supabase.from('cms_nav_items').delete().eq('id', id)
-    if (error) { toast.error('Erreur'); return }
-    qc.invalidateQueries({ queryKey: ['cms_nav_items'] })
-    toast.success('Item supprimé')
+    try {
+      await deleteItem.mutateAsync(id)
+      toast.success('Item supprimé')
+    } catch { toast.error('Erreur') }
   }
 
   async function handleToggleVisible(item: NavItem) {
-    const { error } = await supabase.from('cms_nav_items').update({ is_visible: !item.is_visible }).eq('id', item.id)
-    if (error) { toast.error('Erreur'); return }
-    qc.invalidateQueries({ queryKey: ['cms_nav_items'] })
+    try {
+      await toggleItem.mutateAsync({ id: item.id, is_visible: !item.is_visible })
+    } catch { toast.error('Erreur') }
   }
 
   function moveItem(index: number, dir: -1 | 1) {
@@ -73,17 +58,11 @@ export default function NavigationEditor() {
 
   async function handleSaveOrder() {
     if (!localItems) return
-    setSavingOrder(true)
     try {
-      await Promise.all(
-        localItems.map((item, i) =>
-          supabase.from('cms_nav_items').update({ sort_order: i }).eq('id', item.id)
-        )
-      )
-      qc.invalidateQueries({ queryKey: ['cms_nav_items'] })
+      await saveOrder.mutateAsync(localItems.map((item, i) => ({ id: item.id, sort_order: i })))
       setLocalItems(null)
       toast.success('Ordre sauvegardé')
-    } catch { toast.error('Erreur lors de la sauvegarde') } finally { setSavingOrder(false) }
+    } catch { toast.error('Erreur lors de la sauvegarde') }
   }
 
   return (
@@ -123,8 +102,8 @@ export default function NavigationEditor() {
       )}
 
       {localItems && (
-        <button onClick={handleSaveOrder} disabled={savingOrder} className="px-4 py-2 text-sm bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 transition-colors">
-          {savingOrder ? 'Sauvegarde…' : 'Sauvegarder l\'ordre'}
+        <button onClick={handleSaveOrder} disabled={saveOrder.isPending} className="px-4 py-2 text-sm bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 transition-colors">
+          {saveOrder.isPending ? 'Sauvegarde…' : 'Sauvegarder l\'ordre'}
         </button>
       )}
 
@@ -133,7 +112,7 @@ export default function NavigationEditor() {
         <div className="flex gap-2">
           <input value={newLabel} onChange={e => setNewLabel(e.target.value)} placeholder="Label (ex: Tarifs)" className="flex-1 px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
           <input value={newUrl} onChange={e => setNewUrl(e.target.value)} placeholder="URL (ex: /pricing)" className="flex-1 px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500" />
-          <button onClick={handleAdd} disabled={!newLabel || !newUrl} className="flex items-center gap-1.5 px-3 py-2 text-sm bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 transition-colors">
+          <button onClick={handleAdd} disabled={!newLabel || !newUrl || addItem.isPending} className="flex items-center gap-1.5 px-3 py-2 text-sm bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 transition-colors">
             <Plus className="w-4 h-4" />
           </button>
         </div>
