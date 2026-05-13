@@ -1,28 +1,10 @@
-import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Building2, Users, Bug, TrendingUp, CreditCard, CheckCircle2 } from 'lucide-react'
+import { Building2, Users, Bug, TrendingUp, CreditCard, CheckCircle2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { useAuth } from '@/hooks/useAuth'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import type { Organisation } from '@/types/database'
-import SuperAdminOrgs from './SuperAdminOrgs'
-import SuperAdminFeedback from './SuperAdminFeedback'
-import RoadmapTab from './tabs/RoadmapTab'
-import BlogTab from './tabs/BlogTab'
-import NewsletterTab from './tabs/NewsletterTab'
-import CmsTab from './tabs/CmsTab'
-
-const TABS = [
-  { id: 'dashboard',     label: 'Dashboard'     },
-  { id: 'organisations', label: 'Organisations'  },
-  { id: 'bugs',          label: 'Bugs'           },
-  { id: 'roadmap',       label: 'Roadmap'        },
-  { id: 'cms',           label: 'CMS'            },
-  { id: 'blog',          label: 'Blog'           },
-  { id: 'newsletter',    label: 'Newsletter'     },
-]
 
 const PLAN_COLORS: Record<string, string> = {
   free:       'bg-slate-700 text-slate-300',
@@ -32,7 +14,7 @@ const PLAN_COLORS: Record<string, string> = {
   enterprise: 'bg-yellow-900 text-yellow-300',
 }
 
-function DashboardOverview() {
+export default function SuperAdminDashboard() {
   const { data: stats } = useQuery({
     queryKey: ['superadmin_stats'],
     queryFn: async () => {
@@ -83,7 +65,7 @@ function DashboardOverview() {
   ]
 
   return (
-    <div>
+    <motion.div initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
         {cards.map((card, i) => {
           const Icon = card.icon
@@ -110,7 +92,7 @@ function DashboardOverview() {
           <h2 className="text-sm font-semibold text-slate-300">Dernières organisations créées</h2>
         </div>
         {recentOrgs.length === 0 ? (
-          <p className="text-slate-500 text-sm text-center py-8">Aucune organisation</p>
+          <p className="text-slate-500 text-sm text-center py-8">Aucune organisation créée pour l'instant</p>
         ) : (
           <table className="w-full">
             <tbody className="divide-y divide-slate-700">
@@ -134,62 +116,6 @@ function DashboardOverview() {
           </table>
         )}
       </div>
-    </div>
-  )
-}
-
-export default function SuperAdminDashboard() {
-  const [searchParams, setSearchParams] = useSearchParams()
-  const navigate = useNavigate()
-  const { organisation } = useAuth()
-  const activeTab = searchParams.get('tab') ?? 'dashboard'
-
-  function setTab(id: string) {
-    setSearchParams(id === 'dashboard' ? {} : { tab: id })
-  }
-
-  function handleRetourOrganisation() {
-    navigate(organisation ? '/admin' : '/app')
-  }
-
-  return (
-    <div>
-      <motion.div initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
-        {/* Back button */}
-        <button
-          onClick={handleRetourOrganisation}
-          className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-white transition-colors mb-6"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Retour à mon organisation
-        </button>
-
-        {/* Tab bar */}
-        <div className="flex gap-1 border-b border-slate-700 mb-6 overflow-x-auto">
-          {TABS.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setTab(tab.id)}
-              className={`px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors ${
-                activeTab === tab.id
-                  ? 'text-white border-b-2 border-brand-500 -mb-px'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Tab content */}
-        {activeTab === 'dashboard'     && <DashboardOverview />}
-        {activeTab === 'organisations' && <SuperAdminOrgs />}
-        {activeTab === 'bugs'          && <SuperAdminFeedback />}
-        {activeTab === 'roadmap'       && <RoadmapTab />}
-        {activeTab === 'cms'           && <CmsTab />}
-        {activeTab === 'blog'          && <BlogTab />}
-        {activeTab === 'newsletter'    && <NewsletterTab />}
-      </motion.div>
-    </div>
+    </motion.div>
   )
 }
