@@ -858,11 +858,10 @@ export default function PageEditor({ page, onBack }: PageEditorProps) {
           )}
         </div>
 
-        {/* Right: config — sticky */}
-        <div className="w-[280px] shrink-0">
-          <div className="sticky top-0">
+        {/* Right: config */}
+        <div className="w-[280px] shrink-0 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 14rem)' }}>
           {selectedBlock ? (
-            <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4 space-y-4 max-h-[calc(100vh-12rem)] overflow-y-auto">
+            <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4 space-y-4">
               <div className="flex items-center gap-2">
                 <span className="text-base">{BLOCK_CATALOG.find(b => b.type === selectedBlock.type)?.emoji}</span>
                 <p className="text-sm font-semibold text-white capitalize">{BLOCK_CATALOG.find(b => b.type === selectedBlock.type)?.label ?? selectedBlock.type}</p>
@@ -877,7 +876,6 @@ export default function PageEditor({ page, onBack }: PageEditorProps) {
               Sélectionnez un bloc pour modifier ses propriétés
             </div>
           )}
-          </div>
         </div>
       </div>
 

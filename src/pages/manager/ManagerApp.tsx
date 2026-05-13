@@ -2,7 +2,7 @@ import { Routes, Route } from 'react-router-dom'
 import {
   LayoutDashboard, ListChecks, GitBranch, FolderOpen,
   AlertCircle, BarChart2, Target, ShieldCheck, Users,
-  Gauge, Shield,
+  Gauge,
 } from 'lucide-react'
 import { useBreakpoint } from '@/hooks/useBreakpoint'
 import { useHasModule } from '@/hooks/useOrganisation'
@@ -56,20 +56,11 @@ export default function ManagerApp() {
   const isDesktop   = breakpoint === 'desktop'
   const hasSecurite = useHasModule('securite')
 
-  const securiteGroup: NavItem = {
-    to: '',
-    label: 'Sécurité',
-    icon: Shield,
-    children: [
-      { to: '/manager/securite', label: 'Sécurité', icon: ShieldCheck },
-    ],
-  }
-
   const sidebarItems: NavItem[] = [
     PILOTAGE_GROUP,
     QUALITE_GROUP,
+    ...(hasSecurite ? [{ to: '/manager/securite', label: 'Sécurité', icon: ShieldCheck } as NavItem] : []),
     { to: '/manager/membres', label: 'Membres', icon: Users },
-    ...(hasSecurite ? [securiteGroup] : []),
   ]
 
   return (
