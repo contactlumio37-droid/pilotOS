@@ -68,7 +68,14 @@ export default function TerrainMyReportsPage() {
               transition={{ delay: i * 0.05 }}
               className="card-hover cursor-default"
             >
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                {report.photo_url && (
+                  <img
+                    src={report.photo_url}
+                    alt=""
+                    className="w-14 h-14 rounded-xl object-cover shrink-0"
+                  />
+                )}
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-slate-900 truncate">{report.title}</p>
                   {report.location && (
@@ -80,7 +87,7 @@ export default function TerrainMyReportsPage() {
                     })}
                   </p>
                 </div>
-                <span className={config.className}>
+                <span className={`badge ${config.className} shrink-0 flex items-center gap-1`}>
                   <Icon className="w-3 h-3" />
                   {config.label}
                 </span>

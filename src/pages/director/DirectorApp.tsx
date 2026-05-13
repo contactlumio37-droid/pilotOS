@@ -1,8 +1,13 @@
 import { Routes, Route } from 'react-router-dom'
-import { LayoutDashboard, Target, ListChecks, GitBranch, FolderOpen, BarChart2, AlertCircle, Users, ShieldCheck } from 'lucide-react'
+import {
+  LayoutDashboard, Target, ListChecks, GitBranch, FolderOpen,
+  BarChart2, AlertCircle, Users, ShieldCheck,
+  Gauge,
+} from 'lucide-react'
 import { useBreakpoint } from '@/hooks/useBreakpoint'
 import { useHasModule } from '@/hooks/useOrganisation'
 import Sidebar from '@/components/layout/Sidebar'
+import type { NavItem } from '@/components/layout/Sidebar'
 import BottomNav from '@/components/layout/BottomNav'
 import DirectorDashboard from './DirectorDashboard'
 import StrategyPage from '@/pages/shared/StrategyPage'
@@ -15,15 +20,35 @@ import TerrainReportsManager from '@/pages/shared/TerrainReportsManager'
 import ProfilePage from '@/pages/shared/ProfilePage'
 import SecurityApp from '@/pages/shared/SecurityApp'
 
-const BASE_NAV = [
-  { to: '/direction',             label: 'Synthèse',    icon: LayoutDashboard, end: true },
-  { to: '/direction/strategie',   label: 'Stratégie',   icon: Target },
-  { to: '/direction/actions',     label: 'Actions',     icon: ListChecks },
-  { to: '/direction/processus',   label: 'Processus',   icon: GitBranch },
-  { to: '/direction/indicateurs', label: 'Indicateurs', icon: BarChart2 },
-  { to: '/direction/terrain',     label: 'Terrain',     icon: AlertCircle },
-  { to: '/direction/documents',   label: 'Documents',   icon: FolderOpen },
-  { to: '/direction/membres',     label: 'Membres',     icon: Users },
+const PILOTAGE_GROUP: NavItem = {
+  to: '',
+  label: 'Pilotage',
+  icon: Gauge,
+  children: [
+    { to: '/direction',             label: 'Synthèse',    icon: LayoutDashboard, end: true },
+    { to: '/direction/strategie',   label: 'Stratégie',   icon: Target },
+    { to: '/direction/actions',     label: 'Actions',     icon: ListChecks },
+    { to: '/direction/indicateurs', label: 'Indicateurs', icon: BarChart2 },
+  ],
+}
+
+const QUALITE_GROUP: NavItem = {
+  to: '',
+  label: 'Qualité',
+  icon: GitBranch,
+  children: [
+    { to: '/direction/processus', label: 'Processus', icon: GitBranch },
+    { to: '/direction/terrain',   label: 'Terrain',   icon: AlertCircle },
+    { to: '/direction/documents', label: 'Documents', icon: FolderOpen },
+  ],
+}
+
+const BOTTOM_ITEMS: NavItem[] = [
+  { to: '/direction',             label: 'Synthèse',  icon: LayoutDashboard, end: true },
+  { to: '/direction/actions',     label: 'Actions',   icon: ListChecks },
+  { to: '/direction/processus',   label: 'Processus', icon: GitBranch },
+  { to: '/direction/documents',   label: 'Documents', icon: FolderOpen },
+  { to: '/direction/membres',     label: 'Membres',   icon: Users },
 ]
 
 export default function DirectorApp() {
@@ -31,13 +56,19 @@ export default function DirectorApp() {
   const isDesktop   = breakpoint === 'desktop'
   const hasSecurite = useHasModule('securite')
 
-  const NAV_ITEMS = hasSecurite
-    ? [...BASE_NAV, { to: '/direction/securite', label: 'Sécurité', icon: ShieldCheck }]
-    : BASE_NAV
+  const sidebarItems: NavItem[] = [
+    PILOTAGE_GROUP,
+    QUALITE_GROUP,
+    ...(hasSecurite ? [{ to: '/direction/securite', label: 'Sécurité', icon: ShieldCheck } as NavItem] : []),
+    { to: '/direction/membres', label: 'Membres', icon: Users },
+  ]
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {isDesktop ? <Sidebar items={NAV_ITEMS} profileTo="/direction/profil" /> : <BottomNav items={NAV_ITEMS.slice(0, 5)} />}
+      {isDesktop
+        ? <Sidebar items={sidebarItems} profileTo="/direction/profil" />
+        : <BottomNav items={BOTTOM_ITEMS.slice(0, 5)} />
+      }
 
       <main className={isDesktop ? 'main-with-sidebar p-8' : 'main-with-bottom-nav p-4'}>
         <Routes>

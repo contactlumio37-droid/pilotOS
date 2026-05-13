@@ -6,6 +6,8 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import PageHeader from '@/components/layout/PageHeader'
 import KPIConfigDrawer from '@/components/modules/KPIConfigDrawer'
+import ActivityFeed from '@/components/features/ActivityFeed'
+import OnboardingChecklist from '@/components/features/OnboardingChecklist'
 import { OriginBadge, StatusBadge } from '@/components/modules/ActionBadges'
 import { useDashboardKPIs, useKpiConfig } from '@/hooks/useDashboardKPIs'
 import { useActions } from '@/hooks/useActions'
@@ -69,6 +71,8 @@ export default function ManagerDashboard() {
           </button>
         }
       />
+
+      <OnboardingChecklist />
 
       {/* KPI Cards */}
       <motion.div initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
@@ -194,6 +198,11 @@ export default function ManagerDashboard() {
             ))}
           </div>
         )}
+      </motion.div>
+
+      <motion.div initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }} className="card mt-6">
+        <h2 className="font-semibold text-slate-900 mb-4">Activité récente</h2>
+        <ActivityFeed limit={8} />
       </motion.div>
 
       <KPIConfigDrawer open={configOpen} onClose={() => setConfigOpen(false)} />

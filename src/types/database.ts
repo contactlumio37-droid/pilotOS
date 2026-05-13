@@ -308,6 +308,7 @@ export interface TerrainReport {
   status: TerrainStatus
   acknowledged_by: string | null
   acknowledged_at: string | null
+  manager_comment: string | null
   action_id: string | null
   created_at: string
   updated_at: string

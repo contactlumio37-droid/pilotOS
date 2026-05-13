@@ -4,6 +4,7 @@ import { ListChecks, GitBranch, FileText, Users, AlertTriangle, TrendingUp } fro
 import { supabase } from '@/lib/supabase'
 import { useOrganisation } from '@/hooks/useOrganisation'
 import OrgHealthScore from '@/components/features/OrgHealthScore'
+import OnboardingChecklist from '@/components/features/OnboardingChecklist'
 
 interface StatCard {
   label: string
@@ -174,6 +175,7 @@ export default function AdminDashboard() {
   return (
     <div className="max-w-5xl">
       <motion.div initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
+        <OnboardingChecklist />
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Administration</h1>

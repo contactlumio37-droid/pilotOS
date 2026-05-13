@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { MapPin, Check, ArrowRight, X, ShieldAlert } from 'lucide-react'
+import { MapPin, Check, ArrowRight, X, ShieldAlert, MessageSquare } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useOrganisation } from '@/hooks/useOrganisation'
 import { useAuth } from '@/hooks/useAuth'
@@ -97,6 +97,8 @@ export default function TerrainReportsManager() {
   const createAction = useCreateAction()
   const [convertingReport, setConvertingReport] = useState<TerrainReport | null>(null)
   const [convertError, setConvertError] = useState<string | null>(null)
+  const [acknowledgingReport, setAcknowledgingReport] = useState<TerrainReport | null>(null)
+  const [ackComment, setAckComment] = useState('')
 
   const createIncident = useMutation({
     mutationFn: async (report: TerrainReport) => {
@@ -144,18 +146,23 @@ export default function TerrainReportsManager() {
   })
 
   const acknowledge = useMutation({
-    mutationFn: async (reportId: string) => {
+    mutationFn: async ({ reportId, comment }: { reportId: string; comment: string }) => {
       const { error } = await supabase
         .from('terrain_reports')
         .update({
-          status: 'acknowledged',
+          status:          'acknowledged',
           acknowledged_by: user?.id,
           acknowledged_at: new Date().toISOString(),
+          manager_comment: comment.trim() || null,
         })
         .eq('id', reportId)
       if (error) throw error
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['terrain_reports_manager'] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['terrain_reports_manager'] })
+      setAcknowledgingReport(null)
+      setAckComment('')
+    },
   })
 
   async function handleConvert(report: TerrainReport, actionTitle: string) {
@@ -217,7 +224,7 @@ export default function TerrainReportsManager() {
                     actions={
                       <div className="flex gap-2 shrink-0 flex-wrap">
                         <button
-                          onClick={() => acknowledge.mutate(report.id)}
+                          onClick={() => { setAcknowledgingReport(report); setAckComment('') }}
                           className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1"
                         >
                           <Check className="w-3 h-3" />
@@ -303,6 +310,47 @@ export default function TerrainReportsManager() {
           error={convertError}
         />
       )}
+
+      {acknowledgingReport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <motion.div
+            initial={{ scale: 0.96, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6"
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-slate-900">Prendre en compte</h3>
+              <button onClick={() => setAcknowledgingReport(null)} className="text-slate-400 hover:text-slate-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-sm text-slate-600 font-medium mb-4 truncate">{acknowledgingReport.title}</p>
+            <div className="mb-4">
+              <label className="label flex items-center gap-1.5">
+                <MessageSquare className="w-3.5 h-3.5" />
+                Commentaire (optionnel)
+              </label>
+              <textarea
+                value={ackComment}
+                onChange={e => setAckComment(e.target.value)}
+                className="input min-h-[80px] resize-none"
+                placeholder="Précisez la prise en charge, les actions prévues..."
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setAcknowledgingReport(null)} className="btn-secondary">Annuler</button>
+              <button
+                onClick={() => acknowledge.mutate({ reportId: acknowledgingReport.id, comment: ackComment })}
+                disabled={acknowledge.isPending}
+                className="btn-primary flex items-center gap-1.5"
+              >
+                <Check className="w-4 h-4" />
+                {acknowledge.isPending ? 'Enregistrement…' : 'Confirmer'}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   )
 }
@@ -349,8 +397,25 @@ function ReportCard({ report, borderClass, actions }: {
               })}
             </span>
           </div>
+          {report.manager_comment && (
+            <div className="flex items-start gap-1.5 mt-2 text-xs text-slate-600 bg-slate-50 rounded-lg px-2.5 py-1.5">
+              <MessageSquare className="w-3 h-3 shrink-0 mt-0.5 text-slate-400" />
+              <span className="italic">{report.manager_comment}</span>
+            </div>
+          )}
         </div>
-        {actions}
+        <div className="flex flex-col items-end gap-3 shrink-0">
+          {report.photo_url && (
+            <a href={report.photo_url} target="_blank" rel="noopener noreferrer">
+              <img
+                src={report.photo_url}
+                alt="Photo du signalement"
+                className="w-16 h-16 rounded-xl object-cover border border-slate-100 hover:opacity-90 transition-opacity"
+              />
+            </a>
+          )}
+          {actions}
+        </div>
       </div>
     </div>
   )

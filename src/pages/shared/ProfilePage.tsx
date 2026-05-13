@@ -1,9 +1,9 @@
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { motion } from 'framer-motion'
-import { Save, Lock, User, Flame, MessageSquarePlus } from 'lucide-react'
+import { Save, Lock, User, Flame, MessageSquarePlus, Camera, Loader2 } from 'lucide-react'
 import { Link, useResolvedPath } from 'react-router-dom'
 import { useProfile, useUpdateProfile, useChangePassword } from '@/hooks/useProfile'
 import { useAuth } from '@/hooks/useAuth'
@@ -11,6 +11,7 @@ import { useToast } from '@/components/ui/useToast'
 import { useGamification } from '@/hooks/useGamification'
 import { UserStreak } from '@/components/features/gamification/UserStreak'
 import { BadgeList } from '@/components/features/gamification/UserBadge'
+import { uploadFile } from '@/lib/supabase'
 
 const profileSchema = z.object({
   full_name: z.string().min(1, 'Nom requis'),
@@ -35,6 +36,26 @@ export default function ProfilePage() {
   const changePassword = useChangePassword()
   const { streak, badges } = useGamification()
   const toast = useToast()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [avatarUploading, setAvatarUploading] = useState(false)
+
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file || !user) return
+    setAvatarUploading(true)
+    try {
+      const ext = file.name.split('.').pop() ?? 'jpg'
+      const path = `${user.id}/${Date.now()}.${ext}`
+      const url = await uploadFile('avatars', path, file)
+      await updateProfile.mutateAsync({ avatar_url: url })
+      toast.success('Photo mise à jour ✓')
+    } catch (err) {
+      toast.error(`Erreur upload : ${(err as Error).message}`)
+    } finally {
+      setAvatarUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
 
   const {
     register: regProfile,
@@ -112,16 +133,39 @@ export default function ProfilePage() {
 
         {/* Avatar + email */}
         <div className="card flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-brand-600 flex items-center justify-center shrink-0">
-            {profile?.avatar_url ? (
-              <img src={profile.avatar_url} alt="" className="w-16 h-16 rounded-2xl object-cover" />
-            ) : (
-              <span className="text-white text-xl font-bold">{initials}</span>
-            )}
+          <div className="relative shrink-0 group">
+            <div className="w-16 h-16 rounded-2xl bg-brand-600 flex items-center justify-center overflow-hidden">
+              {profile?.avatar_url ? (
+                <img src={profile.avatar_url} alt="" className="w-16 h-16 object-cover" />
+              ) : (
+                <span className="text-white text-xl font-bold">{initials}</span>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={avatarUploading}
+              className="absolute inset-0 rounded-2xl bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+              title="Changer la photo"
+            >
+              {avatarUploading
+                ? <Loader2 className="w-5 h-5 text-white animate-spin" />
+                : <Camera className="w-5 h-5 text-white" />
+              }
+            </button>
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
           </div>
           <div>
             <p className="font-semibold text-slate-900">{profile?.full_name ?? '—'}</p>
             <p className="text-sm text-slate-500">{user?.email}</p>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={avatarUploading}
+              className="text-xs text-brand-600 hover:underline mt-0.5"
+            >
+              {avatarUploading ? 'Envoi…' : 'Modifier la photo'}
+            </button>
           </div>
         </div>
 
