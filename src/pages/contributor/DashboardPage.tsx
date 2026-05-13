@@ -6,6 +6,9 @@ import PageHeader from '@/components/layout/PageHeader'
 import { useMyTodayActions, useUpdateAction } from '@/hooks/useActions'
 import { useAuth } from '@/hooks/useAuth'
 import type { ActionStatus } from '@/types/database'
+import ActivityFeed from '@/components/features/ActivityFeed'
+import { UserStreak } from '@/components/features/gamification/UserStreak'
+import { useGamification } from '@/hooks/useGamification'
 
 const STATUS_OPTIONS: { value: ActionStatus; label: string }[] = [
   { value: 'todo',        label: 'À faire' },
@@ -22,6 +25,7 @@ export default function DashboardPage() {
   const { profile } = useAuth()
   const { data: actions = [], isLoading } = useMyTodayActions()
   const updateAction = useUpdateAction()
+  const { streak } = useGamification()
 
   const todo = actions.filter(a => a.status === 'todo').length
   const inProgress = actions.filter(a => a.status === 'in_progress').length
@@ -37,6 +41,12 @@ export default function DashboardPage() {
         title={`${greeting}${firstName ? `, ${firstName}` : ''} 👋`}
         subtitle="Voici vos actions du jour"
       />
+
+      {streak && streak.current_streak > 0 && (
+        <div className="card mb-4 flex items-center gap-3 py-3">
+          <UserStreak streak={streak} compact />
+        </div>
+      )}
 
       <motion.div initial={{ y: 6, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="grid grid-cols-3 gap-3 mb-8">
         <StatCard label="À faire"   value={todo}       icon={<Clock className="w-4 h-4" />}        color="text-slate-600" />
@@ -92,6 +102,11 @@ export default function DashboardPage() {
             ))}
           </div>
         )}
+      </motion.div>
+
+      <motion.div initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }} className="card mt-6">
+        <h2 className="font-semibold text-slate-900 mb-4">Activité récente</h2>
+        <ActivityFeed limit={6} />
       </motion.div>
     </div>
   )

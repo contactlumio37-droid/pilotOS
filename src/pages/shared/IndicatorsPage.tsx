@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, TrendingUp, TrendingDown, Minus, PenLine, X } from 'lucide-react'
 import { format } from 'date-fns'
+import { subDays, subYears } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { LineChart, Line, ResponsiveContainer, Tooltip } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
 import PageHeader from '@/components/layout/PageHeader'
 import IndicatorDrawer from '@/components/modules/IndicatorDrawer'
 import { useIndicators, useIndicatorValues, useAddIndicatorValue } from '@/hooks/useIndicators'
@@ -76,6 +77,122 @@ function ValueEntryModal({ indicator, onClose }: { indicator: Indicator; onClose
             </button>
           </div>
         </form>
+      </motion.div>
+    </div>
+  )
+}
+
+// ── Full chart detail modal ───────────────────────────────────
+
+type Period = '30j' | '90j' | '1an' | 'tout'
+
+function IndicatorChartModal({ indicator, onClose, onEdit }: {
+  indicator: Indicator
+  onClose: () => void
+  onEdit: () => void
+}) {
+  const [period, setPeriod] = useState<Period>('90j')
+  const { data: values = [] } = useIndicatorValues(indicator.id)
+
+  const cutoff = period === '30j'  ? subDays(new Date(), 30)
+               : period === '90j'  ? subDays(new Date(), 90)
+               : period === '1an'  ? subYears(new Date(), 1)
+               : null
+
+  const filtered = [...values]
+    .filter(v => !cutoff || new Date(v.measured_at) >= cutoff)
+    .sort((a, b) => a.measured_at.localeCompare(b.measured_at))
+
+  const chartData = filtered.map(v => ({
+    v: v.value,
+    d: format(new Date(v.measured_at), 'dd/MM', { locale: fr }),
+    note: v.note,
+  }))
+
+  const latest = filtered[filtered.length - 1]
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-6"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <h3 className="font-semibold text-slate-900 text-lg">{indicator.title}</h3>
+            <p className="text-xs text-slate-400 mt-0.5">{FREQ_LABELS[indicator.frequency]}{indicator.unit ? ` · ${indicator.unit}` : ''}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={onEdit} className="btn-secondary text-xs py-1.5 px-3">Modifier</button>
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X className="w-5 h-5" /></button>
+          </div>
+        </div>
+
+        {/* Period selector */}
+        <div className="flex gap-1 mb-4 bg-slate-100 rounded-lg p-1 w-fit">
+          {(['30j', '90j', '1an', 'tout'] as Period[]).map(p => (
+            <button
+              key={p}
+              onClick={() => setPeriod(p)}
+              className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${
+                period === p ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              {p === 'tout' ? 'Tout' : p}
+            </button>
+          ))}
+        </div>
+
+        {/* Chart */}
+        {chartData.length < 2 ? (
+          <div className="h-48 flex items-center justify-center text-slate-400 text-sm bg-slate-50 rounded-xl">
+            Pas assez de données pour cette période
+          </div>
+        ) : (
+          <div className="h-48">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis dataKey="d" tick={{ fontSize: 11, fill: '#94a3b8' }} />
+                <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} width={40} />
+                <Tooltip
+                  contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}
+                  formatter={(v: number) => [`${v}${indicator.unit ? ` ${indicator.unit}` : ''}`, 'Valeur']}
+                />
+                {indicator.target_value != null && (
+                  <ReferenceLine y={indicator.target_value} stroke="#10b981" strokeDasharray="4 2" label={{ value: `Cible: ${indicator.target_value}`, fill: '#10b981', fontSize: 10 }} />
+                )}
+                {indicator.warning_threshold != null && (
+                  <ReferenceLine y={indicator.warning_threshold} stroke="#f59e0b" strokeDasharray="4 2" />
+                )}
+                {indicator.critical_threshold != null && (
+                  <ReferenceLine y={indicator.critical_threshold} stroke="#ef4444" strokeDasharray="4 2" />
+                )}
+                <Line type="monotone" dataKey="v" stroke="#444ce7" strokeWidth={2} dot={{ r: 3, fill: '#444ce7' }} activeDot={{ r: 5 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        {/* Latest + target */}
+        <div className="mt-4 flex items-center gap-4 text-sm">
+          {latest && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-400">Dernière valeur :</span>
+              <span className="font-semibold text-slate-900">{latest.value}{indicator.unit ? ` ${indicator.unit}` : ''}</span>
+              <span className="text-slate-400">({format(new Date(latest.measured_at), 'd MMM yyyy', { locale: fr })})</span>
+            </div>
+          )}
+          {indicator.target_value != null && latest && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-emerald-600 font-medium">
+                {Math.round((latest.value / indicator.target_value) * 100)}% de l'objectif
+              </span>
+            </div>
+          )}
+        </div>
       </motion.div>
     </div>
   )
@@ -208,6 +325,7 @@ export default function IndicatorsPage() {
   const [drawerOpen, setDrawerOpen]         = useState(false)
   const [selected, setSelected]             = useState<Indicator | null>(null)
   const [valueModalFor, setValueModalFor]   = useState<Indicator | null>(null)
+  const [chartFor, setChartFor]             = useState<Indicator | null>(null)
 
   const canCreate = useIsAtLeast('manager')
   const canAddValue = useIsAtLeast('contributor')
@@ -258,7 +376,7 @@ export default function IndicatorsPage() {
             <IndicatorCard
               key={ind.id}
               indicator={ind}
-              onClick={() => openEdit(ind)}
+              onClick={() => setChartFor(ind)}
               onAddValue={canAddValue ? () => setValueModalFor(ind) : () => openEdit(ind)}
             />
           ))}
@@ -274,6 +392,16 @@ export default function IndicatorsPage() {
       <AnimatePresence>
         {valueModalFor && (
           <ValueEntryModal indicator={valueModalFor} onClose={() => setValueModalFor(null)} />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {chartFor && (
+          <IndicatorChartModal
+            indicator={chartFor}
+            onClose={() => setChartFor(null)}
+            onEdit={() => { openEdit(chartFor); setChartFor(null) }}
+          />
         )}
       </AnimatePresence>
     </div>

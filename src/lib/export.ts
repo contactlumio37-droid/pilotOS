@@ -88,3 +88,96 @@ export function exportProcessesPDF(processes: ProcessExportItem[], orgName = 'Or
     </table>`
   printWindow(`Processus — ${orgName}`, html)
 }
+
+interface DuerExportItem {
+  work_unit: string
+  hazard: string
+  risk_description: string
+  probability: number
+  severity: number
+  prevention_measures: string
+  review_date?: string | null
+}
+
+interface EpiExportItem {
+  category: string
+  designation: string
+  reference?: string | null
+  norm?: string | null
+  supplier?: string | null
+  storage_location?: string | null
+  renewal_months?: number | null
+}
+
+interface HabExportItem {
+  code: string
+  label: string
+  category: string
+  validity_months?: number | null
+  description?: string | null
+}
+
+export function exportDuerPDF(items: DuerExportItem[], orgName = 'Organisation') {
+  const rows = items.map(i => {
+    const score = i.probability * i.severity
+    const level = score <= 4 ? 'Faible' : score <= 8 ? 'Modéré' : score <= 12 ? 'Modéré+' : score <= 16 ? 'Élevé' : 'Critique'
+    return `<tr>
+      <td>${i.work_unit}</td>
+      <td>${i.hazard}</td>
+      <td>${i.risk_description}</td>
+      <td style="text-align:center">${i.probability}×${i.severity} = <strong>${score}</strong></td>
+      <td>${level}</td>
+      <td>${i.prevention_measures}</td>
+      <td>${i.review_date ? new Date(i.review_date).toLocaleDateString('fr-FR') : '—'}</td>
+    </tr>`
+  }).join('')
+
+  const html = `
+    <h1>Document Unique d'Évaluation des Risques</h1>
+    <p class="subtitle">${orgName} · ${items.length} unité${items.length > 1 ? 's' : ''} de travail</p>
+    <table>
+      <thead><tr><th>Unité de travail</th><th>Danger</th><th>Description du risque</th><th>Cotation</th><th>Niveau</th><th>Mesures de prévention</th><th>Révision</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`
+  printWindow(`DUER — ${orgName}`, html)
+}
+
+export function exportEpiPDF(items: EpiExportItem[], orgName = 'Organisation') {
+  const rows = items.map(i => `<tr>
+    <td>${i.category}</td>
+    <td>${i.designation}</td>
+    <td>${i.reference ?? '—'}</td>
+    <td>${i.norm ?? '—'}</td>
+    <td>${i.supplier ?? '—'}</td>
+    <td>${i.storage_location ?? '—'}</td>
+    <td>${i.renewal_months != null ? `${i.renewal_months} mois` : '—'}</td>
+  </tr>`).join('')
+
+  const html = `
+    <h1>Catalogue EPI</h1>
+    <p class="subtitle">${orgName} · ${items.length} équipement${items.length > 1 ? 's' : ''}</p>
+    <table>
+      <thead><tr><th>Catégorie</th><th>Désignation</th><th>Référence</th><th>Norme</th><th>Fournisseur</th><th>Lieu stockage</th><th>Renouvellement</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`
+  printWindow(`EPI — ${orgName}`, html)
+}
+
+export function exportHabilitationsPDF(items: HabExportItem[], orgName = 'Organisation') {
+  const rows = items.map(i => `<tr>
+    <td><strong>${i.code}</strong></td>
+    <td>${i.label}</td>
+    <td>${i.category}</td>
+    <td>${i.validity_months != null ? `${i.validity_months} mois` : 'Illimitée'}</td>
+    <td>${i.description ?? '—'}</td>
+  </tr>`).join('')
+
+  const html = `
+    <h1>Catalogue des habilitations</h1>
+    <p class="subtitle">${orgName} · ${items.length} habilitation${items.length > 1 ? 's' : ''}</p>
+    <table>
+      <thead><tr><th>Code</th><th>Libellé</th><th>Catégorie</th><th>Validité</th><th>Description</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`
+  printWindow(`Habilitations — ${orgName}`, html)
+}

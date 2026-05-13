@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, GraduationCap, AlertTriangle, X } from 'lucide-react'
+import { Plus, GraduationCap, AlertTriangle, X, FileDown } from 'lucide-react'
 import {
   useHabilitations,
   useHabilitationAttributions,
   useUpsertHabilitation,
   useUpsertHabAttribution,
 } from '@/hooks/useSecurity'
+import { exportHabilitationsPDF } from '@/lib/export'
 import type { Habilitation, HabilitationAttribution } from '@/hooks/useSecurity'
 import { useMemberOptions } from '@/hooks/useMembers'
 import { differenceInDays, format, parseISO } from 'date-fns'
@@ -395,7 +396,13 @@ export default function HabilitationsPage() {
       {/* ── Tab: Catalogue ── */}
       {tab === 'catalogue' && (
         <div className="space-y-3">
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => exportHabilitationsPDF(habilitations.map(h => ({ code: h.code, label: h.label, category: h.category, validity_months: h.validity_months, description: h.description })))}
+              className="btn-secondary text-sm flex items-center gap-1.5"
+            >
+              <FileDown className="w-4 h-4" /> Exporter PDF
+            </button>
             <button onClick={() => setHabDrawer({})} className="btn-primary flex items-center gap-2">
               <Plus className="w-4 h-4" /> Nouvelle habilitation
             </button>

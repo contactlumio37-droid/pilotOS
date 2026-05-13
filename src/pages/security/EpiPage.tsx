@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, Shield, AlertTriangle, CheckCircle2, Package, RefreshCw, X } from 'lucide-react'
+import { Plus, Shield, AlertTriangle, CheckCircle2, Package, RefreshCw, X, FileDown } from 'lucide-react'
 import { useEpiItems, useEpiAttributions, useUpsertEpiItem, useUpsertEpiAttribution, useRecordEpiControl } from '@/hooks/useSecurity'
+import { exportEpiPDF } from '@/lib/export'
 import type { EpiItem, EpiAttribution } from '@/hooks/useSecurity'
 import { useMemberOptions } from '@/hooks/useMembers'
 import { differenceInDays, format, parseISO } from 'date-fns'
@@ -425,7 +426,13 @@ export default function EpiPage() {
       {/* ── Tab: Catalogue ── */}
       {tab === 'catalogue' && (
         <div className="space-y-3">
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => exportEpiPDF(epiItems.map(i => ({ category: i.category, designation: i.designation, reference: i.reference, norm: i.norm, supplier: i.supplier, storage_location: i.storage_location, renewal_months: i.renewal_months })))}
+              className="btn-secondary text-sm flex items-center gap-1.5"
+            >
+              <FileDown className="w-4 h-4" /> Exporter PDF
+            </button>
             <button onClick={() => setItemDrawer({})} className="btn-primary flex items-center gap-2">
               <Plus className="w-4 h-4" /> Nouvel EPI
             </button>

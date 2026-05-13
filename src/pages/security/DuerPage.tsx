@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Plus, Pencil, Archive, AlertTriangle } from 'lucide-react'
+import { Plus, Pencil, Archive, AlertTriangle, FileDown } from 'lucide-react'
 import { useDuerEvaluations, useUpsertDuer, useDeleteDuer } from '@/hooks/useSecurity'
 import type { DuerEvaluation } from '@/hooks/useSecurity'
 import { useIsAtLeast } from '@/hooks/useRole'
 import { useOrganisation } from '@/hooks/useOrganisation'
+import { exportDuerPDF } from '@/lib/export'
 
 const RISK_LABEL: Record<number, { label: string; color: string }> = {
   1:  { label: 'Négligeable', color: 'badge-success'  },
@@ -123,13 +124,19 @@ export default function DuerPage() {
 
   return (
     <div className="space-y-4">
-      {canEdit && (
-        <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <button
+          onClick={() => exportDuerPDF(items.map(e => ({ work_unit: e.work_unit, hazard: e.hazard, risk_description: e.risk_description, probability: e.probability, severity: e.severity, prevention_measures: e.prevention_measures ?? '', review_date: e.review_date })), organisation?.name)}
+          className="btn-secondary text-sm flex items-center gap-1.5"
+        >
+          <FileDown className="w-4 h-4" /> Exporter PDF
+        </button>
+        {canEdit && (
           <button onClick={() => setDrawer({})} className="btn-primary flex items-center gap-1.5">
             <Plus className="w-4 h-4" /> Nouvelle évaluation
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       {items.length === 0 ? (
         <div className="card text-center py-12">

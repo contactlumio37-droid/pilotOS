@@ -3,15 +3,17 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { motion } from 'framer-motion'
-import { Save, Lock, User, Flame, MessageSquarePlus, Camera, Loader2 } from 'lucide-react'
+import { Save, Lock, User, Flame, MessageSquarePlus, Camera, Loader2, Bell } from 'lucide-react'
 import { Link, useResolvedPath } from 'react-router-dom'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useProfile, useUpdateProfile, useChangePassword } from '@/hooks/useProfile'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/components/ui/useToast'
 import { useGamification } from '@/hooks/useGamification'
 import { UserStreak } from '@/components/features/gamification/UserStreak'
 import { BadgeList } from '@/components/features/gamification/UserBadge'
-import { uploadFile } from '@/lib/supabase'
+import { uploadFile, supabase } from '@/lib/supabase'
+import { useOrganisation } from '@/hooks/useOrganisation'
 
 const profileSchema = z.object({
   full_name: z.string().min(1, 'Nom requis'),
@@ -38,6 +40,53 @@ export default function ProfilePage() {
   const toast = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [avatarUploading, setAvatarUploading] = useState(false)
+  const { member } = useOrganisation()
+  const qc = useQueryClient()
+
+  type NotifPrefs = {
+    email_late_actions: boolean
+    email_due_soon: boolean
+    email_digest_weekly: boolean
+    email_document_approval: boolean
+  }
+  const DEFAULT_NOTIF_PREFS: NotifPrefs = {
+    email_late_actions: true,
+    email_due_soon: true,
+    email_digest_weekly: true,
+    email_document_approval: true,
+  }
+
+  const { data: notifPrefs = DEFAULT_NOTIF_PREFS } = useQuery({
+    queryKey: ['notif_prefs', member?.id],
+    enabled: !!member,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('organisation_members')
+        .select('notification_prefs')
+        .eq('id', member!.id)
+        .single()
+      return (data?.notification_prefs as NotifPrefs | null) ?? DEFAULT_NOTIF_PREFS
+    },
+  })
+
+  const toggleNotif = useMutation({
+    mutationFn: async (key: keyof NotifPrefs) => {
+      if (!member) return
+      const next = { ...notifPrefs, [key]: !notifPrefs[key] }
+      await supabase
+        .from('organisation_members')
+        .update({ notification_prefs: next })
+        .eq('id', member.id)
+      qc.setQueryData(['notif_prefs', member.id], next)
+    },
+  })
+
+  const NOTIF_CONFIG: { key: keyof NotifPrefs; label: string; description: string }[] = [
+    { key: 'email_late_actions', label: "Rappels d'actions en retard", description: "Email quotidien à 8h listant vos actions dont l'échéance est dépassée." },
+    { key: 'email_due_soon', label: 'Échéances proches (J-2)', description: "Email 2 jours avant l'échéance de vos actions." },
+    { key: 'email_digest_weekly', label: 'Résumé hebdomadaire', description: 'Bilan envoyé chaque lundi matin : actions en retard, terminées, signalements.' },
+    { key: 'email_document_approval', label: 'Demandes de validation GED', description: 'Notification quand un document passe en revue et nécessite votre validation.' },
+  ]
 
   async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -268,6 +317,37 @@ export default function ProfilePage() {
             </div>
           </form>
         </div>
+        {/* Notification preferences */}
+        {member && (
+          <div className="card">
+            <div className="flex items-center gap-2 mb-5">
+              <Bell className="w-5 h-5 text-brand-600" />
+              <h2 className="font-semibold text-slate-900">Notifications email</h2>
+            </div>
+            <div className="space-y-4">
+              {NOTIF_CONFIG.map(({ key, label, description }) => (
+                <div key={key} className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-slate-800">{label}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{description}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => toggleNotif.mutate(key)}
+                    disabled={toggleNotif.isPending}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${
+                      notifPrefs[key] ? 'bg-brand-600' : 'bg-slate-200'
+                    }`}
+                  >
+                    <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ${
+                      notifPrefs[key] ? 'translate-x-5' : 'translate-x-0'
+                    }`} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </motion.div>
     </div>
   )
