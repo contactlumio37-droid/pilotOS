@@ -156,6 +156,7 @@ export default function TerrainReportsManager() {
       if (error) throw error
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['terrain_reports_manager'] }),
+    onError: () => queryClient.invalidateQueries({ queryKey: ['terrain_reports_manager'] }),
   })
 
   async function handleConvert(report: TerrainReport, actionTitle: string) {
@@ -218,10 +219,11 @@ export default function TerrainReportsManager() {
                       <div className="flex gap-2 shrink-0 flex-wrap">
                         <button
                           onClick={() => acknowledge.mutate(report.id)}
+                          disabled={acknowledge.isPending}
                           className="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1"
                         >
                           <Check className="w-3 h-3" />
-                          Prendre en compte
+                          {acknowledge.isPending ? 'Traitement…' : 'Prendre en compte'}
                         </button>
                         {report.category === 'safety' && (
                           <button

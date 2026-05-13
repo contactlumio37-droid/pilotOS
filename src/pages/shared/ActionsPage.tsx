@@ -16,6 +16,7 @@ import { useActions } from '@/hooks/useActions'
 import { useCategories } from '@/hooks/useCategories'
 import { useBreakpoint } from '@/hooks/useBreakpoint'
 import { useAuth } from '@/hooks/useAuth'
+import { useIsAtLeast } from '@/hooks/useRole'
 import { exportActionsPDF } from '@/lib/export'
 import type { ActionWithRelations } from '@/hooks/useActions'
 import type { ActionStatus, ActionOrigin } from '@/types/database'
@@ -61,6 +62,7 @@ export default function ActionsPage() {
   const breakpoint = useBreakpoint()
   const isDesktop = breakpoint === 'desktop'
   const { organisation } = useAuth()
+  const canCreate = useIsAtLeast('contributor')
   const { actions: actionsLimit, isFreePlan, checkout } = usePlanLimits()
   const effectiveView = isDesktop ? viewMode : 'list'
 
@@ -106,9 +108,10 @@ export default function ActionsPage() {
   // Key that resets kanban column expanded states when any filter changes
   const filterVersion = [search, status, origin, responsible, String(showClosed)].join('|')
 
-  // Keyboard shortcut: N → open create (desktop, outside inputs)
+  // Keyboard shortcut: N → open create (desktop, outside inputs, contributor+ only)
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
+      if (!canCreate) return
       if (e.key !== 'n' && e.key !== 'N') return
       if (e.ctrlKey || e.metaKey || e.altKey) return
       const target = e.target as HTMLElement
@@ -118,7 +121,7 @@ export default function ActionsPage() {
     }
     document.addEventListener('keydown', handleKey)
     return () => document.removeEventListener('keydown', handleKey)
-  }, [])
+  }, [canCreate])
 
   function handleExport() {
     const today = format(new Date(), 'yyyy-MM-dd')
@@ -168,10 +171,12 @@ export default function ActionsPage() {
         title="Actions"
         subtitle={`${actions.length} action${actions.length !== 1 ? 's' : ''}`}
         actions={
-          <button onClick={openCreate} className="btn-primary flex items-center gap-1.5 text-sm">
-            <Plus className="w-4 h-4" />
-            Nouvelle action
-          </button>
+          canCreate ? (
+            <button onClick={openCreate} className="btn-primary flex items-center gap-1.5 text-sm">
+              <Plus className="w-4 h-4" />
+              Nouvelle action
+            </button>
+          ) : undefined
         }
       />
 
@@ -214,14 +219,16 @@ export default function ActionsPage() {
           )}
         </button>
 
-        <button
-          onClick={() => setShowImport(true)}
-          className="btn-secondary flex items-center gap-1.5"
-          title="Importer des actions depuis un CSV"
-        >
-          <Upload className="w-4 h-4" />
-          <span className="hidden sm:inline">Importer</span>
-        </button>
+        {canCreate && (
+          <button
+            onClick={() => setShowImport(true)}
+            className="btn-secondary flex items-center gap-1.5"
+            title="Importer des actions depuis un CSV"
+          >
+            <Upload className="w-4 h-4" />
+            <span className="hidden sm:inline">Importer</span>
+          </button>
+        )}
 
         {listActions.length > 0 && (
           <button
@@ -312,7 +319,7 @@ export default function ActionsPage() {
             icon={Inbox}
             title="Aucune action pour l'instant"
             description="Créez votre première action pour commencer le suivi."
-            cta={{ label: '+ Nouvelle action', onClick: openCreate }}
+            cta={canCreate ? { label: '+ Nouvelle action', onClick: openCreate } : undefined}
           />
         )
       )}

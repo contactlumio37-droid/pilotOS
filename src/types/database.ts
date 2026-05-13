@@ -105,6 +105,12 @@ export interface OrganisationMember {
   mfa_enabled: boolean
   mfa_enrolled_at: string | null
   kpi_config: Json
+  notification_prefs: {
+    email_late_actions: boolean
+    email_due_soon: boolean
+    email_digest_weekly: boolean
+    email_document_approval: boolean
+  }
 }
 
 export interface ImpersonationLog {
@@ -510,6 +516,8 @@ export interface Notification {
   body: string | null
   read: boolean
   action_url: string | null
+  entity_type: string | null
+  entity_id: string | null
   created_at: string
 }
 
@@ -862,4 +870,81 @@ export interface RegulatoryItem {
   created_by: string | null
   created_at: string
   updated_at: string
+}
+
+// ============================================================
+// Sprint 2 — EPI, Habilitations, Demo, Activity (20260508–20260513)
+// ============================================================
+
+export interface EpiItem {
+  id: string
+  organisation_id: string
+  site_id: string | null
+  category: string
+  designation: string
+  reference: string | null
+  norm: string | null
+  supplier: string | null
+  storage_location: string | null
+  renewal_months: number | null
+  notes: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface EpiAttribution {
+  id: string
+  organisation_id: string
+  epi_item_id: string
+  user_id: string
+  assigned_at: string
+  quantity: number
+  condition: string
+  next_control_date: string | null
+  last_control_date: string | null
+  last_control_result: string | null
+  notes: string | null
+  is_active: boolean
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface Habilitation {
+  id: string
+  organisation_id: string
+  code: string
+  label: string
+  category: string
+  description: string | null
+  validity_months: number | null
+  renewal_delay_days: number
+  created_at: string
+  updated_at: string
+}
+
+export interface HabilitationAttribution {
+  id: string
+  organisation_id: string
+  habilitation_id: string
+  user_id: string
+  issued_at: string
+  expires_at: string | null
+  issuer: string | null
+  certificate_url: string | null
+  status: 'active' | 'expired' | 'suspended'
+  notes: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface DemoRequest {
+  id: string
+  name: string
+  email: string
+  organisation_name: string
+  sector: string | null
+  created_at: string
 }

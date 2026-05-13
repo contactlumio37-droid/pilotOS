@@ -142,9 +142,9 @@ Toujours vérifier le quota avant appel IA : `checkAiQuota(organisationId)`
 ```
 VITE_SUPABASE_URL=          # URL du projet Supabase
 VITE_SUPABASE_ANON_KEY=     # Clé anonyme Supabase
-VITE_APP_URL=               # URL publique de l'app (ex : https://pilotos.app)
-VITE_STRIPE_PUBLISHABLE_KEY= # Clé publique Stripe (optionnel, non utilisé côté client direct)
 ```
+
+> Note : `VITE_APP_URL` et `VITE_STRIPE_PUBLISHABLE_KEY` sont documentés pour usage futur — non utilisés dans le code frontend actuel.
 
 ### Edge Functions (Supabase Secrets)
 
@@ -159,6 +159,21 @@ ANTHROPIC_API_KEY           # Clé API Anthropic pour l'assistant IA
 ```
 
 Configurer les secrets : `supabase secrets set RESEND_API_KEY=re_xxx`
+
+### Secrets CI/CD (GitHub Actions)
+
+Ces secrets doivent être configurés dans GitHub → Settings → Secrets and variables → Actions :
+
+```
+SUPABASE_ACCESS_TOKEN       # Token d'accès Supabase CLI (supabase.com → Account → Access tokens)
+SUPABASE_PROJECT_REF        # Référence du projet Supabase (ex : abcdefghijklmnop)
+SUPABASE_DB_PASSWORD        # Mot de passe de la base Supabase
+VERCEL_TOKEN                # Token d'accès Vercel (vercel.com → Settings → Tokens)
+VERCEL_ORG_ID               # ID de l'organisation Vercel
+VERCEL_PROJECT_ID           # ID du projet Vercel
+VITE_SUPABASE_URL           # Même valeur que la var frontend (requis pour le build CI)
+VITE_SUPABASE_ANON_KEY      # Même valeur que la var frontend (requis pour le build CI)
+```
 
 ## SMTP — Ne JAMAIS bypasser email.ts
 
