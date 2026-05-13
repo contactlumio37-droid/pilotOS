@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useState, useEffect, type ReactNode } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ChevronLeft, Plus, Trash2, ArrowUp, ArrowDown,
@@ -701,6 +701,12 @@ export default function PageEditor({ page, onBack }: PageEditorProps) {
   const [showPreview, setShowPreview] = useState(false)
   const [published, setPublished] = useState(page.published)
 
+  useEffect(() => {
+    setBlocks((page.sections ?? []) as unknown as CmsBlock[])
+    setPublished(page.published)
+    setSelectedId(null)
+  }, [page.id])
+
   const selectedBlock = blocks.find(b => b.id === selectedId) ?? null
 
   function addBlock(type: CmsBlockType) {
@@ -799,22 +805,22 @@ export default function PageEditor({ page, onBack }: PageEditorProps) {
       </div>
 
       <div className="flex gap-4 flex-1 min-h-0">
-        {/* Left: catalog */}
-        <div className="w-[220px] shrink-0 space-y-1 overflow-y-auto">
-          <p className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold px-2 mb-2">Blocs disponibles</p>
-          {BLOCK_CATALOG.map(item => (
-            <button
-              key={item.type}
-              onClick={() => addBlock(item.type)}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-800 border border-slate-700 hover:border-brand-500 hover:bg-slate-700 transition-colors text-left"
-            >
-              <span className="text-base shrink-0">{item.emoji}</span>
-              <div className="min-w-0">
-                <p className="text-xs font-medium text-white">{item.label}</p>
-                <p className="text-[10px] text-slate-500 truncate">{item.description}</p>
-              </div>
-            </button>
-          ))}
+        {/* Left: catalog — 3-col grid */}
+        <div className="w-[260px] shrink-0 overflow-y-auto">
+          <p className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold px-1 mb-2">Blocs disponibles</p>
+          <div className="grid grid-cols-3 gap-1.5">
+            {BLOCK_CATALOG.map(item => (
+              <button
+                key={item.type}
+                onClick={() => addBlock(item.type)}
+                title={item.description}
+                className="flex flex-col items-center gap-1 px-2 py-2.5 rounded-xl bg-slate-800 border border-slate-700 hover:border-brand-500 hover:bg-slate-700 transition-colors text-center"
+              >
+                <span className="text-lg leading-none">{item.emoji}</span>
+                <p className="text-[10px] font-medium text-white leading-tight">{item.label}</p>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Center: canvas */}
@@ -852,10 +858,11 @@ export default function PageEditor({ page, onBack }: PageEditorProps) {
           )}
         </div>
 
-        {/* Right: config */}
-        <div className="w-[280px] shrink-0 overflow-y-auto">
+        {/* Right: config — sticky */}
+        <div className="w-[280px] shrink-0">
+          <div className="sticky top-0">
           {selectedBlock ? (
-            <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4 space-y-4">
+            <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4 space-y-4 max-h-[calc(100vh-12rem)] overflow-y-auto">
               <div className="flex items-center gap-2">
                 <span className="text-base">{BLOCK_CATALOG.find(b => b.type === selectedBlock.type)?.emoji}</span>
                 <p className="text-sm font-semibold text-white capitalize">{BLOCK_CATALOG.find(b => b.type === selectedBlock.type)?.label ?? selectedBlock.type}</p>
@@ -870,6 +877,7 @@ export default function PageEditor({ page, onBack }: PageEditorProps) {
               Sélectionnez un bloc pour modifier ses propriétés
             </div>
           )}
+          </div>
         </div>
       </div>
 

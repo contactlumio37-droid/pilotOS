@@ -2,10 +2,12 @@ import { Routes, Route } from 'react-router-dom'
 import {
   LayoutDashboard, ListChecks, GitBranch, FolderOpen,
   Users, Settings, BarChart2, Target, AlertCircle, ShieldCheck,
+  Gauge, Shield,
 } from 'lucide-react'
 import { useBreakpoint } from '@/hooks/useBreakpoint'
 import { ORG_CONTEXT_KEY, useHasModule } from '@/hooks/useOrganisation'
 import Sidebar from '@/components/layout/Sidebar'
+import type { NavItem } from '@/components/layout/Sidebar'
 import BottomNav from '@/components/layout/BottomNav'
 import SuperAdminBanner from '@/components/layout/SuperAdminBanner'
 import AdminDashboard from './AdminDashboard'
@@ -22,14 +24,33 @@ import ProfilePage from '@/pages/shared/ProfilePage'
 import TerrainReportsManager from '@/pages/shared/TerrainReportsManager'
 import SecurityApp from '@/pages/shared/SecurityApp'
 
-const BASE_NAV = [
+const PILOTAGE_GROUP: NavItem = {
+  to: '',
+  label: 'Pilotage',
+  icon: Gauge,
+  children: [
+    { to: '/admin',             label: 'Tableau de bord', icon: LayoutDashboard, end: true },
+    { to: '/admin/actions',     label: 'Actions',          icon: ListChecks },
+    { to: '/admin/strategie',   label: 'Stratégie',        icon: Target },
+    { to: '/admin/indicateurs', label: 'Indicateurs',      icon: BarChart2 },
+  ],
+}
+
+const QUALITE_GROUP: NavItem = {
+  to: '',
+  label: 'Qualité',
+  icon: GitBranch,
+  children: [
+    { to: '/admin/processus',   label: 'Processus',        icon: GitBranch },
+    { to: '/admin/documents',   label: 'Documents',        icon: FolderOpen },
+    { to: '/admin/terrain',     label: 'Terrain',          icon: AlertCircle },
+  ],
+}
+
+const BOTTOM_ITEMS: NavItem[] = [
   { to: '/admin',             label: 'Tableau de bord', icon: LayoutDashboard, end: true },
   { to: '/admin/actions',     label: 'Actions',          icon: ListChecks },
-  { to: '/admin/strategie',   label: 'Stratégie',        icon: Target },
   { to: '/admin/processus',   label: 'Processus',        icon: GitBranch },
-  { to: '/admin/indicateurs', label: 'Indicateurs',      icon: BarChart2 },
-  { to: '/admin/terrain',     label: 'Terrain',          icon: AlertCircle },
-  { to: '/admin/documents',   label: 'Documents',        icon: FolderOpen },
   { to: '/admin/membres',     label: 'Membres',          icon: Users },
   { to: '/admin/parametres',  label: 'Paramètres',       icon: Settings },
 ]
@@ -40,14 +61,30 @@ export default function AdminApp() {
   const hasBanner   = !!sessionStorage.getItem(ORG_CONTEXT_KEY)
   const hasSecurite = useHasModule('securite')
 
-  const NAV_ITEMS = hasSecurite
-    ? [...BASE_NAV.slice(0, 7), { to: '/admin/securite', label: 'Sécurité', icon: ShieldCheck }, ...BASE_NAV.slice(7)]
-    : BASE_NAV
+  const securiteGroup: NavItem = {
+    to: '',
+    label: 'Sécurité',
+    icon: Shield,
+    children: [
+      { to: '/admin/securite', label: 'Sécurité', icon: ShieldCheck },
+    ],
+  }
+
+  const sidebarItems: NavItem[] = [
+    PILOTAGE_GROUP,
+    QUALITE_GROUP,
+    { to: '/admin/membres',    label: 'Membres',    icon: Users },
+    { to: '/admin/parametres', label: 'Paramètres', icon: Settings },
+    ...(hasSecurite ? [securiteGroup] : []),
+  ]
 
   return (
     <div className="min-h-screen bg-slate-50">
       <SuperAdminBanner />
-      {isDesktop ? <Sidebar items={NAV_ITEMS} profileTo="/admin/profil" /> : <BottomNav items={NAV_ITEMS.slice(0, 5)} />}
+      {isDesktop
+        ? <Sidebar items={sidebarItems} profileTo="/admin/profil" />
+        : <BottomNav items={BOTTOM_ITEMS.slice(0, 5)} />
+      }
 
       <main className={`${isDesktop ? 'main-with-sidebar p-8' : 'main-with-bottom-nav p-4'} ${hasBanner ? 'pt-12' : ''}`}>
         <Routes>
@@ -60,7 +97,6 @@ export default function AdminApp() {
           <Route path="/documents"   element={<DocumentsPage />} />
           <Route path="/securite/*"  element={<SecurityApp />} />
           <Route path="/membres"     element={<AdminMembers />} />
-          {/* Deep-link routes for Invitations and Import (not in sidebar) */}
           <Route path="/invitations"  element={<Invitations />} />
           <Route path="/import-users" element={<ImportUsers />} />
           <Route path="/parametres"   element={<AdminSettings />} />

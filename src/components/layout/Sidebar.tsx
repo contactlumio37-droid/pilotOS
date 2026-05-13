@@ -1,17 +1,17 @@
 import { useState, useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, LogOut, UserCircle, Building2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronDown, LogOut, UserCircle, Building2, Zap } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { signOut, useAuth, ADMIN_SESSION_KEY } from '@/hooks/useAuth'
 import { ORG_CONTEXT_KEY } from '@/hooks/useOrganisation'
 import NotificationBell from './NotificationBell'
-import { Zap } from 'lucide-react'
 
-interface NavItem {
+export interface NavItem {
   to: string
   label: string
   icon: LucideIcon
   end?: boolean
+  children?: NavItem[]
 }
 
 interface SidebarProps {
@@ -19,6 +19,76 @@ interface SidebarProps {
   dark?: boolean
   profileTo?: string
   headerSlot?: (collapsed: boolean) => React.ReactNode
+}
+
+function NavGroupItem({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
+  const Icon = item.icon
+  return (
+    <NavLink
+      to={item.to}
+      end={item.end}
+      className={({ isActive }) =>
+        `flex items-center gap-3 mx-2 px-3 py-2.5 rounded-lg transition-colors mb-0.5 ${
+          isActive
+            ? 'bg-brand-600 text-white'
+            : 'text-slate-400 hover:text-white hover:bg-slate-800'
+        } ${collapsed ? 'justify-center' : 'pl-8'}`
+      }
+      title={collapsed ? item.label : undefined}
+    >
+      <Icon className="w-5 h-5 shrink-0" />
+      {!collapsed && <span className="text-sm font-medium truncate">{item.label}</span>}
+    </NavLink>
+  )
+}
+
+function NavGroup({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
+  const storageKey = `sidebar_group_${item.label}`
+  const [open, setOpen] = useState(() => {
+    const stored = sessionStorage.getItem(storageKey)
+    return stored === null ? true : stored === 'true'
+  })
+
+  function toggle() {
+    const next = !open
+    setOpen(next)
+    sessionStorage.setItem(storageKey, String(next))
+  }
+
+  const GroupIcon = item.icon
+
+  if (collapsed) {
+    return (
+      <>
+        {(item.children ?? []).map(child => (
+          <NavGroupItem key={child.to} item={child} collapsed />
+        ))}
+      </>
+    )
+  }
+
+  return (
+    <div className="mb-1">
+      <button
+        onClick={toggle}
+        className="flex items-center justify-between w-full mx-2 px-3 py-2 rounded-lg text-slate-500 hover:text-slate-300 transition-colors"
+        style={{ width: 'calc(100% - 1rem)' }}
+      >
+        <div className="flex items-center gap-2">
+          <GroupIcon className="w-4 h-4" />
+          <span className="text-xs font-semibold uppercase tracking-widest">{item.label}</span>
+        </div>
+        <ChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? '' : '-rotate-90'}`} />
+      </button>
+      {open && (
+        <div>
+          {(item.children ?? []).map(child => (
+            <NavGroupItem key={child.to} item={child} collapsed={false} />
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function Sidebar({ items, dark = false, profileTo = '/profil', headerSlot }: SidebarProps) {
@@ -66,6 +136,15 @@ export default function Sidebar({ items, dark = false, profileTo = '/profil', he
       {/* Navigation */}
       <nav className="flex-1 py-4 overflow-y-auto">
         {items.map((item) => {
+          if (item.children) {
+            return (
+              <NavGroup
+                key={item.label}
+                item={item}
+                collapsed={collapsed}
+              />
+            )
+          }
           const Icon = item.icon
           return (
             <NavLink
