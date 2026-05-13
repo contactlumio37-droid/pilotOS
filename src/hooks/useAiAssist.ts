@@ -3,6 +3,34 @@ import { useAuth } from '@/hooks/useAuth'
 import { generateActionFromNaturalLanguage, checkAiQuota } from '@/lib/ai'
 import type { ActionPriority, ActionOrigin } from '@/types/database'
 
+// Generic hook for any AI suggestion function
+export function useAiSuggest<I, T>(fn: (input: I) => Promise<T>) {
+  const { organisation } = useAuth()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function suggest(input: I): Promise<T | null> {
+    if (!organisation) return null
+    setLoading(true)
+    setError(null)
+    try {
+      const quota = await checkAiQuota(organisation.id)
+      if (!quota.allowed) {
+        setError(`Quota IA atteint (plan ${quota.plan}). ${quota.remaining} requête(s) restante(s).`)
+        return null
+      }
+      return await fn(input)
+    } catch {
+      setError('Erreur IA. Réessayez.')
+      return null
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return { loading, error, suggest, clearError: () => setError(null) }
+}
+
 export interface ActionSuggestion {
   title: string
   description: string

@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import {
   Plus, Activity, AlertTriangle, Lightbulb, CheckCircle2, Clock,
-  ClipboardCheck, ChevronDown, ChevronUp, User, Link2, Search,
+  ClipboardCheck, ChevronDown, ChevronUp, User, Link2, Search, FileDown,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -19,6 +19,8 @@ import { useAuth } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
 import { usePlanLimits } from '@/hooks/usePlanLimits'
 import PlanLimitBanner from '@/components/ui/PlanLimitBanner'
+import { exportNcsPDF, exportKaizenPDF } from '@/lib/export'
+import { useOrganisation } from '@/hooks/useOrganisation'
 import type { Process, ProcessType, NcSeverity, NcStatus, KaizenStatus, KaizenPlan } from '@/types/database'
 import type { Category } from '@/hooks/useCategories'
 
@@ -231,6 +233,7 @@ export default function ProcessesPage() {
 
   const canEdit   = useIsAtLeast('manager')
   const canCreate = useIsAtLeast('manager')
+  const { organisation } = useOrganisation()
 
   const { processes: processesLimit, isFreePlan, checkout } = usePlanLimits()
 
@@ -294,6 +297,27 @@ export default function ProcessesPage() {
   function openEditKaizen(k: KaizenPlan) { setSelectedKaizen(k); setKaizenOpen(true) }
   function openCreateKaizen() { setSelectedKaizen(null); setKaizenOpen(true) }
 
+  function handleExportNcs() {
+    exportNcsPDF(ncs.map(nc => ({
+      title:       nc.title,
+      severity:    nc.severity,
+      status:      nc.status,
+      detected_at: nc.detected_at,
+      description: nc.description,
+    })), organisation?.name ?? 'Organisation')
+  }
+
+  function handleExportKaizen() {
+    exportKaizenPDF(kaizens.map(k => ({
+      title:                   k.title,
+      status:                  k.status,
+      objective:               k.objective,
+      start_date:              k.start_date,
+      end_date:                k.end_date,
+      estimated_savings_hours: k.estimated_savings_hours,
+    })), organisation?.name ?? 'Organisation')
+  }
+
   return (
     <div className="max-w-4xl">
       {isFreePlan && <PlanLimitBanner feature="processus" limit={processesLimit} onUpgrade={() => void checkout()} />}
@@ -304,9 +328,14 @@ export default function ProcessesPage() {
           canCreate ? (
             <div className="flex gap-2">
               {tab === 'nc' && (
-                <button onClick={() => setNcOpen(true)} className="btn-secondary flex items-center gap-1.5 text-sm">
-                  <Plus className="w-4 h-4" /> Nouvelle NC
-                </button>
+                <>
+                  <button onClick={handleExportNcs} disabled={ncs.length === 0} className="btn-secondary flex items-center gap-1.5 text-sm">
+                    <FileDown className="w-4 h-4" /> Exporter PDF
+                  </button>
+                  <button onClick={() => setNcOpen(true)} className="btn-secondary flex items-center gap-1.5 text-sm">
+                    <Plus className="w-4 h-4" /> Nouvelle NC
+                  </button>
+                </>
               )}
               {tab === 'processes' && (
                 <button onClick={openCreateProcess} className="btn-primary flex items-center gap-1.5 text-sm">
@@ -314,9 +343,14 @@ export default function ProcessesPage() {
                 </button>
               )}
               {tab === 'kaizen' && (
-                <button onClick={openCreateKaizen} className="btn-primary flex items-center gap-1.5 text-sm">
-                  <Plus className="w-4 h-4" /> Nouveau Kaizen
-                </button>
+                <>
+                  <button onClick={handleExportKaizen} disabled={kaizens.length === 0} className="btn-secondary flex items-center gap-1.5 text-sm">
+                    <FileDown className="w-4 h-4" /> Exporter PDF
+                  </button>
+                  <button onClick={openCreateKaizen} className="btn-primary flex items-center gap-1.5 text-sm">
+                    <Plus className="w-4 h-4" /> Nouveau Kaizen
+                  </button>
+                </>
               )}
               {tab === 'reviews' && (
                 <button onClick={() => setReviewOpen(true)} className="btn-primary flex items-center gap-1.5 text-sm">

@@ -1,10 +1,14 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { Sparkles } from 'lucide-react'
 import Drawer from '@/components/ui/Drawer'
 import { useCreateKaizen, useUpdateKaizen } from '@/hooks/useProcesses'
 import { useToast } from '@/components/ui/useToast'
+import { useAiSuggest } from '@/hooks/useAiAssist'
+import { suggestKaizenContent } from '@/lib/ai'
+import { useOrganisation } from '@/hooks/useOrganisation'
 import type { KaizenPlan } from '@/types/database'
 
 const schema = z.object({
@@ -30,11 +34,28 @@ export default function KaizenDrawer({ open, onClose, kaizen, processId }: Kaize
   const create = useCreateKaizen()
   const update = useUpdateKaizen()
   const toast = useToast()
+  const { organisation } = useOrganisation()
+  const aiEnabled = (organisation as (typeof organisation & { ai_enabled?: boolean }) | null)?.ai_enabled ?? false
+  const ai = useAiSuggest(suggestKaizenContent)
+  const [showAi, setShowAi] = useState(false)
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const { register, handleSubmit, reset, setValue, getValues, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { status: 'planned' },
   })
+
+  useEffect(() => {
+    if (!open) setShowAi(false)
+  }, [open])
+
+  async function handleAiSuggest() {
+    const { title } = getValues()
+    const result = await ai.suggest(title)
+    if (!result) return
+    setValue('objective', result.objective)
+    setValue('estimated_savings_hours', result.estimatedSavingsHours)
+    setShowAi(false)
+  }
 
   useEffect(() => {
     if (kaizen) {
@@ -96,7 +117,35 @@ export default function KaizenDrawer({ open, onClose, kaizen, processId }: Kaize
         </div>
 
         <div>
-          <label className="label">Objectif</label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="label mb-0">Objectif</label>
+            {aiEnabled && !showAi && (
+              <button
+                type="button"
+                onClick={() => setShowAi(true)}
+                className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-medium"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Suggérer
+              </button>
+            )}
+          </div>
+          {showAi && (
+            <div className="mb-2 bg-brand-50 rounded-xl p-3 border border-brand-200">
+              <p className="text-xs text-brand-700 font-medium mb-2 flex items-center gap-1">
+                <Sparkles className="w-3.5 h-3.5" /> Génération IA depuis le titre
+              </p>
+              {ai.error && <p className="text-xs text-danger mb-2">{ai.error}</p>}
+              <div className="flex gap-2">
+                <button type="button" onClick={handleAiSuggest} disabled={ai.loading} className="btn-primary py-1.5 text-xs">
+                  {ai.loading ? 'Génération…' : 'Générer'}
+                </button>
+                <button type="button" onClick={() => setShowAi(false)} className="btn-secondary py-1.5 text-xs">
+                  Annuler
+                </button>
+              </div>
+            </div>
+          )}
           <textarea {...register('objective')} className="input resize-none" rows={2}
             placeholder="Contexte, résultats attendus, indicateur de succès…" />
         </div>

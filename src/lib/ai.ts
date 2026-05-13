@@ -115,6 +115,63 @@ Réponds en JSON :
   return JSON.parse(result.content)
 }
 
+// Suggestion causes racines d'une non-conformité
+export async function suggestNcRootCauses(nc: {
+  title: string
+  description?: string
+  severity: string
+}): Promise<{ rootCauses: string[]; immediateActions: string[] }> {
+  const prompt = `Tu es un expert qualité ISO 9001.
+Non-conformité : "${nc.title}"${nc.description ? `\nDétail : "${nc.description}"` : ''}
+Gravité : ${nc.severity}
+
+Identifie les causes racines probables et des actions immédiates correctives.
+Réponds en JSON strict :
+{
+  "rootCauses": ["Cause 1", "Cause 2", "Cause 3"],
+  "immediateActions": ["Action 1", "Action 2", "Action 3"]
+}`
+  const result = await callAi('nc_root_causes', prompt)
+  return JSON.parse(result.content)
+}
+
+// Suggestion titre + description + axe pour un objectif stratégique
+export async function suggestObjective(context: string): Promise<{
+  title: string
+  description: string
+  axis: string
+}> {
+  const prompt = `Tu es un consultant stratégique pour PME.
+L'utilisateur veut créer un objectif stratégique à partir de : "${context}"
+
+Génère en JSON :
+{
+  "title": "Objectif SMART (max 80 caractères)",
+  "description": "Contexte et enjeux (2-3 phrases)",
+  "axis": "Axe stratégique (Performance / Qualité / Client / RH / Sécurité / Innovation)"
+}`
+  const result = await callAi('objective_suggest', prompt)
+  return JSON.parse(result.content)
+}
+
+// Suggestion objectif + économies pour un plan Kaizen
+export async function suggestKaizenContent(context: string): Promise<{
+  objective: string
+  estimatedSavingsHours: number
+}> {
+  const prompt = `Tu es un expert amélioration continue (Lean / Kaizen).
+Plan Kaizen : "${context}"
+
+Rédige l'objectif et estime les économies en heures.
+Réponds en JSON :
+{
+  "objective": "Description de l'objectif, résultats attendus et indicateur de succès (3-4 phrases)",
+  "estimatedSavingsHours": nombre entier (heures économisées par mois)
+}`
+  const result = await callAi('kaizen_suggest', prompt)
+  return JSON.parse(result.content)
+}
+
 // Vérification quota IA par organisation
 export async function checkAiQuota(organisationId: string): Promise<{
   allowed: boolean

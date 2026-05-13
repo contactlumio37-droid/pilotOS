@@ -1,10 +1,14 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { Sparkles } from 'lucide-react'
 import Drawer from '@/components/ui/Drawer'
 import { useCreateObjective, useUpdateObjective } from '@/hooks/usePilotage'
 import { useToast } from '@/components/ui/useToast'
+import { useAiSuggest } from '@/hooks/useAiAssist'
+import { suggestObjective } from '@/lib/ai'
+import { useOrganisation } from '@/hooks/useOrganisation'
 import type { StrategicObjective } from '@/types/database'
 
 const schema = z.object({
@@ -33,11 +37,30 @@ export default function ObjectiveDrawer({ open, onClose, objective }: ObjectiveD
   const create = useCreateObjective()
   const update = useUpdateObjective()
   const toast = useToast()
+  const { organisation } = useOrganisation()
+  const aiEnabled = (organisation as (typeof organisation & { ai_enabled?: boolean }) | null)?.ai_enabled ?? false
+  const ai = useAiSuggest(suggestObjective)
+  const [aiInput, setAiInput] = useState('')
+  const [showAi, setShowAi] = useState(false)
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const { register, handleSubmit, reset, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { status: 'active', visibility: 'managers' },
   })
+
+  useEffect(() => {
+    if (!open) { setShowAi(false); setAiInput('') }
+  }, [open])
+
+  async function handleAiSuggest() {
+    const result = await ai.suggest(aiInput)
+    if (!result) return
+    setValue('title', result.title)
+    setValue('description', result.description)
+    setValue('axis', result.axis)
+    setShowAi(false)
+    setAiInput('')
+  }
 
   useEffect(() => {
     if (objective) {
@@ -92,6 +115,47 @@ export default function ObjectiveDrawer({ open, onClose, objective }: ObjectiveD
       }
     >
       <form id="objective-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        {!isEdit && aiEnabled && (
+          <div>
+            {!showAi ? (
+              <button
+                type="button"
+                onClick={() => setShowAi(true)}
+                className="flex items-center gap-1.5 text-sm text-brand-600 hover:text-brand-700 font-medium"
+              >
+                <Sparkles className="w-4 h-4" />
+                Remplir avec l'IA
+              </button>
+            ) : (
+              <div className="bg-brand-50 rounded-xl p-4 border border-brand-200">
+                <p className="text-xs font-medium text-brand-700 mb-2 flex items-center gap-1">
+                  <Sparkles className="w-3.5 h-3.5" /> Décrivez votre enjeu stratégique
+                </p>
+                <textarea
+                  value={aiInput}
+                  onChange={e => setAiInput(e.target.value)}
+                  placeholder="Ex : Améliorer la satisfaction client en réduisant les délais de livraison…"
+                  className="input text-sm resize-none"
+                  rows={2}
+                />
+                {ai.error && <p className="text-xs text-danger mt-1">{ai.error}</p>}
+                <div className="flex gap-2 mt-2">
+                  <button
+                    type="button"
+                    onClick={handleAiSuggest}
+                    disabled={ai.loading || !aiInput.trim()}
+                    className="btn-primary py-1.5 text-sm"
+                  >
+                    {ai.loading ? 'Génération…' : 'Générer'}
+                  </button>
+                  <button type="button" onClick={() => setShowAi(false)} className="btn-secondary py-1.5 text-sm">
+                    Annuler
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         <div>
           <label className="label">Titre *</label>
           <input {...register('title')} className="input" placeholder="Ex : Réduire les délais de traitement de 20%" />

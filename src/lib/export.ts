@@ -181,3 +181,67 @@ export function exportHabilitationsPDF(items: HabExportItem[], orgName = 'Organi
     </table>`
   printWindow(`Habilitations — ${orgName}`, html)
 }
+
+interface NcExportItem {
+  title: string
+  severity: string
+  status: string
+  detected_at: string
+  description?: string | null
+  process?: string | null
+}
+
+interface KaizenExportItem {
+  title: string
+  status: string
+  objective?: string | null
+  start_date?: string | null
+  end_date?: string | null
+  estimated_savings_hours?: number | null
+  process?: string | null
+}
+
+const NC_SEVERITY_FR: Record<string, string> = { minor: 'Mineure', major: 'Majeure', critical: 'Critique' }
+const NC_STATUS_FR: Record<string, string>   = { open: 'Ouverte', in_treatment: 'En traitement', closed: 'Clôturée' }
+const KAIZEN_STATUS_FR: Record<string, string> = { planned: 'Planifié', in_progress: 'En cours', completed: 'Terminé' }
+
+export function exportNcsPDF(items: NcExportItem[], orgName = 'Organisation') {
+  const rows = items.map(i => `<tr>
+    <td>${i.title}</td>
+    <td>${NC_SEVERITY_FR[i.severity] ?? i.severity}</td>
+    <td>${NC_STATUS_FR[i.status] ?? i.status}</td>
+    <td>${new Date(i.detected_at).toLocaleDateString('fr-FR')}</td>
+    <td>${i.process ?? '—'}</td>
+    <td>${i.description ? i.description.slice(0, 120) + (i.description.length > 120 ? '…' : '') : '—'}</td>
+  </tr>`).join('')
+
+  const html = `
+    <h1>Non-conformités</h1>
+    <p class="subtitle">${orgName} · ${items.length} NC</p>
+    <table>
+      <thead><tr><th>Titre</th><th>Gravité</th><th>Statut</th><th>Détectée le</th><th>Processus</th><th>Description</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`
+  printWindow(`Non-conformités — ${orgName}`, html)
+}
+
+export function exportKaizenPDF(items: KaizenExportItem[], orgName = 'Organisation') {
+  const rows = items.map(i => `<tr>
+    <td>${i.title}</td>
+    <td>${KAIZEN_STATUS_FR[i.status] ?? i.status}</td>
+    <td>${i.process ?? '—'}</td>
+    <td>${i.start_date ? new Date(i.start_date).toLocaleDateString('fr-FR') : '—'}</td>
+    <td>${i.end_date ? new Date(i.end_date).toLocaleDateString('fr-FR') : '—'}</td>
+    <td>${i.estimated_savings_hours != null ? `${i.estimated_savings_hours} h` : '—'}</td>
+    <td>${i.objective ? i.objective.slice(0, 100) + (i.objective.length > 100 ? '…' : '') : '—'}</td>
+  </tr>`).join('')
+
+  const html = `
+    <h1>Plans Kaizen</h1>
+    <p class="subtitle">${orgName} · ${items.length} plan${items.length > 1 ? 's' : ''}</p>
+    <table>
+      <thead><tr><th>Titre</th><th>Statut</th><th>Processus</th><th>Début</th><th>Fin prévue</th><th>Économies</th><th>Objectif</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`
+  printWindow(`Plans Kaizen — ${orgName}`, html)
+}

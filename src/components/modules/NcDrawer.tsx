@@ -1,11 +1,14 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Save, X } from 'lucide-react'
+import { Save, X, Sparkles } from 'lucide-react'
 import Drawer from '@/components/ui/Drawer'
 import { useCreateNC, useUpdateNC } from '@/hooks/useProcesses'
 import { useToast } from '@/components/ui/useToast'
+import { useAiSuggest } from '@/hooks/useAiAssist'
+import { suggestNcRootCauses } from '@/lib/ai'
+import { useOrganisation } from '@/hooks/useOrganisation'
 import type { NonConformity, NcSeverity, NcStatus, Process } from '@/types/database'
 
 const schema = z.object({
@@ -50,8 +53,12 @@ export default function NcDrawer({ open, onClose, nc, processes = [], defaultPro
   const createNC = useCreateNC()
   const updateNC = useUpdateNC()
   const toast = useToast()
+  const { organisation } = useOrganisation()
+  const aiEnabled = (organisation as (typeof organisation & { ai_enabled?: boolean }) | null)?.ai_enabled ?? false
+  const ai = useAiSuggest(suggestNcRootCauses)
+  const [showAi, setShowAi] = useState(false)
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, reset, setValue, getValues, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       title: '', description: '',
@@ -60,6 +67,10 @@ export default function NcDrawer({ open, onClose, nc, processes = [], defaultPro
       process_id: defaultProcessId ?? null,
     },
   })
+
+  useEffect(() => {
+    if (!open) setShowAi(false)
+  }, [open])
 
   useEffect(() => {
     if (open) {
@@ -78,6 +89,21 @@ export default function NcDrawer({ open, onClose, nc, processes = [], defaultPro
       })
     }
   }, [open, nc, defaultProcessId, reset])
+
+  async function handleAiSuggest() {
+    const { title, description, severity } = getValues()
+    const result = await ai.suggest({ title, description: description ?? undefined, severity })
+    if (!result) return
+    const combined = [
+      '📌 Causes probables :',
+      ...result.rootCauses.map(c => `• ${c}`),
+      '',
+      '⚡ Actions immédiates :',
+      ...result.immediateActions.map(a => `• ${a}`),
+    ].join('\n')
+    setValue('description', combined)
+    setShowAi(false)
+  }
 
   async function onSubmit(data: FormData) {
     try {
@@ -168,16 +194,41 @@ export default function NcDrawer({ open, onClose, nc, processes = [], defaultPro
         </div>
 
         <div>
-          <label className="label">Description</label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="label mb-0">Description</label>
+            {aiEnabled && !showAi && (
+              <button
+                type="button"
+                onClick={() => setShowAi(true)}
+                className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-medium"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Suggérer causes racines
+              </button>
+            )}
+          </div>
+          {showAi && (
+            <div className="mb-2 bg-brand-50 rounded-xl p-3 border border-brand-200">
+              <p className="text-xs text-brand-700 font-medium mb-2 flex items-center gap-1">
+                <Sparkles className="w-3.5 h-3.5" /> Analyse IA des causes racines
+              </p>
+              {ai.error && <p className="text-xs text-danger mb-2">{ai.error}</p>}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleAiSuggest}
+                  disabled={ai.loading}
+                  className="btn-primary py-1.5 text-xs"
+                >
+                  {ai.loading ? 'Analyse…' : 'Analyser'}
+                </button>
+                <button type="button" onClick={() => setShowAi(false)} className="btn-secondary py-1.5 text-xs">
+                  Annuler
+                </button>
+              </div>
+            </div>
+          )}
           <textarea {...register('description')} rows={4} className="input resize-none" placeholder="Décrivez la non-conformité…" />
-        </div>
-
-        {/* Preview badge */}
-        <div className="flex items-center gap-2 text-xs text-slate-500">
-          <span>Aperçu :</span>
-          <span className={`badge ${SEVERITY_CLASS[schema.shape.severity._def.values[0]]}`}>
-            {/* shown dynamically below */}
-          </span>
         </div>
       </form>
     </Drawer>

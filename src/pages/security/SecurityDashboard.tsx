@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
-import { ShieldCheck, AlertTriangle, Calendar, FileWarning, TrendingUp } from 'lucide-react'
-import { useSecurityKPIs } from '@/hooks/useSecurity'
+import { ShieldCheck, AlertTriangle, Calendar, FileWarning, TrendingUp, Clock, CheckCircle2 } from 'lucide-react'
+import { useSecurityKPIs, useIncidents, useSafetyVisits, useRegulatoryRegister } from '@/hooks/useSecurity'
+import { addDays, isWithinInterval, startOfDay } from 'date-fns'
 
 function KPICard({
   icon: Icon, label, value, sub, color, delay,
@@ -31,8 +32,49 @@ function KPICard({
   )
 }
 
+const INCIDENT_TYPE_LABEL: Record<string, string> = {
+  accident:            'Accident du travail',
+  near_miss:           "Presqu'accident",
+  dangerous_situation: 'Situation dangereuse',
+  first_aid:           'Premiers secours',
+}
+
+const INCIDENT_STATUS_COLOR: Record<string, string> = {
+  open:               'bg-danger-50 text-danger-600',
+  under_analysis:     'bg-amber-50 text-amber-700',
+  action_in_progress: 'bg-brand-50 text-brand-600',
+  closed:             'bg-success-50 text-success-600',
+}
+
+const INCIDENT_STATUS_LABEL: Record<string, string> = {
+  open:               'Ouvert',
+  under_analysis:     'Analyse',
+  action_in_progress: 'En cours',
+  closed:             'Clôturé',
+}
+
+const VISIT_TYPE_LABEL: Record<string, string> = {
+  planned:     'Visite planifiée',
+  unannounced: 'Visite inopinée',
+  audit:       'Audit',
+  inspection:  'Inspection',
+}
+
 export default function SecurityDashboard() {
   const { data: kpis, isLoading } = useSecurityKPIs()
+  const { data: incidents = [] } = useIncidents()
+  const { data: visits = [] } = useSafetyVisits()
+  const { data: regulatory = [] } = useRegulatoryRegister()
+
+  const recentIncidents = incidents.slice(0, 5)
+
+  const today = startOfDay(new Date())
+  const in30 = addDays(today, 30)
+  const upcomingVisits = visits
+    .filter(v => v.status === 'planned' && isWithinInterval(new Date(v.planned_at), { start: today, end: in30 }))
+    .slice(0, 5)
+
+  const overdueReg = regulatory.filter(r => r.status === 'overdue').slice(0, 5)
 
   if (isLoading) {
     return (
@@ -93,21 +135,118 @@ export default function SecurityDashboard() {
         />
       </div>
 
-      {/* Actions rapides */}
-      <motion.div
-        initial={{ y: 8, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.3 }}
-        className="card bg-amber-50 border-amber-200"
-      >
-        <h3 className="font-semibold text-amber-900 mb-1">Guide d&apos;utilisation du module</h3>
-        <ul className="text-sm text-amber-800 space-y-1 list-disc list-inside">
-          <li><strong>DUER</strong> — Évaluation des risques par unité de travail (probabilité × gravité)</li>
-          <li><strong>Incidents</strong> — Déclarez AT, presqu'accidents, situations dangereuses</li>
-          <li><strong>Visites</strong> — Planifiez et tracez vos inspections terrain</li>
-          <li><strong>Registre</strong> — Suivez vos obligations réglementaires et leurs échéances</li>
-        </ul>
-      </motion.div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Recent incidents */}
+        <motion.div
+          initial={{ y: 8, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.25 }}
+          className="card"
+        >
+          <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-danger-500" />
+            Incidents récents
+          </h3>
+          {recentIncidents.length === 0 ? (
+            <div className="text-center py-6">
+              <CheckCircle2 className="w-8 h-8 text-success-400 mx-auto mb-2" />
+              <p className="text-sm text-slate-500 font-medium">Aucun incident enregistré</p>
+            </div>
+          ) : (
+            <div className="space-y-0">
+              {recentIncidents.map(inc => (
+                <div key={inc.id} className="flex items-start gap-2 py-2.5 border-b border-slate-50 last:border-0">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-800 truncate">{inc.title}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      {new Date(inc.occurred_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                      {' · '}{INCIDENT_TYPE_LABEL[inc.incident_type] ?? inc.incident_type}
+                    </p>
+                  </div>
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${INCIDENT_STATUS_COLOR[inc.status] ?? 'bg-slate-100 text-slate-500'}`}>
+                    {INCIDENT_STATUS_LABEL[inc.status] ?? inc.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </motion.div>
+
+        {/* Upcoming visits */}
+        <motion.div
+          initial={{ y: 8, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="card"
+        >
+          <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-brand-500" />
+            Visites à venir (30 j)
+          </h3>
+          {upcomingVisits.length === 0 ? (
+            <div className="text-center py-6">
+              <Clock className="w-8 h-8 text-slate-200 mx-auto mb-2" />
+              <p className="text-sm text-slate-500 font-medium">Aucune visite planifiée</p>
+            </div>
+          ) : (
+            <div className="space-y-0">
+              {upcomingVisits.map(v => {
+                const planned = new Date(v.planned_at)
+                const daysLeft = Math.ceil((planned.getTime() - today.getTime()) / 86400000)
+                return (
+                  <div key={v.id} className="flex items-start gap-2 py-2.5 border-b border-slate-50 last:border-0">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-800">{VISIT_TYPE_LABEL[v.visit_type] ?? v.visit_type}</p>
+                      {v.scope && <p className="text-xs text-slate-400 truncate mt-0.5">{v.scope}</p>}
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        {planned.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                      </p>
+                    </div>
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${daysLeft <= 7 ? 'bg-amber-50 text-amber-700' : 'bg-brand-50 text-brand-600'}`}>
+                      J-{daysLeft}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </motion.div>
+
+        {/* Overdue regulatory */}
+        <motion.div
+          initial={{ y: 8, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.35 }}
+          className="card"
+        >
+          <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+            <FileWarning className="w-4 h-4 text-danger-500" />
+            Obligations en retard
+          </h3>
+          {overdueReg.length === 0 ? (
+            <div className="text-center py-6">
+              <CheckCircle2 className="w-8 h-8 text-success-400 mx-auto mb-2" />
+              <p className="text-sm text-slate-500 font-medium">Toutes les obligations sont à jour</p>
+            </div>
+          ) : (
+            <div className="space-y-0">
+              {overdueReg.map(r => (
+                <div key={r.id} className="py-2.5 border-b border-slate-50 last:border-0">
+                  <p className="text-sm font-medium text-slate-800 truncate">{r.obligation}</p>
+                  {r.legal_reference && (
+                    <p className="text-xs text-slate-400 mt-0.5 truncate">{r.legal_reference}</p>
+                  )}
+                  {r.due_date && (
+                    <p className="text-xs text-danger-500 font-medium mt-0.5">
+                      Échéance : {new Date(r.due_date).toLocaleDateString('fr-FR')}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </motion.div>
+      </div>
     </div>
   )
 }
