@@ -1,8 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import {
-  LayoutDashboard, ListChecks, GitBranch, FolderOpen,
+  LayoutDashboard, ListChecks, FolderOpen,
   Users, Settings, BarChart2, Target, AlertCircle, ShieldCheck,
-  Gauge,
 } from 'lucide-react'
 import { useBreakpoint } from '@/hooks/useBreakpoint'
 import { ORG_CONTEXT_KEY, useHasModule } from '@/hooks/useOrganisation'
@@ -24,35 +23,23 @@ import ProfilePage from '@/pages/shared/ProfilePage'
 import TerrainReportsManager from '@/pages/shared/TerrainReportsManager'
 import SecurityApp from '@/pages/shared/SecurityApp'
 
-const PILOTAGE_GROUP: NavItem = {
-  to: '',
-  label: 'Pilotage',
-  icon: Gauge,
-  children: [
-    { to: '/admin',             label: 'Tableau de bord', icon: LayoutDashboard, end: true },
-    { to: '/admin/actions',     label: 'Actions',          icon: ListChecks },
-    { to: '/admin/strategie',   label: 'Stratégie',        icon: Target },
-    { to: '/admin/indicateurs', label: 'Indicateurs',      icon: BarChart2 },
-  ],
-}
-
-const QUALITE_GROUP: NavItem = {
-  to: '',
-  label: 'Qualité',
-  icon: GitBranch,
-  children: [
-    { to: '/admin/processus',   label: 'Processus',        icon: GitBranch },
-    { to: '/admin/documents',   label: 'Documents',        icon: FolderOpen },
-    { to: '/admin/terrain',     label: 'Terrain',          icon: AlertCircle },
-  ],
-}
+// Qualité et Sécurité accessibles via Dashboard onglets — retirés du menu latéral
+const NAV_ITEMS: NavItem[] = [
+  { to: '/admin',             label: 'Dashboard',   icon: LayoutDashboard, end: true },
+  { to: '/admin/actions',     label: 'Actions',     icon: ListChecks },
+  { to: '/admin/strategie',   label: 'Stratégie',   icon: Target },
+  { to: '/admin/indicateurs', label: 'Indicateurs', icon: BarChart2 },
+  { to: '/admin/terrain',     label: 'Terrain',     icon: AlertCircle },
+  { to: '/admin/documents',   label: 'Documents',   icon: FolderOpen },
+  { to: '/admin/membres',     label: 'Membres',     icon: Users },
+  { to: '/admin/parametres',  label: 'Paramètres',  icon: Settings },
+]
 
 const BOTTOM_ITEMS: NavItem[] = [
-  { to: '/admin',             label: 'Tableau de bord', icon: LayoutDashboard, end: true },
-  { to: '/admin/actions',     label: 'Actions',          icon: ListChecks },
-  { to: '/admin/processus',   label: 'Processus',        icon: GitBranch },
-  { to: '/admin/membres',     label: 'Membres',          icon: Users },
-  { to: '/admin/parametres',  label: 'Paramètres',       icon: Settings },
+  { to: '/admin',             label: 'Dashboard',  icon: LayoutDashboard, end: true },
+  { to: '/admin/terrain',     label: 'Terrain',    icon: AlertCircle },
+  { to: '/admin/documents',   label: 'Documents',  icon: FolderOpen },
+  { to: '/admin/membres',     label: 'Membres',    icon: Users },
 ]
 
 export default function AdminApp() {
@@ -61,20 +48,15 @@ export default function AdminApp() {
   const hasBanner   = !!sessionStorage.getItem(ORG_CONTEXT_KEY)
   const hasSecurite = useHasModule('securite')
 
-  const sidebarItems: NavItem[] = [
-    PILOTAGE_GROUP,
-    QUALITE_GROUP,
-    ...(hasSecurite ? [{ to: '/admin/securite', label: 'Sécurité', icon: ShieldCheck } as NavItem] : []),
-    { to: '/admin/membres',    label: 'Membres',    icon: Users },
-    { to: '/admin/parametres', label: 'Paramètres', icon: Settings },
-  ]
+  // hasSecurite kept for future use — Sécurité accessible via Dashboard onglets
+  void hasSecurite
 
   return (
     <div className="min-h-screen bg-slate-50">
       <SuperAdminBanner />
       {isDesktop
-        ? <Sidebar items={sidebarItems} profileTo="/admin/profil" />
-        : <BottomNav items={BOTTOM_ITEMS.slice(0, 5)} />
+        ? <Sidebar items={NAV_ITEMS} profileTo="/admin/profil" />
+        : <BottomNav items={BOTTOM_ITEMS} />
       }
 
       <main className={`${isDesktop ? 'main-with-sidebar p-8' : 'main-with-bottom-nav p-4'} ${hasBanner ? 'pt-12' : ''}`}>

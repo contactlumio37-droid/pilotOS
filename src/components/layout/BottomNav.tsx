@@ -11,35 +11,54 @@ interface NavItem {
 interface BottomNavProps {
   items: NavItem[]
   dark?: boolean
+  centerAction?: React.ReactNode
 }
 
-export default function BottomNav({ items, dark = false }: BottomNavProps) {
+export default function BottomNav({ items, dark = false, centerAction }: BottomNavProps) {
   const bg = dark ? 'bg-slate-900 border-slate-700' : 'bg-white border-slate-200'
+
+  function renderItem(item: NavItem) {
+    const Icon = item.icon
+    return (
+      <NavLink
+        key={item.to}
+        to={item.to}
+        end={item.end}
+        className={({ isActive }) =>
+          `flex flex-col items-center gap-0.5 px-3 py-2 min-w-0 flex-1 transition-colors ${
+            isActive
+              ? dark ? 'text-brand-400' : 'text-brand-600'
+              : dark ? 'text-slate-500' : 'text-slate-400'
+          }`
+        }
+      >
+        <Icon className="w-5 h-5" />
+        <span className="text-[10px] font-medium truncate w-full text-center">
+          {item.label}
+        </span>
+      </NavLink>
+    )
+  }
+
+  if (!centerAction) {
+    return (
+      <nav className={`bottom-nav ${bg}`}>
+        {items.map(renderItem)}
+      </nav>
+    )
+  }
+
+  const half = Math.floor(items.length / 2)
+  const leftItems  = items.slice(0, half)
+  const rightItems = items.slice(half)
 
   return (
     <nav className={`bottom-nav ${bg}`}>
-      {items.map((item) => {
-        const Icon = item.icon
-        return (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.end}
-            className={({ isActive }) =>
-              `flex flex-col items-center gap-0.5 px-3 py-2 min-w-0 flex-1 transition-colors ${
-                isActive
-                  ? dark ? 'text-brand-400' : 'text-brand-600'
-                  : dark ? 'text-slate-500' : 'text-slate-400'
-              }`
-            }
-          >
-            <Icon className="w-5 h-5" />
-            <span className="text-[10px] font-medium truncate w-full text-center">
-              {item.label}
-            </span>
-          </NavLink>
-        )
-      })}
+      {leftItems.map(renderItem)}
+      <div className="flex flex-col items-center justify-center flex-1">
+        {centerAction}
+      </div>
+      {rightItems.map(renderItem)}
     </nav>
   )
 }
