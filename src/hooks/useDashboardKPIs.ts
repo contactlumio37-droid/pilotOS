@@ -13,6 +13,10 @@ export type KpiId =
   | 'terrain_pending'
   | 'projects_active'
   | 'processes_health_avg'
+  // Nouveaux KPIs disponibles via Edge Function
+  | 'incidents_open'
+  | 'duer_critical_risks'
+  | 'docs_to_review'
 
 export interface KpiValue {
   id: KpiId
@@ -44,6 +48,9 @@ export const ALL_KPI_DEFINITIONS: Record<KpiId, { label: string; variant: KpiVal
   terrain_pending:      { label: 'Signalements terrain', variant: 'warning' },
   projects_active:      { label: 'Projets actifs',       variant: 'brand' },
   processes_health_avg: { label: 'Santé processus moy.', variant: 'neutral' },
+  incidents_open:       { label: 'Incidents ouverts',    variant: 'danger' },
+  duer_critical_risks:  { label: 'Risques DUER critiques', variant: 'danger' },
+  docs_to_review:       { label: 'Docs à réviser',       variant: 'warning' },
 }
 
 export function useDashboardKPIs(kpiConfig?: KpiConfig) {
@@ -56,93 +63,36 @@ export function useDashboardKPIs(kpiConfig?: KpiConfig) {
     staleTime: 60_000,
     queryFn: async () => {
       const orgId = organisation!.id
-      const now = new Date()
-      const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10)
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) throw new Error('No session')
 
-      const requests: PromiseLike<{ id: KpiId; count: number }>[] = []
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/dashboard-kpis`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            organisation_id: orgId,
+            kpi_ids: config.enabled,
+          }),
+        }
+      )
 
-      const ids = config.enabled
-
-      if (ids.includes('actions_todo')) {
-        requests.push(
-          supabase.from('actions').select('*', { count: 'exact', head: true })
-            .eq('organisation_id', orgId).eq('status', 'todo')
-            .then(r => ({ id: 'actions_todo' as KpiId, count: r.count ?? 0 }))
-        )
-      }
-      if (ids.includes('actions_in_progress')) {
-        requests.push(
-          supabase.from('actions').select('*', { count: 'exact', head: true })
-            .eq('organisation_id', orgId).eq('status', 'in_progress')
-            .then(r => ({ id: 'actions_in_progress' as KpiId, count: r.count ?? 0 }))
-        )
-      }
-      if (ids.includes('actions_late')) {
-        requests.push(
-          supabase.from('actions').select('*', { count: 'exact', head: true })
-            .eq('organisation_id', orgId).eq('status', 'late')
-            .then(r => ({ id: 'actions_late' as KpiId, count: r.count ?? 0 }))
-        )
-      }
-      if (ids.includes('actions_done_month')) {
-        requests.push(
-          supabase.from('actions').select('*', { count: 'exact', head: true })
-            .eq('organisation_id', orgId).eq('status', 'done')
-            .gte('completed_at', firstOfMonth)
-            .then(r => ({ id: 'actions_done_month' as KpiId, count: r.count ?? 0 }))
-        )
-      }
-      if (ids.includes('nc_open')) {
-        requests.push(
-          supabase.from('non_conformities').select('*', { count: 'exact', head: true })
-            .eq('organisation_id', orgId).in('status', ['open', 'in_treatment'])
-            .then(r => ({ id: 'nc_open' as KpiId, count: r.count ?? 0 }))
-        )
-      }
-      if (ids.includes('nc_critical')) {
-        requests.push(
-          supabase.from('non_conformities').select('*', { count: 'exact', head: true })
-            .eq('organisation_id', orgId).eq('severity', 'critical').in('status', ['open', 'in_treatment'])
-            .then(r => ({ id: 'nc_critical' as KpiId, count: r.count ?? 0 }))
-        )
-      }
-      if (ids.includes('terrain_pending')) {
-        requests.push(
-          supabase.from('terrain_reports').select('*', { count: 'exact', head: true })
-            .eq('organisation_id', orgId).eq('status', 'pending')
-            .then(r => ({ id: 'terrain_pending' as KpiId, count: r.count ?? 0 }))
-        )
-      }
-      if (ids.includes('projects_active')) {
-        requests.push(
-          supabase.from('projects').select('*', { count: 'exact', head: true })
-            .eq('organisation_id', orgId).eq('status', 'active')
-            .then(r => ({ id: 'projects_active' as KpiId, count: r.count ?? 0 }))
-        )
-      }
-      if (ids.includes('processes_health_avg')) {
-        requests.push(
-          supabase.from('processes').select('health_score')
-            .eq('organisation_id', orgId).eq('status', 'active').not('health_score', 'is', null)
-            .then(r => {
-              const scores = (r.data ?? []).map((p: { health_score: number | null }) => p.health_score ?? 0)
-              const avg = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0
-              return { id: 'processes_health_avg' as KpiId, count: avg }
-            })
-        )
-      }
-
-      const results = await Promise.all(requests)
-      const byId = Object.fromEntries(results.map(r => [r.id, r.count]))
+      if (!response.ok) throw new Error('dashboard-kpis failed')
+      const { kpis } = await response.json() as { kpis: Record<string, number> }
 
       return config.order
         .filter(id => config.enabled.includes(id))
         .map(id => {
           const def = ALL_KPI_DEFINITIONS[id]
-          const value = byId[id] ?? 0
+          const value = kpis[id] ?? 0
           let variant = def.variant
           if (id === 'actions_late' && value > 0) variant = 'danger'
           if (id === 'nc_critical' && value > 0) variant = 'danger'
+          if (id === 'duer_critical_risks' && value > 0) variant = 'danger'
           return { id, label: def.label, value, variant } as KpiValue
         })
     },

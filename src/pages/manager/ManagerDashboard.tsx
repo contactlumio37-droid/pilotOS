@@ -3,16 +3,26 @@ import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Settings2, AlertCircle, ArrowRight, ChevronRight, Inbox,
-  LayoutDashboard, Package, ShieldCheck,
+  LayoutDashboard, Package, ShieldCheck, GripVertical,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { useQuery } from '@tanstack/react-query'
+import {
+  DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext, sortableKeyboardCoordinates, rectSortingStrategy,
+  useSortable, arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import PageHeader from '@/components/layout/PageHeader'
 import DashboardTabs from '@/components/layout/DashboardTabs'
 import KPIConfigDrawer from '@/components/modules/KPIConfigDrawer'
 import { OriginBadge, StatusBadge } from '@/components/modules/ActionBadges'
-import { useDashboardKPIs, useKpiConfig } from '@/hooks/useDashboardKPIs'
+import { useDashboardKPIs, useKpiConfig, useSaveKpiConfig } from '@/hooks/useDashboardKPIs'
+import type { KpiValue } from '@/hooks/useDashboardKPIs'
 import { useActions } from '@/hooks/useActions'
 import { useProjects } from '@/hooks/usePilotage'
 import { useHasModule } from '@/hooks/useOrganisation'
@@ -66,8 +76,24 @@ export default function ManagerDashboard() {
 
   const { data: kpiConfig } = useKpiConfig()
   const { data: kpis = [], isLoading: kpisLoading } = useDashboardKPIs(kpiConfig ?? undefined)
+  const saveConfig = useSaveKpiConfig()
   const { data: actions = [] } = useActions()
   const { data: projects = [] } = useProjects()
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  )
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (over && active.id !== over.id) {
+      const oldIndex = kpis.findIndex(k => k.id === active.id)
+      const newIndex = kpis.findIndex(k => k.id === over.id)
+      const newOrder = arrayMove(kpis.map(k => k.id), oldIndex, newIndex)
+      saveConfig.mutate({ enabled: kpiConfig?.enabled ?? newOrder, order: newOrder })
+    }
+  }
 
   const { data: pendingReports = [] } = useQuery({
     queryKey: ['terrain-pending-manager', organisation?.id],
@@ -118,24 +144,20 @@ export default function ManagerDashboard() {
           {/* ── Pilotage ── */}
           {tab === 'pilotage' && (
             <div>
-              <motion.div initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-                {kpisLoading
-                  ? Array.from({ length: 4 }).map((_, i) => <div key={i} className="card animate-pulse h-24" />)
-                  : kpis.map(kpi => (
-                      <div key={kpi.id} className="card">
-                        <p className="text-sm text-slate-500 mb-1">{kpi.label}</p>
-                        <p className={`text-3xl font-bold ${kpi.variant === 'danger' && kpi.value > 0 ? 'text-danger' : 'text-slate-900'}`}>
-                          {kpi.value}
-                          {kpi.unit && <span className="text-base font-normal text-slate-400 ml-1">{kpi.unit}</span>}
-                        </p>
-                        {kpi.variant !== 'neutral' && kpi.value > 0 && (
-                          <span className={`mt-2 inline-block text-xs px-2 py-0.5 rounded-full font-medium ${VARIANT_CLASSES[kpi.variant]}`}>
-                            {kpi.variant === 'danger' ? '⚠ Attention' : kpi.variant === 'warning' ? 'À surveiller' : ''}
-                          </span>
-                        )}
+              <motion.div initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="mb-8">
+                {kpisLoading ? (
+                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                    {Array.from({ length: 4 }).map((_, i) => <div key={i} className="card animate-pulse h-24" />)}
+                  </div>
+                ) : (
+                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                    <SortableContext items={kpis.map(k => k.id)} strategy={rectSortingStrategy}>
+                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                        {kpis.map(kpi => <SortableKpiCard key={kpi.id} kpi={kpi} />)}
                       </div>
-                    ))
-                }
+                    </SortableContext>
+                  </DndContext>
+                )}
               </motion.div>
 
               <div className="grid lg:grid-cols-2 gap-6">
@@ -255,6 +277,33 @@ export default function ManagerDashboard() {
       </AnimatePresence>
 
       <KPIConfigDrawer open={configOpen} onClose={() => setConfigOpen(false)} />
+    </div>
+  )
+}
+
+function SortableKpiCard({ kpi }: { kpi: KpiValue }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: kpi.id })
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }
+
+  return (
+    <div ref={setNodeRef} style={style} className="relative group card">
+      <div
+        {...attributes}
+        {...listeners}
+        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing transition-opacity"
+      >
+        <GripVertical className="w-4 h-4 text-slate-300" />
+      </div>
+      <p className="text-sm text-slate-500 mb-1">{kpi.label}</p>
+      <p className={`text-3xl font-bold ${kpi.variant === 'danger' && kpi.value > 0 ? 'text-danger' : 'text-slate-900'}`}>
+        {kpi.value}
+        {kpi.unit && <span className="text-base font-normal text-slate-400 ml-1">{kpi.unit}</span>}
+      </p>
+      {kpi.variant !== 'neutral' && kpi.value > 0 && (
+        <span className={`mt-2 inline-block text-xs px-2 py-0.5 rounded-full font-medium ${VARIANT_CLASSES[kpi.variant]}`}>
+          {kpi.variant === 'danger' ? '⚠ Attention' : kpi.variant === 'warning' ? 'À surveiller' : ''}
+        </span>
+      )}
     </div>
   )
 }
