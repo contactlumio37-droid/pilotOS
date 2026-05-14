@@ -1,5 +1,5 @@
 import { Routes, Route } from 'react-router-dom'
-import { LayoutDashboard, Target, ListChecks, GitBranch, FolderOpen, BarChart2, AlertCircle, Users, ShieldCheck } from 'lucide-react'
+import { LayoutDashboard, Target, ListChecks, GitBranch, FolderOpen, BarChart2, AlertCircle, Users } from 'lucide-react'
 import { useBreakpoint } from '@/hooks/useBreakpoint'
 import { useHasModule } from '@/hooks/useOrganisation'
 import Sidebar from '@/components/layout/Sidebar'
@@ -15,7 +15,8 @@ import TerrainReportsManager from '@/pages/shared/TerrainReportsManager'
 import ProfilePage from '@/pages/shared/ProfilePage'
 import SecurityApp from '@/pages/shared/SecurityApp'
 
-const BASE_NAV = [
+// Sécurité accessible via Dashboard onglets — retirée du menu latéral
+const NAV_ITEMS = [
   { to: '/direction',             label: 'Synthèse',    icon: LayoutDashboard, end: true },
   { to: '/direction/strategie',   label: 'Stratégie',   icon: Target },
   { to: '/direction/actions',     label: 'Actions',     icon: ListChecks },
@@ -26,18 +27,23 @@ const BASE_NAV = [
   { to: '/direction/membres',     label: 'Membres',     icon: Users },
 ]
 
+const BOTTOM_ITEMS = [
+  { to: '/direction',           label: 'Synthèse',    icon: LayoutDashboard, end: true },
+  { to: '/direction/strategie', label: 'Stratégie',   icon: Target },
+  { to: '/direction/actions',   label: 'Actions',     icon: ListChecks },
+  { to: '/direction/documents', label: 'Documents',   icon: FolderOpen },
+  { to: '/direction/membres',   label: 'Membres',     icon: Users },
+]
+
 export default function DirectorApp() {
   const breakpoint  = useBreakpoint()
   const isDesktop   = breakpoint === 'desktop'
-  const hasSecurite = useHasModule('securite')
-
-  const NAV_ITEMS = hasSecurite
-    ? [...BASE_NAV, { to: '/direction/securite', label: 'Sécurité', icon: ShieldCheck }]
-    : BASE_NAV
+  // hasSecurite kept — Sécurité accessible via Dashboard onglets
+  void useHasModule('securite')
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {isDesktop ? <Sidebar items={NAV_ITEMS} profileTo="/direction/profil" /> : <BottomNav items={NAV_ITEMS.slice(0, 5)} />}
+      {isDesktop ? <Sidebar items={NAV_ITEMS} profileTo="/direction/profil" /> : <BottomNav items={BOTTOM_ITEMS} />}
 
       <main className={isDesktop ? 'main-with-sidebar p-8' : 'main-with-bottom-nav p-4'}>
         <Routes>

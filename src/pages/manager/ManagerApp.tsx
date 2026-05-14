@@ -1,14 +1,14 @@
 import { Routes, Route } from 'react-router-dom'
 import {
-  LayoutDashboard, ListChecks, GitBranch, FolderOpen,
-  AlertCircle, BarChart2, Target, ShieldCheck, Users,
-  Gauge,
+  LayoutDashboard, ListChecks, FolderOpen,
+  AlertCircle, BarChart2, Target, Users, Siren,
 } from 'lucide-react'
 import { useBreakpoint } from '@/hooks/useBreakpoint'
 import { useHasModule } from '@/hooks/useOrganisation'
 import Sidebar from '@/components/layout/Sidebar'
 import type { NavItem } from '@/components/layout/Sidebar'
 import BottomNav from '@/components/layout/BottomNav'
+import { QUICK_DECLARE_EVENT } from '@/components/features/QuickDeclareButton'
 import ManagerDashboard from './ManagerDashboard'
 import TerrainReportsManager from '@/pages/shared/TerrainReportsManager'
 import ActionsPage from '@/pages/shared/ActionsPage'
@@ -20,35 +20,22 @@ import MembersPage from '@/pages/shared/MembersPage'
 import ProfilePage from '@/pages/shared/ProfilePage'
 import SecurityApp from '@/pages/shared/SecurityApp'
 
-const PILOTAGE_GROUP: NavItem = {
-  to: '',
-  label: 'Pilotage',
-  icon: Gauge,
-  children: [
-    { to: '/manager',             label: 'Vue d\'ensemble', icon: LayoutDashboard, end: true },
-    { to: '/manager/actions',     label: 'Actions',          icon: ListChecks },
-    { to: '/manager/strategie',   label: 'Stratégie',        icon: Target },
-    { to: '/manager/indicateurs', label: 'Indicateurs',      icon: BarChart2 },
-  ],
-}
-
-const QUALITE_GROUP: NavItem = {
-  to: '',
-  label: 'Qualité',
-  icon: GitBranch,
-  children: [
-    { to: '/manager/processus',   label: 'Processus',        icon: GitBranch },
-    { to: '/manager/documents',   label: 'Documents',        icon: FolderOpen },
-    { to: '/manager/terrain',     label: 'Terrain',          icon: AlertCircle },
-  ],
-}
+// Qualité et Sécurité accessibles via Dashboard onglets — retirés du menu latéral
+const NAV_ITEMS: NavItem[] = [
+  { to: '/manager',             label: 'Dashboard',   icon: LayoutDashboard, end: true },
+  { to: '/manager/actions',     label: 'Actions',     icon: ListChecks },
+  { to: '/manager/strategie',   label: 'Stratégie',   icon: Target },
+  { to: '/manager/indicateurs', label: 'Indicateurs', icon: BarChart2 },
+  { to: '/manager/terrain',     label: 'Terrain',     icon: AlertCircle },
+  { to: '/manager/documents',   label: 'Documents',   icon: FolderOpen },
+  { to: '/manager/membres',     label: 'Membres',     icon: Users },
+]
 
 const BOTTOM_ITEMS: NavItem[] = [
-  { to: '/manager',             label: 'Vue d\'ensemble', icon: LayoutDashboard, end: true },
-  { to: '/manager/actions',     label: 'Actions',          icon: ListChecks },
-  { to: '/manager/processus',   label: 'Processus',        icon: GitBranch },
-  { to: '/manager/documents',   label: 'Documents',        icon: FolderOpen },
-  { to: '/manager/membres',     label: 'Membres',          icon: Users },
+  { to: '/manager',             label: 'Dashboard',  icon: LayoutDashboard, end: true },
+  { to: '/manager/terrain',     label: 'Terrain',    icon: AlertCircle },
+  { to: '/manager/documents',   label: 'Documents',  icon: FolderOpen },
+  { to: '/manager/membres',     label: 'Membres',    icon: Users },
 ]
 
 export default function ManagerApp() {
@@ -56,18 +43,29 @@ export default function ManagerApp() {
   const isDesktop   = breakpoint === 'desktop'
   const hasSecurite = useHasModule('securite')
 
-  const sidebarItems: NavItem[] = [
-    PILOTAGE_GROUP,
-    QUALITE_GROUP,
-    ...(hasSecurite ? [{ to: '/manager/securite', label: 'Sécurité', icon: ShieldCheck } as NavItem] : []),
-    { to: '/manager/membres', label: 'Membres', icon: Users },
-  ]
+  // hasSecurite kept — Sécurité accessible via Dashboard onglets
+  void hasSecurite
+
+  const sidebarItems: NavItem[] = NAV_ITEMS
 
   return (
     <div className="min-h-screen bg-slate-50">
       {isDesktop
         ? <Sidebar items={sidebarItems} profileTo="/manager/profil" />
-        : <BottomNav items={BOTTOM_ITEMS.slice(0, 5)} />
+        : (
+          <BottomNav
+            items={BOTTOM_ITEMS}
+            centerAction={
+              <button
+                onClick={() => window.dispatchEvent(new Event(QUICK_DECLARE_EVENT))}
+                className="w-12 h-12 bg-danger rounded-2xl flex items-center justify-center shadow-lg shadow-danger/30 -mt-4"
+                title="Déclaration rapide"
+              >
+                <Siren className="w-6 h-6 text-white" />
+              </button>
+            }
+          />
+        )
       }
 
       <main className={isDesktop ? 'main-with-sidebar p-8' : 'main-with-bottom-nav p-4'}>
