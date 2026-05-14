@@ -1,7 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import {
   LayoutDashboard, ListChecks, FolderOpen,
-  Users, Settings, BarChart2, Target, AlertCircle, ShieldCheck, Siren,
+  Users, Settings, BarChart2, Target, AlertCircle, Siren,
 } from 'lucide-react'
 import { useBreakpoint } from '@/hooks/useBreakpoint'
 import { ORG_CONTEXT_KEY, useHasModule } from '@/hooks/useOrganisation'
