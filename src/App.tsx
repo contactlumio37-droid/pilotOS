@@ -8,6 +8,7 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute'
 import MFARoute from '@/components/auth/MFARoute'
 import ImpersonationBanner from '@/components/layout/ImpersonationBanner'
 import FeedbackButton from '@/components/layout/FeedbackButton'
+import QuickDeclareButton from '@/components/features/QuickDeclareButton'
 import { ToastProvider } from '@/components/ui/Toast'
 import { supabase } from '@/lib/supabase'
 
@@ -73,6 +74,15 @@ function GlobalFeedbackButton() {
   return <FeedbackButton />
 }
 
+function GlobalQuickDeclare() {
+  const { user, role } = useAuth()
+  const { pathname } = useLocation()
+  if (!user) return null
+  if (role === 'terrain') return null
+  if (pathname.startsWith('/superadmin') || pathname === '/' || pathname.startsWith('/pricing') || pathname.startsWith('/roadmap')) return null
+  return <QuickDeclareButton />
+}
+
 function SuperadminToAdminRedirect({ children }: { children: ReactNode }) {
   const { role } = useAuth()
   if (role === 'superadmin') return <Navigate to="/admin" replace />
@@ -105,6 +115,7 @@ function AppRouter() {
       <ImpersonationBanner />
       {isImpersonating && <div className="h-10 shrink-0" />}
       <GlobalFeedbackButton />
+      <GlobalQuickDeclare />
       {user && <CommandPalette />}
       <Routes>
         {/* Site public */}

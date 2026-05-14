@@ -1,7 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import {
   LayoutDashboard, ListChecks, FolderOpen,
-  Users, Settings, BarChart2, Target, AlertCircle, ShieldCheck,
+  Users, Settings, BarChart2, Target, AlertCircle, ShieldCheck, Siren,
 } from 'lucide-react'
 import { useBreakpoint } from '@/hooks/useBreakpoint'
 import { ORG_CONTEXT_KEY, useHasModule } from '@/hooks/useOrganisation'
@@ -22,6 +22,7 @@ import DocumentsPage from '@/pages/shared/DocumentsPage'
 import ProfilePage from '@/pages/shared/ProfilePage'
 import TerrainReportsManager from '@/pages/shared/TerrainReportsManager'
 import SecurityApp from '@/pages/shared/SecurityApp'
+import { QUICK_DECLARE_EVENT } from '@/components/features/QuickDeclareButton'
 
 // Qualité et Sécurité accessibles via Dashboard onglets — retirés du menu latéral
 const NAV_ITEMS: NavItem[] = [
@@ -48,7 +49,7 @@ export default function AdminApp() {
   const hasBanner   = !!sessionStorage.getItem(ORG_CONTEXT_KEY)
   const hasSecurite = useHasModule('securite')
 
-  // hasSecurite kept for future use — Sécurité accessible via Dashboard onglets
+  // hasSecurite kept — Sécurité accessible via Dashboard onglets
   void hasSecurite
 
   return (
@@ -56,7 +57,20 @@ export default function AdminApp() {
       <SuperAdminBanner />
       {isDesktop
         ? <Sidebar items={NAV_ITEMS} profileTo="/admin/profil" />
-        : <BottomNav items={BOTTOM_ITEMS} />
+        : (
+          <BottomNav
+            items={BOTTOM_ITEMS}
+            centerAction={
+              <button
+                onClick={() => window.dispatchEvent(new Event(QUICK_DECLARE_EVENT))}
+                className="w-12 h-12 bg-danger rounded-2xl flex items-center justify-center shadow-lg shadow-danger/30 -mt-4"
+                title="Déclaration rapide"
+              >
+                <Siren className="w-6 h-6 text-white" />
+              </button>
+            }
+          />
+        )
       }
 
       <main className={`${isDesktop ? 'main-with-sidebar p-8' : 'main-with-bottom-nav p-4'} ${hasBanner ? 'pt-12' : ''}`}>
