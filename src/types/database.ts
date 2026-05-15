@@ -53,6 +53,7 @@ export interface Organisation {
   id: string
   name: string
   slug: string
+  normalized_name: string | null
   logo_url: string | null
   plan: Plan
   seats_included: number
@@ -86,6 +87,10 @@ export interface Profile {
   job_title: string | null
   updated_at: string
   is_superadmin: boolean
+  onboarding_completed: boolean
+  onboarding_step: number
+  onboarding_role: 'quality_manager' | 'hse_manager' | 'operations_manager' | 'executive' | 'consultant' | 'other' | null
+  onboarding_usages: string[]
 }
 
 export interface OrganisationMember {
@@ -142,6 +147,17 @@ export interface MemberInvitation {
   token: string
   expires_at: string
   accepted_at: string | null
+  created_at: string
+}
+
+export interface JoinRequest {
+  id: string
+  organisation_id: string
+  user_id: string
+  message: string | null
+  status: 'pending' | 'accepted' | 'rejected'
+  reviewed_by: string | null
+  reviewed_at: string | null
   created_at: string
 }
 
@@ -571,6 +587,7 @@ export interface BlogPost {
   keywords: string | null
   published: boolean
   published_at: string | null
+  scheduled_at: string | null
   featured: boolean
   read_time_minutes: number | null
   seo_title: string | null
@@ -592,6 +609,8 @@ export interface NewsletterSubscriber {
   email: string
   confirmed: boolean
   confirmed_at: string | null
+  confirm_token: string | null
+  unsubscribed_at: string | null
   source: string | null
   created_at: string
 }
@@ -606,6 +625,7 @@ export type NewsletterCampaignStatus = 'draft' | 'scheduled' | 'sent'
 
 export interface NewsletterCampaign {
   id: string
+  title: string | null
   subject: string
   preview_text: string | null
   content: string | null
@@ -616,6 +636,8 @@ export interface NewsletterCampaign {
   sent_at: string | null
   sent_count: number
   failed_count: number
+  recipient_count: number
+  created_by: string | null
   created_at: string
   updated_at: string
 }

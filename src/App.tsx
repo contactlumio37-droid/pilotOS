@@ -18,6 +18,7 @@ import PricingPage from '@/pages/public/PricingPage'
 import RoadmapPage from '@/pages/public/RoadmapPage'
 import DynamicPage from '@/pages/public/DynamicPage'
 import DemoPage from '@/pages/public/DemoPage'
+import { BlogList, BlogPostPage } from '@/pages/public/BlogPage'
 import CommandPalette from '@/components/features/CommandPalette'
 
 // Auth
@@ -83,6 +84,80 @@ function GlobalQuickDeclare() {
   return <QuickDeclareButton />
 }
 
+function ConfirmNewsletter() {
+  const token = new URLSearchParams(window.location.search).get('token') ?? ''
+  const { data, isLoading } = useQuery({
+    queryKey: ['confirm_newsletter', token],
+    enabled: !!token,
+    queryFn: async () => {
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/confirm-newsletter`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: import.meta.env.VITE_SUPABASE_ANON_KEY },
+        body: JSON.stringify({ token }),
+      })
+      return res.json() as Promise<{ ok?: boolean; error?: string }>
+    },
+  })
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="text-center max-w-sm px-6">
+        {isLoading ? (
+          <div className="w-8 h-8 border-2 border-brand-600 border-t-transparent rounded-full animate-spin mx-auto" />
+        ) : data?.ok ? (
+          <>
+            <div className="text-5xl mb-4">✅</div>
+            <h1 className="text-xl font-bold text-slate-900 mb-2">Inscription confirmée !</h1>
+            <p className="text-slate-500 text-sm">Vous recevrez nos prochains articles et actualités.</p>
+          </>
+        ) : (
+          <>
+            <div className="text-5xl mb-4">⚠️</div>
+            <h1 className="text-xl font-bold text-slate-900 mb-2">Lien invalide</h1>
+            <p className="text-slate-500 text-sm">{data?.error ?? 'Ce lien est expiré ou déjà utilisé.'}</p>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function UnsubscribeNewsletter() {
+  const token = new URLSearchParams(window.location.search).get('token') ?? ''
+  const { data, isLoading } = useQuery({
+    queryKey: ['unsubscribe_newsletter', token],
+    enabled: !!token,
+    queryFn: async () => {
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/unsubscribe-newsletter`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: import.meta.env.VITE_SUPABASE_ANON_KEY },
+        body: JSON.stringify({ token }),
+      })
+      return res.json() as Promise<{ ok?: boolean; error?: string }>
+    },
+  })
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-white">
+      <div className="text-center max-w-sm px-6">
+        {isLoading ? (
+          <div className="w-8 h-8 border-2 border-brand-600 border-t-transparent rounded-full animate-spin mx-auto" />
+        ) : data?.ok ? (
+          <>
+            <div className="text-5xl mb-4">👋</div>
+            <h1 className="text-xl font-bold text-slate-900 mb-2">Désinscription effectuée</h1>
+            <p className="text-slate-500 text-sm">Vous ne recevrez plus nos emails. Vous pouvez vous réinscrire à tout moment.</p>
+          </>
+        ) : (
+          <>
+            <div className="text-5xl mb-4">⚠️</div>
+            <h1 className="text-xl font-bold text-slate-900 mb-2">Lien invalide</h1>
+            <p className="text-slate-500 text-sm">{data?.error ?? 'Ce lien est expiré.'}</p>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function SuperadminToAdminRedirect({ children }: { children: ReactNode }) {
   const { role } = useAuth()
   if (role === 'superadmin') return <Navigate to="/admin" replace />
@@ -125,6 +200,8 @@ function AppRouter() {
         <Route path="/demo"             element={<DemoPage />} />
         <Route path="/cgu"              element={<DynamicPage forceSlug="cgu" />} />
         <Route path="/confidentialite"  element={<DynamicPage forceSlug="confidentialite" />} />
+        <Route path="/blog"             element={<BlogList />} />
+        <Route path="/blog/:slug"       element={<BlogPostPage />} />
         <Route path="/p/:slug"          element={<DynamicPage />} />
 
         {/* Auth */}
@@ -141,7 +218,9 @@ function AppRouter() {
         <Route path="/onboarding" element={<ProtectedRoute><OnboardingPage /></ProtectedRoute>} />
 
         {/* Invitation — route publique */}
-        <Route path="/invitation/:token" element={<InvitationAccept />} />
+        <Route path="/invitation/:token"    element={<InvitationAccept />} />
+        <Route path="/confirm-newsletter"  element={<ConfirmNewsletter />} />
+        <Route path="/unsubscribe"         element={<UnsubscribeNewsletter />} />
 
         {/* Apps par rôle — lazy loaded */}
         <Route path="/terrain/*"    element={<ProtectedRoute><MFARoute><Suspense fallback={<LoadingScreen />}><TerrainApp /></Suspense></MFARoute></ProtectedRoute>} />

@@ -1,8 +1,8 @@
-import { useState, useEffect, type ReactNode } from 'react'
+import { useState, useEffect, useRef, type ReactNode } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ChevronLeft, Plus, Trash2, ArrowUp, ArrowDown,
-  Eye, Save, Globe,
+  Eye, Save, Globe, Info,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/ui/useToast'
@@ -701,10 +701,23 @@ export default function PageEditor({ page, onBack }: PageEditorProps) {
   const [showPreview, setShowPreview] = useState(false)
   const [published, setPublished] = useState(page.published)
 
+  const pageIdRef = useRef(page.id)
+
+  // Always fetch fresh sections on open — avoids stale cache showing empty editor
   useEffect(() => {
-    setBlocks((page.sections ?? []) as unknown as CmsBlock[])
-    setPublished(page.published)
+    pageIdRef.current = page.id
     setSelectedId(null)
+    supabase
+      .from('cms_pages')
+      .select('sections, published')
+      .eq('id', page.id)
+      .single()
+      .then(({ data }) => {
+        if (data && pageIdRef.current === page.id) {
+          setBlocks((data.sections ?? []) as unknown as CmsBlock[])
+          setPublished(data.published)
+        }
+      })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page.id])
 
@@ -826,6 +839,14 @@ export default function PageEditor({ page, onBack }: PageEditorProps) {
 
         {/* Center: canvas */}
         <div className="flex-1 min-w-0 space-y-3 overflow-y-auto">
+          {page.is_system && (
+            <div className="flex items-start gap-3 bg-amber-950/40 border border-amber-700/50 rounded-xl px-4 py-3 mb-2">
+              <Info className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-300 leading-relaxed">
+                Cette page système est rendue par le code React de l'application. Les blocs ajoutés ici s'afficheront après le contenu principal. Pour remplacer le contenu par des blocs CMS, supprimez le composant React correspondant.
+              </p>
+            </div>
+          )}
           {blocks.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 border-2 border-dashed border-slate-700 rounded-2xl text-slate-500">
               <p className="font-medium mb-1">Page vide</p>
