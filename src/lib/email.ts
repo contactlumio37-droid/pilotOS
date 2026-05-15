@@ -14,6 +14,9 @@ import {
   feedbackResolvedEmailHtml,
   mfaCodeEmailHtml,
   weeklyDigestEmailHtml,
+  joinRequestReceivedHtml,
+  joinRequestAcceptedHtml,
+  joinRequestRejectedHtml,
 } from './emailTemplates'
 
 export interface EmailPayload {
@@ -183,5 +186,49 @@ export async function sendWeeklyDigestEmail(params: {
     subject: `Résumé de la semaine — ${params.orgName}`,
     html: weeklyDigestEmailHtml(params),
     text: `Résumé ${params.orgName} : ${params.lateCount} en retard, ${params.doneThisWeek} terminées cette semaine. Accéder : ${params.appUrl}`,
+  })
+}
+
+export async function sendJoinRequestReceivedEmail(params: {
+  to: string
+  adminName: string
+  requesterName: string
+  requesterEmail: string
+  orgName: string
+  message: string | null
+  reviewUrl: string
+}): Promise<void> {
+  await sendEmail({
+    to: params.to,
+    subject: `Demande d'adhésion — ${params.requesterName} → ${params.orgName}`,
+    html: joinRequestReceivedHtml(params),
+    text: `${params.requesterName} (${params.requesterEmail}) souhaite rejoindre ${params.orgName}. Gérer : ${params.reviewUrl}`,
+  })
+}
+
+export async function sendJoinRequestAcceptedEmail(params: {
+  to: string
+  userName: string
+  orgName: string
+  appUrl: string
+}): Promise<void> {
+  await sendEmail({
+    to: params.to,
+    subject: `Bienvenue dans ${params.orgName} !`,
+    html: joinRequestAcceptedHtml(params),
+    text: `Votre demande d'adhésion à ${params.orgName} a été acceptée. Accéder : ${params.appUrl}`,
+  })
+}
+
+export async function sendJoinRequestRejectedEmail(params: {
+  to: string
+  userName: string
+  orgName: string
+}): Promise<void> {
+  await sendEmail({
+    to: params.to,
+    subject: `Demande d'adhésion — ${params.orgName}`,
+    html: joinRequestRejectedHtml(params),
+    text: `Votre demande d'adhésion à ${params.orgName} n'a pas été retenue.`,
   })
 }

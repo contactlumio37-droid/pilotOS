@@ -1,16 +1,18 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { UserPlus, Mail, X, UserMinus, ShieldCheck, Upload } from 'lucide-react'
+import { UserPlus, Mail, X, UserMinus, ShieldCheck, Upload, UserCheck, UserX, Clock } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useOrganisation } from '@/hooks/useOrganisation'
 import { useAuth } from '@/hooks/useAuth'
 import { sendInvitationEmail } from '@/lib/email'
 import Invitations from './Invitations'
 import ImportUsers from './ImportUsers'
-import type { OrganisationMember, Profile, MemberInvitation, UserRole } from '@/types/database'
+import type { OrganisationMember, Profile, MemberInvitation, UserRole, JoinRequest } from '@/types/database'
 
-type MembersSubTab = 'actifs' | 'invitations' | 'import'
+type MembersSubTab = 'actifs' | 'invitations' | 'demandes' | 'import'
+
+type JoinRequestWithProfile = JoinRequest & { profile: Profile | null }
 
 type MemberWithProfile = OrganisationMember & { profile: Profile | null }
 type PendingInvite = Pick<MemberInvitation, 'id' | 'email' | 'role' | 'created_at'>
@@ -166,10 +168,56 @@ export default function AdminMembers() {
 
   const [activeSubTab, setActiveSubTab] = useState<MembersSubTab>('actifs')
 
-  const SUB_TABS: { id: MembersSubTab; label: string; icon: React.FC<{ className?: string }> }[] = [
-    { id: 'actifs',       label: 'Membres actifs', icon: UserPlus },
-    { id: 'invitations',  label: 'Invitations',    icon: Mail },
-    { id: 'import',       label: 'Import CSV',     icon: Upload },
+  // Join requests
+  const { data: joinRequests = [] } = useQuery({
+    queryKey: ['join_requests', organisation?.id],
+    queryFn: async () => {
+      if (!organisation) return []
+      const { data, error } = await supabase
+        .from('join_requests')
+        .select('*, profile:profiles(*)')
+        .eq('organisation_id', organisation.id)
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+      if (error) throw error
+      return data as JoinRequestWithProfile[]
+    },
+    enabled: !!organisation,
+  })
+
+  const reviewJoinRequest = useMutation({
+    mutationFn: async ({ id, status, userId }: { id: string; status: 'accepted' | 'rejected'; userId: string }) => {
+      if (!organisation || !user) throw new Error('Non authentifié')
+      const { error: updateError } = await supabase
+        .from('join_requests')
+        .update({ status, reviewed_by: user.id, reviewed_at: new Date().toISOString() })
+        .eq('id', id)
+      if (updateError) throw updateError
+
+      if (status === 'accepted') {
+        const { error: memberError } = await supabase
+          .from('organisation_members')
+          .upsert({
+            organisation_id: organisation.id,
+            user_id: userId,
+            role: 'contributor',
+            accepted_at: new Date().toISOString(),
+            is_active: true,
+          }, { onConflict: 'organisation_id,user_id' })
+        if (memberError) throw memberError
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['join_requests', organisation?.id] })
+      queryClient.invalidateQueries({ queryKey: ['members', organisation?.id] })
+    },
+  })
+
+  const SUB_TABS: { id: MembersSubTab; label: string; icon: React.FC<{ className?: string }>; badge?: number }[] = [
+    { id: 'actifs',       label: 'Membres actifs',  icon: UserPlus },
+    { id: 'invitations',  label: 'Invitations',     icon: Mail },
+    { id: 'demandes',     label: 'Demandes',        icon: Clock, badge: joinRequests.length },
+    { id: 'import',       label: 'Import CSV',      icon: Upload },
   ]
 
   return (
@@ -191,6 +239,11 @@ export default function AdminMembers() {
               >
                 <Icon className="w-4 h-4" />
                 {tab.label}
+                {tab.badge != null && tab.badge > 0 && (
+                  <span className="ml-1 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-danger text-white text-[10px] font-bold px-1">
+                    {tab.badge}
+                  </span>
+                )}
               </button>
             )
           })}
@@ -198,6 +251,61 @@ export default function AdminMembers() {
 
         {activeSubTab === 'invitations' && <Invitations />}
         {activeSubTab === 'import' && <ImportUsers />}
+
+        {activeSubTab === 'demandes' && (
+          <div className="space-y-4">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Demandes d'adhésion</h1>
+              <p className="text-slate-500 text-sm mt-1">
+                {joinRequests.length} demande{joinRequests.length !== 1 ? 's' : ''} en attente
+              </p>
+            </div>
+            {joinRequests.length === 0 ? (
+              <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 text-sm">
+                Aucune demande d'adhésion en attente.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {joinRequests.map(req => (
+                  <div key={req.id} className="card flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center shrink-0 text-slate-500 font-semibold text-sm">
+                      {req.profile?.full_name?.[0]?.toUpperCase() ?? '?'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-slate-900">{req.profile?.full_name ?? 'Utilisateur inconnu'}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {new Date(req.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                      </p>
+                      {req.message && (
+                        <p className="mt-2 text-sm text-slate-600 bg-slate-50 border border-slate-100 rounded-lg px-3 py-2 italic">
+                          "{req.message}"
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        onClick={() => reviewJoinRequest.mutate({ id: req.id, status: 'accepted', userId: req.user_id })}
+                        disabled={reviewJoinRequest.isPending}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+                      >
+                        <UserCheck className="w-3.5 h-3.5" />
+                        Accepter
+                      </button>
+                      <button
+                        onClick={() => reviewJoinRequest.mutate({ id: req.id, status: 'rejected', userId: req.user_id })}
+                        disabled={reviewJoinRequest.isPending}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-300 text-slate-600 rounded-lg hover:border-red-300 hover:text-red-600 disabled:opacity-50 transition-colors"
+                      >
+                        <UserX className="w-3.5 h-3.5" />
+                        Refuser
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {activeSubTab === 'actifs' && (
         <>

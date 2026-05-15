@@ -270,3 +270,64 @@ export function weeklyDigestEmailHtml(params: {
     `Résumé hebdo ${params.orgName} — ${params.lateCount} action${params.lateCount !== 1 ? 's' : ''} en retard`,
   )
 }
+
+// ── Join request templates ────────────────────────────────────
+
+export function joinRequestReceivedHtml(params: {
+  adminName: string
+  requesterName: string
+  requesterEmail: string
+  orgName: string
+  message: string | null
+  reviewUrl: string
+}) {
+  return base(
+    `<h1 style="font-size:22px;font-weight:700;color:#1e293b;margin:0 0 16px">Nouvelle demande d'adhésion</h1>` +
+    `<p style="color:#475569;margin:0 0 20px">Bonjour ${params.adminName},</p>` +
+    `<p style="color:#475569;margin:0 0 20px">
+      <strong>${params.requesterName}</strong> (${params.requesterEmail}) souhaite rejoindre l'organisation
+      <strong>${params.orgName}</strong>.
+    </p>` +
+    (params.message
+      ? `<div style="background:#f8fafc;border-left:4px solid ${BRAND_COLOR};border-radius:4px;padding:16px;margin:0 0 24px;color:#475569;font-style:italic">
+           "${params.message}"
+         </div>`
+      : '') +
+    btn('Gérer la demande', params.reviewUrl),
+    `Demande d'adhésion — ${params.requesterName} → ${params.orgName}`,
+  )
+}
+
+export function joinRequestAcceptedHtml(params: {
+  userName: string
+  orgName: string
+  appUrl: string
+}) {
+  return base(
+    `<h1 style="font-size:22px;font-weight:700;color:#1e293b;margin:0 0 16px">Demande acceptée 🎉</h1>` +
+    `<p style="color:#475569;margin:0 0 20px">Bonjour ${params.userName},</p>` +
+    `<p style="color:#475569;margin:0 0 28px">
+      Votre demande d'adhésion à <strong>${params.orgName}</strong> a été acceptée.
+      Vous pouvez maintenant accéder à votre espace de travail.
+    </p>` +
+    btn('Accéder à mon espace', params.appUrl),
+    `Bienvenue dans ${params.orgName} !`,
+  )
+}
+
+export function joinRequestRejectedHtml(params: {
+  userName: string
+  orgName: string
+}) {
+  return base(
+    `<h1 style="font-size:22px;font-weight:700;color:#1e293b;margin:0 0 16px">Demande non retenue</h1>` +
+    `<p style="color:#475569;margin:0 0 20px">Bonjour ${params.userName},</p>` +
+    `<p style="color:#475569;margin:0 0 20px">
+      Votre demande d'adhésion à <strong>${params.orgName}</strong> n'a pas été retenue par les administrateurs de l'organisation.
+    </p>` +
+    `<p style="color:#475569;margin:0 0 24px">
+      Si vous pensez qu'il s'agit d'une erreur, contactez directement un administrateur de l'organisation.
+    </p>`,
+    `Demande d'adhésion — ${params.orgName}`,
+  )
+}
