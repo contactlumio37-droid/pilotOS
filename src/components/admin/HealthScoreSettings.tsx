@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Activity, RotateCcw, Save } from 'lucide-react'
-import { useHealthScoreConfig, useSaveHealthScoreConfig, DEFAULT_HEALTH_CONFIG } from '@/components/features/OrgHealthScore'
-import type { HealthScoreConfig, HealthDimension } from '@/components/features/OrgHealthScore'
+import { useHealthScoreConfig, useSaveHealthScoreConfig, DEFAULT_HEALTH_CONFIG } from '@/hooks/useHealthScore'
+import type { HealthScoreConfig, HealthDimension } from '@/hooks/useHealthScore'
 import { useOrganisation } from '@/hooks/useOrganisation'
 
 const PLAN_ALLOWS_HEALTH_CONFIG = ['business', 'pro', 'enterprise']
