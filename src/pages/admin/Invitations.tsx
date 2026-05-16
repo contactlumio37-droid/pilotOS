@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useState, type FormEvent, type ChangeEvent } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Mail, Copy, RotateCcw, X, Plus, Check } from 'lucide-react'
 import { format } from 'date-fns'
@@ -8,6 +8,7 @@ import { useOrganisation } from '@/hooks/useOrganisation'
 import { useAuth } from '@/hooks/useAuth'
 import { useToast } from '@/components/ui/useToast'
 import PageHeader from '@/components/layout/PageHeader'
+import type { MemberInvitation } from '@/types/database'
 
 const ROLE_OPTIONS = [
   { value: 'admin',       label: 'Administrateur' },
@@ -18,30 +19,16 @@ const ROLE_OPTIONS = [
   { value: 'reader',      label: 'Lecteur' },
 ]
 
+function inviteStatus(inv: MemberInvitation): 'pending' | 'accepted' | 'expired' {
+  if (inv.accepted_at) return 'accepted'
+  if (new Date(inv.expires_at) < new Date()) return 'expired'
+  return 'pending'
+}
+
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
-  pending:   { label: 'En attente', cls: 'badge badge-brand' },
-  accepted:  { label: 'Acceptée',   cls: 'badge badge-success' },
-  expired:   { label: 'Expirée',    cls: 'badge badge-neutral' },
-  cancelled: { label: 'Annulée',    cls: 'badge badge-danger' },
-}
-
-const MODE_LABELS: Record<string, string> = {
-  manual:     'Manuel',
-  csv_import: 'Import CSV',
-  free:       'Libre',
-  paid:       'Payant',
-}
-
-interface Invitation {
-  id: string
-  organisation_id: string
-  email: string
-  role: string
-  mode: string
-  status: string
-  token: string
-  expires_at: string
-  created_at: string
+  pending:  { label: 'En attente', cls: 'badge badge-brand' },
+  accepted: { label: 'Acceptée',   cls: 'badge badge-success' },
+  expired:  { label: 'Expirée',    cls: 'badge badge-neutral' },
 }
 
 function invitationLink(token: string) {
@@ -60,63 +47,61 @@ export default function Invitations() {
   const [formErr, setFormErr]     = useState('')
   const [copied, setCopied]       = useState<string | null>(null)
 
-  const { data: invitations = [], isLoading } = useQuery<Invitation[]>({
-    queryKey: ['invitations', organisation?.id],
+  const { data: invitations = [], isLoading } = useQuery<MemberInvitation[]>({
+    queryKey: ['member_invitations', organisation?.id],
     enabled: !!organisation,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('invitations')
+        .from('member_invitations')
         .select('*')
         .eq('organisation_id', organisation!.id)
         .order('created_at', { ascending: false })
       if (error) throw error
-      return (data ?? []) as Invitation[]
+      return (data ?? []) as MemberInvitation[]
     },
   })
 
   const createMutation = useMutation({
     mutationFn: async ({ email, role }: { email: string; role: string }) => {
-      const { error } = await supabase.from('invitations').insert({
+      const { error } = await supabase.from('member_invitations').insert({
         organisation_id: organisation!.id,
         email,
         role,
-        mode: 'manual',
         invited_by: user!.id,
       })
       if (error) throw error
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['invitations', organisation?.id] })
+      qc.invalidateQueries({ queryKey: ['member_invitations', organisation?.id] })
       setShowModal(false)
       setEmail('')
       setRole('contributor')
     },
   })
 
-  const cancelMutation = useMutation({
+  const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
-        .from('invitations')
-        .update({ status: 'cancelled' })
+        .from('member_invitations')
+        .delete()
         .eq('id', id)
       if (error) throw error
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['invitations', organisation?.id] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['member_invitations', organisation?.id] }),
     onError: (err: Error) => toast.error(err.message ?? 'Erreur lors de l\'annulation'),
   })
 
   const resendMutation = useMutation({
-    mutationFn: async (inv: Invitation) => {
-      const { error } = await supabase.from('invitations').insert({
-        organisation_id: inv.organisation_id ?? organisation!.id,
+    mutationFn: async (inv: MemberInvitation) => {
+      const { error } = await supabase.from('member_invitations').insert({
+        organisation_id: inv.organisation_id,
         email: inv.email,
         role: inv.role,
-        mode: inv.mode,
         invited_by: user!.id,
       })
       if (error) throw error
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['invitations', organisation?.id] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['member_invitations', organisation?.id] }),
     onError: (err: Error) => toast.error(err.message ?? 'Erreur lors du renvoi'),
   })
 
@@ -172,27 +157,26 @@ export default function Invitations() {
               <tr>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Email</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Rôle</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">Mode</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide">Statut</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide hidden md:table-cell">Expiration</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {invitations.map(inv => {
-                const badge = STATUS_BADGE[inv.status] ?? STATUS_BADGE.expired
+              {invitations.map((inv: MemberInvitation) => {
+                const status = inviteStatus(inv)
+                const badge  = STATUS_BADGE[status]
                 return (
                   <tr key={inv.id} className="hover:bg-slate-50/50">
                     <td className="px-4 py-3 font-medium text-slate-700 truncate max-w-[180px]">{inv.email}</td>
                     <td className="px-4 py-3 text-slate-600 capitalize">{inv.role}</td>
-                    <td className="px-4 py-3 text-slate-500 hidden md:table-cell">{MODE_LABELS[inv.mode] ?? inv.mode}</td>
                     <td className="px-4 py-3"><span className={badge.cls}>{badge.label}</span></td>
                     <td className="px-4 py-3 text-slate-400 hidden md:table-cell text-xs">
                       {format(new Date(inv.expires_at), 'd MMM yyyy', { locale: fr })}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1 justify-end">
-                        {inv.status === 'pending' && (
+                        {status === 'pending' && (
                           <>
                             <button
                               onClick={() => copyLink(inv.token)}
@@ -204,7 +188,7 @@ export default function Invitations() {
                                 : <Copy className="w-4 h-4" />}
                             </button>
                             <button
-                              onClick={() => cancelMutation.mutate(inv.id)}
+                              onClick={() => deleteMutation.mutate(inv.id)}
                               title="Annuler"
                               className="p-1.5 rounded hover:bg-slate-100 text-slate-400 hover:text-red-500 transition-colors"
                             >
@@ -212,9 +196,9 @@ export default function Invitations() {
                             </button>
                           </>
                         )}
-                        {(inv.status === 'expired' || inv.status === 'cancelled') && (
+                        {status === 'expired' && (
                           <button
-                            onClick={() => resendMutation.mutate(inv as Invitation & { organisation_id: string })}
+                            onClick={() => resendMutation.mutate(inv)}
                             title="Renvoyer"
                             className="p-1.5 rounded hover:bg-slate-100 text-slate-400 hover:text-brand-600 transition-colors"
                           >
@@ -231,7 +215,6 @@ export default function Invitations() {
         </div>
       )}
 
-      {/* Modale invitation manuelle */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
@@ -254,7 +237,7 @@ export default function Invitations() {
                 <input
                   type="email"
                   value={email}
-                  onChange={e => setEmail(e.target.value)}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
                   className="input"
                   placeholder="alice@exemple.fr"
                 />
@@ -262,7 +245,7 @@ export default function Invitations() {
               </div>
               <div>
                 <label className="label">Rôle *</label>
-                <select value={role} onChange={e => setRole(e.target.value)} className="input">
+                <select value={role} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setRole(e.target.value)} className="input">
                   {ROLE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
@@ -276,7 +259,6 @@ export default function Invitations() {
               </div>
             </form>
 
-            {/* Affiche le lien après création réussie */}
             {createMutation.isSuccess && (
               <div className="mt-3 bg-brand-50 rounded-lg px-3 py-2 text-xs text-brand-700 break-all">
                 Lien créé — copiez-le depuis le tableau.

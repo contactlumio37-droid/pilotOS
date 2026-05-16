@@ -91,6 +91,7 @@ export interface Profile {
   onboarding_step: number
   onboarding_role: 'quality_manager' | 'hse_manager' | 'operations_manager' | 'executive' | 'consultant' | 'other' | null
   onboarding_usages: string[]
+  onboarding_progress_dismissed: boolean
 }
 
 export interface OrganisationMember {
