@@ -1,7 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import {
-  LayoutDashboard, ListChecks, FolderOpen,
-  Users, Settings, BarChart2, Target, AlertCircle, Siren,
+  LayoutDashboard, ListChecks, FolderOpen, GitBranch,
+  Users, Settings, BarChart2, Target, AlertCircle, Siren, ShieldCheck,
 } from 'lucide-react'
 import { useBreakpoint } from '@/hooks/useBreakpoint'
 import { ORG_CONTEXT_KEY, useHasModule } from '@/hooks/useOrganisation'
@@ -24,8 +24,7 @@ import TerrainReportsManager from '@/pages/shared/TerrainReportsManager'
 import SecurityApp from '@/pages/shared/SecurityApp'
 import { QUICK_DECLARE_EVENT } from '@/components/features/QuickDeclareButton'
 
-// Qualité et Sécurité accessibles via Dashboard onglets — retirés du menu latéral
-const NAV_ITEMS: NavItem[] = [
+const BASE_NAV_ITEMS: NavItem[] = [
   { to: '/admin',             label: 'Dashboard',   icon: LayoutDashboard, end: true },
   { to: '/admin/actions',     label: 'Actions',     icon: ListChecks },
   { to: '/admin/strategie',   label: 'Stratégie',   icon: Target },
@@ -44,19 +43,24 @@ const BOTTOM_ITEMS: NavItem[] = [
 ]
 
 export default function AdminApp() {
-  const breakpoint  = useBreakpoint()
-  const isDesktop   = breakpoint === 'desktop'
-  const hasBanner   = !!sessionStorage.getItem(ORG_CONTEXT_KEY)
-  const hasSecurite = useHasModule('securite')
+  const breakpoint    = useBreakpoint()
+  const isDesktop     = breakpoint === 'desktop'
+  const hasBanner     = !!sessionStorage.getItem(ORG_CONTEXT_KEY)
+  const hasProcessus  = useHasModule('processus')
+  const hasSecurite   = useHasModule('securite')
 
-  // hasSecurite kept — Sécurité accessible via Dashboard onglets
-  void hasSecurite
+  const navItems: NavItem[] = [
+    ...BASE_NAV_ITEMS.slice(0, 4),
+    ...(hasProcessus ? [{ to: '/admin/processus', label: 'Qualité',   icon: GitBranch   } as NavItem] : []),
+    ...(hasSecurite  ? [{ to: '/admin/securite',  label: 'Sécurité',  icon: ShieldCheck } as NavItem] : []),
+    ...BASE_NAV_ITEMS.slice(4),
+  ]
 
   return (
     <div className="min-h-screen bg-slate-50">
       <SuperAdminBanner />
       {isDesktop
-        ? <Sidebar items={NAV_ITEMS} profileTo="/admin/profil" />
+        ? <Sidebar items={navItems} profileTo="/admin/profil" />
         : (
           <BottomNav
             items={BOTTOM_ITEMS}

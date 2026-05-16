@@ -1,7 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import {
-  LayoutDashboard, ListChecks, FolderOpen,
-  AlertCircle, BarChart2, Target, Users, Siren, SmilePlus, Presentation,
+  LayoutDashboard, ListChecks, FolderOpen, GitBranch,
+  AlertCircle, BarChart2, Target, Users, Siren, SmilePlus, Presentation, ShieldCheck,
 } from 'lucide-react'
 import { useBreakpoint } from '@/hooks/useBreakpoint'
 import { useHasModule } from '@/hooks/useOrganisation'
@@ -22,8 +22,7 @@ import SecurityApp from '@/pages/shared/SecurityApp'
 import TeamPage from './TeamPage'
 import CodirHubPage from '@/pages/director/CodirHubPage'
 
-// Qualité et Sécurité accessibles via Dashboard onglets — retirés du menu latéral
-const NAV_ITEMS: NavItem[] = [
+const BASE_NAV_ITEMS: NavItem[] = [
   { to: '/manager',             label: 'Dashboard',   icon: LayoutDashboard, end: true },
   { to: '/manager/actions',     label: 'Actions',     icon: ListChecks },
   { to: '/manager/strategie',   label: 'Stratégie',   icon: Target },
@@ -32,7 +31,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/manager/equipe',      label: 'Équipe',      icon: SmilePlus },
   { to: '/manager/documents',   label: 'Documents',   icon: FolderOpen },
   { to: '/manager/membres',     label: 'Membres',     icon: Users },
-  { to: '/manager/codir',      label: 'CODIR',       icon: Presentation },
+  { to: '/manager/codir',       label: 'CODIR',       icon: Presentation },
 ]
 
 const BOTTOM_ITEMS: NavItem[] = [
@@ -43,14 +42,17 @@ const BOTTOM_ITEMS: NavItem[] = [
 ]
 
 export default function ManagerApp() {
-  const breakpoint  = useBreakpoint()
-  const isDesktop   = breakpoint === 'desktop'
-  const hasSecurite = useHasModule('securite')
+  const breakpoint   = useBreakpoint()
+  const isDesktop    = breakpoint === 'desktop'
+  const hasProcessus = useHasModule('processus')
+  const hasSecurite  = useHasModule('securite')
 
-  // hasSecurite kept — Sécurité accessible via Dashboard onglets
-  void hasSecurite
-
-  const sidebarItems: NavItem[] = NAV_ITEMS
+  const sidebarItems: NavItem[] = [
+    ...BASE_NAV_ITEMS.slice(0, 4),
+    ...(hasProcessus ? [{ to: '/manager/processus', label: 'Qualité',  icon: GitBranch   } as NavItem] : []),
+    ...(hasSecurite  ? [{ to: '/manager/securite',  label: 'Sécurité', icon: ShieldCheck } as NavItem] : []),
+    ...BASE_NAV_ITEMS.slice(4),
+  ]
 
   return (
     <div className="min-h-screen bg-slate-50">

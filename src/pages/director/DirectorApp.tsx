@@ -1,5 +1,5 @@
 import { Routes, Route } from 'react-router-dom'
-import { LayoutDashboard, Target, ListChecks, GitBranch, FolderOpen, BarChart2, AlertCircle, Users, SmilePlus, Presentation, TrendingUp } from 'lucide-react'
+import { LayoutDashboard, Target, ListChecks, GitBranch, FolderOpen, BarChart2, AlertCircle, Users, SmilePlus, Presentation, TrendingUp, ShieldCheck } from 'lucide-react'
 import { useBreakpoint } from '@/hooks/useBreakpoint'
 import { useHasModule } from '@/hooks/useOrganisation'
 import Sidebar from '@/components/layout/Sidebar'
@@ -18,8 +18,7 @@ import TeamPage from '@/pages/manager/TeamPage'
 import CodirHubPage from './CodirHubPage'
 import BIHubPage from './BIHubPage'
 
-// Sécurité accessible via Dashboard onglets — retirée du menu latéral
-const NAV_ITEMS = [
+const BASE_NAV_ITEMS = [
   { to: '/direction',             label: 'Synthèse',    icon: LayoutDashboard, end: true },
   { to: '/direction/strategie',   label: 'Stratégie',   icon: Target },
   { to: '/direction/actions',     label: 'Actions',     icon: ListChecks },
@@ -29,8 +28,8 @@ const NAV_ITEMS = [
   { to: '/direction/equipe',      label: 'Équipe',      icon: SmilePlus },
   { to: '/direction/documents',   label: 'Documents',   icon: FolderOpen },
   { to: '/direction/membres',     label: 'Membres',     icon: Users },
-  { to: '/direction/codir',      label: 'CODIR',       icon: Presentation },
-  { to: '/direction/bi',         label: 'BI',          icon: TrendingUp },
+  { to: '/direction/codir',       label: 'CODIR',       icon: Presentation },
+  { to: '/direction/bi',          label: 'BI',          icon: TrendingUp },
 ]
 
 const BOTTOM_ITEMS = [
@@ -44,12 +43,16 @@ const BOTTOM_ITEMS = [
 export default function DirectorApp() {
   const breakpoint  = useBreakpoint()
   const isDesktop   = breakpoint === 'desktop'
-  // hasSecurite kept — Sécurité accessible via Dashboard onglets
-  void useHasModule('securite')
+  const hasSecurite = useHasModule('securite')
+
+  const navItems = [
+    ...BASE_NAV_ITEMS,
+    ...(hasSecurite ? [{ to: '/direction/securite', label: 'Sécurité', icon: ShieldCheck }] : []),
+  ]
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {isDesktop ? <Sidebar items={NAV_ITEMS} profileTo="/direction/profil" /> : <BottomNav items={BOTTOM_ITEMS} />}
+      {isDesktop ? <Sidebar items={navItems} profileTo="/direction/profil" /> : <BottomNav items={BOTTOM_ITEMS} />}
 
       <main className={isDesktop ? 'main-with-sidebar p-8' : 'main-with-bottom-nav p-4'}>
         <Routes>
