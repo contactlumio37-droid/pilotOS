@@ -35,12 +35,13 @@ import InvitationAccept from '@/pages/auth/InvitationAccept'
 // App shells — chargés à la demande selon le rôle
 const TerrainApp     = lazy(() => import('@/pages/terrain/TerrainApp'))
 const ContributorApp = lazy(() => import('@/pages/contributor/ContributorApp'))
+const ReaderApp      = lazy(() => import('@/pages/reader/ReaderApp'))
 const ManagerApp     = lazy(() => import('@/pages/manager/ManagerApp'))
 const DirectorApp    = lazy(() => import('@/pages/director/DirectorApp'))
 const AdminApp       = lazy(() => import('@/pages/admin/AdminApp'))
 const SuperAdminApp  = lazy(() => import('@/pages/superadmin/SuperAdminApp'))
 
-// ── CmsOrFallback ─────────────────────────────────────────────
+// ── CmsOrFallback ────────────────────────────────────────────────────────────
 // Renders DynamicPage if the CMS page has sections, otherwise the
 // hardcoded React component (Fallback). This way the landing and
 // pricing pages stay functional even when the CMS is empty.
@@ -80,7 +81,7 @@ function GlobalQuickDeclare() {
   const { user, role } = useAuth()
   const { pathname } = useLocation()
   if (!user) return null
-  if (role === 'terrain') return null
+  if (role === 'terrain' || role === 'reader') return null
   if (pathname.startsWith('/superadmin') || pathname === '/' || pathname.startsWith('/pricing') || pathname.startsWith('/roadmap')) return null
   return <QuickDeclareButton />
 }
@@ -107,7 +108,7 @@ function ConfirmNewsletter() {
         ) : data?.ok ? (
           <>
             <div className="text-5xl mb-4">✅</div>
-            <h1 className="text-xl font-bold text-slate-900 mb-2">Inscription confirmée !</h1>
+            <h1 className="text-xl font-bold text-slate-900 mb-2">Inscription confirmée !</h1>
             <p className="text-slate-500 text-sm">Vous recevrez nos prochains articles et actualités.</p>
           </>
         ) : (
@@ -227,6 +228,7 @@ function AppRouter() {
         {/* Apps par rôle — lazy loaded */}
         <Route path="/terrain/*"    element={<ProtectedRoute><MFARoute><Suspense fallback={<LoadingScreen />}><TerrainApp /></Suspense></MFARoute></ProtectedRoute>} />
         <Route path="/app/*"        element={<ProtectedRoute><MFARoute><SuperadminToAdminRedirect><Suspense fallback={<LoadingScreen />}><ContributorApp /></Suspense></SuperadminToAdminRedirect></MFARoute></ProtectedRoute>} />
+        <Route path="/reader/*"     element={<ProtectedRoute><MFARoute><Suspense fallback={<LoadingScreen />}><ReaderApp /></Suspense></MFARoute></ProtectedRoute>} />
         <Route path="/manager/*"    element={<ProtectedRoute><MFARoute><Suspense fallback={<LoadingScreen />}><ManagerApp /></Suspense></MFARoute></ProtectedRoute>} />
         <Route path="/direction/*"  element={<ProtectedRoute><MFARoute><Suspense fallback={<LoadingScreen />}><DirectorApp /></Suspense></MFARoute></ProtectedRoute>} />
         <Route path="/admin/*"      element={<ProtectedRoute><MFARoute><Suspense fallback={<LoadingScreen />}><AdminApp /></Suspense></MFARoute></ProtectedRoute>} />
@@ -242,12 +244,13 @@ function AppRouter() {
 function AppRedirect({ shell }: { shell: ReturnType<typeof useAppShell> }) {
   const { role, profile } = useAuth()
   const routes: Record<NonNullable<typeof shell>, string> = {
-    terrain: '/terrain',
+    terrain:     '/terrain',
     contributor: '/app',
-    manager: '/manager',
-    director: '/direction',
-    admin: '/admin',
-    superadmin: '/superadmin',
+    reader:      '/reader',
+    manager:     '/manager',
+    director:    '/direction',
+    admin:       '/admin',
+    superadmin:  '/superadmin',
   }
   if (!shell) {
     if (role === 'superadmin') return <Navigate to="/superadmin" replace />

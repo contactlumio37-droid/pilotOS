@@ -38,16 +38,17 @@ export function useIsAdminOrAbove(): boolean {
 }
 
 // Détermine l'app shell à afficher selon le rôle
-export function useAppShell(): 'terrain' | 'contributor' | 'manager' | 'director' | 'admin' | 'superadmin' | null {
+export function useAppShell(): 'terrain' | 'contributor' | 'reader' | 'manager' | 'director' | 'admin' | 'superadmin' | null {
   const role = useRole()
   if (!role) return null
 
   switch (role) {
     case 'superadmin': return 'superadmin'
-    case 'admin': return 'admin'
-    case 'director': return 'director'
-    case 'manager': return 'manager'
-    case 'terrain': return 'terrain'
-    default: return 'contributor'
+    case 'admin':      return 'admin'
+    case 'director':   return 'director'
+    case 'manager':    return 'manager'
+    case 'reader':     return 'reader'
+    case 'terrain':    return 'terrain'
+    default:           return 'contributor'
   }
 }
