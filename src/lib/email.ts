@@ -18,6 +18,7 @@ import {
   joinRequestAcceptedHtml,
   joinRequestRejectedHtml,
   newsletterConfirmationEmailHtml,
+  signatureRequestEmailHtml,
 } from './emailTemplates'
 
 export interface EmailPayload {
@@ -243,5 +244,23 @@ export async function sendNewsletterConfirmationEmail(params: {
     subject: 'Confirmez votre inscription à la newsletter PilotOS',
     html: newsletterConfirmationEmailHtml(params),
     text: `Confirmez votre inscription à la newsletter PilotOS : ${params.confirmUrl}`,
+  })
+}
+
+export async function sendSignatureRequestEmail(params: {
+  to: string
+  recipientName: string
+  senderName: string
+  documentTitle: string
+  orgName: string
+  signUrl: string
+  message?: string
+  expiresAt: string
+}): Promise<void> {
+  await sendEmail({
+    to: params.to,
+    subject: `${params.senderName} vous demande de signer "${params.documentTitle}"`,
+    html: signatureRequestEmailHtml(params),
+    text: `${params.senderName} vous demande de signer "${params.documentTitle}" dans ${params.orgName}. Lien : ${params.signUrl}`,
   })
 }

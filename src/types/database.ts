@@ -993,3 +993,19 @@ export interface TeamBriefing {
   created_at: string
   updated_at: string
 }
+
+export interface SignatureRequest {
+  id: string
+  organisation_id: string
+  document_id: string
+  recipient_id: string
+  sent_by: string
+  token: string
+  status: 'pending' | 'signed' | 'rejected'
+  message: string | null
+  signed_at: string | null
+  signature_storage_path: string | null
+  expires_at: string
+  created_at: string
+  updated_at: string
+}

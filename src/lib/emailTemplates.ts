@@ -346,3 +346,30 @@ export function newsletterConfirmationEmailHtml(params: {
     'Confirmez votre inscription à la newsletter PilotOS',
   )
 }
+
+export function signatureRequestEmailHtml(params: {
+  recipientName: string
+  senderName: string
+  documentTitle: string
+  orgName: string
+  signUrl: string
+  message?: string
+  expiresAt: string
+}) {
+  return base(
+    `<h1 style="font-size:22px;font-weight:700;color:#1e293b;margin:0 0 16px">Document à signer</h1>` +
+    `<p style="color:#475569;margin:0 0 12px">Bonjour ${params.recipientName},</p>` +
+    `<p style="color:#475569;margin:0 0 12px">` +
+    `<strong>${params.senderName}</strong> vous demande de signer le document suivant dans <strong>${params.orgName}</strong> :` +
+    `</p>` +
+    `<div style="background:#f8fafc;border-left:4px solid #444ce7;padding:16px 20px;margin:0 0 20px;border-radius:0 8px 8px 0">` +
+    `<p style="font-size:16px;font-weight:600;color:#1e293b;margin:0">${params.documentTitle}</p>` +
+    `</div>` +
+    (params.message ? `<p style="color:#475569;font-style:italic;margin:0 0 20px">"${params.message}"</p>` : '') +
+    `<div style="text-align:center;margin:0 0 24px">` +
+    `<a href="${params.signUrl}" style="display:inline-block;background:#444ce7;color:#fff;text-decoration:none;padding:14px 32px;border-radius:10px;font-weight:600;font-size:15px;">Signer le document</a>` +
+    `</div>` +
+    `<p style="color:#94a3b8;font-size:12px;margin:0">Ce lien est personnel et expire le ${params.expiresAt}. Ne le partagez pas.</p>`,
+    `${params.senderName} vous demande de signer "${params.documentTitle}"`,
+  )
+}
