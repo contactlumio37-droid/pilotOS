@@ -215,7 +215,7 @@ function MoodTab({ organisationId }: { organisationId: string }) {
 
 function BriefingsTab({ organisationId }: { organisationId: string }) {
   const { user } = useAuth()
-  const { role } = useRole()
+  const role = useRole()
   const qc = useQueryClient()
   const toast = useToast()
   const { data: briefings = [], isLoading } = useBriefings(organisationId)

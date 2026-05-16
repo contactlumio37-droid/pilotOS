@@ -1,5 +1,5 @@
 import { Routes, Route } from 'react-router-dom'
-import { LayoutDashboard, Target, ListChecks, GitBranch, FolderOpen, BarChart2, AlertCircle, Users, SmilePlus } from 'lucide-react'
+import { LayoutDashboard, Target, ListChecks, GitBranch, FolderOpen, BarChart2, AlertCircle, Users, SmilePlus, Presentation, TrendingUp } from 'lucide-react'
 import { useBreakpoint } from '@/hooks/useBreakpoint'
 import { useHasModule } from '@/hooks/useOrganisation'
 import Sidebar from '@/components/layout/Sidebar'
@@ -15,6 +15,8 @@ import TerrainReportsManager from '@/pages/shared/TerrainReportsManager'
 import ProfilePage from '@/pages/shared/ProfilePage'
 import SecurityApp from '@/pages/shared/SecurityApp'
 import TeamPage from '@/pages/manager/TeamPage'
+import CodirHubPage from './CodirHubPage'
+import BIHubPage from './BIHubPage'
 
 // Sécurité accessible via Dashboard onglets — retirée du menu latéral
 const NAV_ITEMS = [
@@ -27,6 +29,8 @@ const NAV_ITEMS = [
   { to: '/direction/equipe',      label: 'Équipe',      icon: SmilePlus },
   { to: '/direction/documents',   label: 'Documents',   icon: FolderOpen },
   { to: '/direction/membres',     label: 'Membres',     icon: Users },
+  { to: '/direction/codir',      label: 'CODIR',       icon: Presentation },
+  { to: '/direction/bi',         label: 'BI',          icon: TrendingUp },
 ]
 
 const BOTTOM_ITEMS = [
@@ -58,6 +62,8 @@ export default function DirectorApp() {
           <Route path="/documents"   element={<DocumentsPage />} />
           <Route path="/membres"     element={<MembersPage />} />
           <Route path="/equipe"      element={<TeamPage />} />
+          <Route path="/codir"       element={<CodirHubPage />} />
+          <Route path="/bi"          element={<BIHubPage />} />
           <Route path="/securite/*"  element={<SecurityApp />} />
           <Route path="/profil"      element={<ProfilePage />} />
         </Routes>

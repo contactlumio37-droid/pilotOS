@@ -13,7 +13,7 @@ export default function SignPage() {
   const { token } = useParams<{ token: string }>()
   const navigate = useNavigate()
   const { user } = useAuth()
-  const [signatureDataUrl, setSignatureDataUrl] = useState<string | null>(null)
+  const [, setSignatureDataUrl] = useState<string | null>(null)
   const [pageState, setPageState] = useState<PageState>('loading')
 
   const { data: request } = useQuery<SignatureRequest | null>({

@@ -51,6 +51,14 @@ export function calculatePlanPrice(
   return annual ? Math.round(monthlyTotal * 12 * 0.9) : monthlyTotal
 }
 
+const PLAN_ORDER: PlanKey[] = ['free', 'team', 'business', 'pro', 'enterprise']
+
+export function isPlanAtLeast(current: string | null | undefined, required: PlanKey): boolean {
+  const idx = PLAN_ORDER.indexOf((current ?? 'free') as PlanKey)
+  const reqIdx = PLAN_ORDER.indexOf(required)
+  return idx >= reqIdx
+}
+
 // Limites par plan (Free Solo)
 export const FREE_LIMITS = {
   max_actions: 10,

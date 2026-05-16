@@ -1009,3 +1009,30 @@ export interface SignatureRequest {
   created_at: string
   updated_at: string
 }
+
+export interface CodirReviewMeeting {
+  id: string
+  organisation_id: string
+  title: string
+  meeting_date: string
+  facilitator_id: string | null
+  attendees_ids: string[]
+  decision_ids: string[]
+  status: 'planned' | 'in_progress' | 'completed' | 'cancelled'
+  notes: string | null
+  next_meeting_date: string | null
+  visibility: 'public' | 'managers' | 'restricted' | 'confidential'
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+export interface KpiSnapshot {
+  id: string
+  organisation_id: string
+  kpi_id: string
+  snapshot_date: string
+  value: number
+  target: number | null
+  created_at: string
+}
