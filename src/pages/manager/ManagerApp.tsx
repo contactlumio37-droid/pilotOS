@@ -1,7 +1,7 @@
 import { Routes, Route } from 'react-router-dom'
 import {
   LayoutDashboard, ListChecks, FolderOpen,
-  AlertCircle, BarChart2, Target, Users, Siren,
+  AlertCircle, BarChart2, Target, Users, Siren, SmilePlus,
 } from 'lucide-react'
 import { useBreakpoint } from '@/hooks/useBreakpoint'
 import { useHasModule } from '@/hooks/useOrganisation'
@@ -19,6 +19,7 @@ import DocumentsPage from '@/pages/shared/DocumentsPage'
 import MembersPage from '@/pages/shared/MembersPage'
 import ProfilePage from '@/pages/shared/ProfilePage'
 import SecurityApp from '@/pages/shared/SecurityApp'
+import TeamPage from './TeamPage'
 
 // Qualité et Sécurité accessibles via Dashboard onglets — retirés du menu latéral
 const NAV_ITEMS: NavItem[] = [
@@ -27,6 +28,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/manager/strategie',   label: 'Stratégie',   icon: Target },
   { to: '/manager/indicateurs', label: 'Indicateurs', icon: BarChart2 },
   { to: '/manager/terrain',     label: 'Terrain',     icon: AlertCircle },
+  { to: '/manager/equipe',      label: 'Équipe',      icon: SmilePlus },
   { to: '/manager/documents',   label: 'Documents',   icon: FolderOpen },
   { to: '/manager/membres',     label: 'Membres',     icon: Users },
 ]
@@ -78,6 +80,7 @@ export default function ManagerApp() {
           <Route path="/terrain"     element={<TerrainReportsManager />} />
           <Route path="/documents"   element={<DocumentsPage />} />
           <Route path="/membres"     element={<MembersPage />} />
+          <Route path="/equipe"      element={<TeamPage />} />
           <Route path="/securite/*"  element={<SecurityApp />} />
           <Route path="/profil"      element={<ProfilePage />} />
         </Routes>

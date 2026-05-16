@@ -4,9 +4,13 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { motion } from 'framer-motion'
 import {
-  AlertTriangle, Star, Wrench, GitBranch, HelpCircle, Camera, Send,
+  AlertTriangle, Star, Wrench, GitBranch, HelpCircle, Camera, Send, SmilePlus,
 } from 'lucide-react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/hooks/useAuth'
 import { useCreateTerrainReport } from '@/hooks/useTerrainReports'
+import MoodPicker from '@/components/features/MoodPicker'
 
 const CATEGORIES = [
   { id: 'safety', label: 'Sécurité', icon: AlertTriangle, color: 'text-danger bg-danger-light' },
@@ -29,6 +33,27 @@ type FormData = z.infer<typeof schema>
 export default function TerrainReportPage() {
   const [category, setCategory] = useState<Category>('other')
   const [submitted, setSubmitted] = useState(false)
+  const [showMoodPicker, setShowMoodPicker] = useState(false)
+  const [moodDismissed, setMoodDismissed] = useState(false)
+
+  const { user, organisation } = useAuth()
+  const qc = useQueryClient()
+  const today = new Date().toISOString().slice(0, 10)
+
+  const { data: hasMoodToday } = useQuery({
+    queryKey: ['team_moods_today', organisation?.id],
+    enabled: !!organisation && !!user,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { count } = await supabase
+        .from('team_moods')
+        .select('id', { count: 'exact', head: true })
+        .eq('organisation_id', organisation!.id)
+        .eq('user_id', user!.id)
+        .eq('date', today)
+      return (count ?? 0) > 0
+    },
+  })
 
   const createReport = useCreateTerrainReport()
 
@@ -70,6 +95,21 @@ export default function TerrainReportPage() {
 
   return (
     <div className="max-w-lg mx-auto p-4 pt-8">
+      {/* Daily mood prompt — shows only if no mood submitted today */}
+      {organisation && !hasMoodToday && !moodDismissed && (
+        <div className="flex items-center gap-3 bg-brand-50 border border-brand-200 rounded-xl px-4 py-3 mb-4">
+          <SmilePlus className="w-4 h-4 text-brand-600 shrink-0" />
+          <p className="text-sm text-brand-700 flex-1">Comment vous sentez-vous aujourd'hui ?</p>
+          <button
+            onClick={() => setShowMoodPicker(true)}
+            className="text-xs font-semibold text-brand-700 hover:text-brand-900 px-2 py-1 rounded-lg hover:bg-brand-100 transition-colors"
+          >
+            Répondre
+          </button>
+          <button onClick={() => setMoodDismissed(true)} className="text-brand-400 hover:text-brand-600 text-xs px-1">✕</button>
+        </div>
+      )}
+
       <motion.div initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
         <h1 className="text-2xl font-bold text-slate-900 mb-1">Signaler</h1>
         <p className="text-slate-500 mb-6">Un problème ? Faites-le remonter en 30 secondes.</p>
@@ -153,6 +193,17 @@ export default function TerrainReportPage() {
           </button>
         </form>
       </motion.div>
+
+      {showMoodPicker && organisation && (
+        <MoodPicker
+          organisationId={organisation.id}
+          onClose={() => setShowMoodPicker(false)}
+          onSaved={() => {
+            qc.invalidateQueries({ queryKey: ['team_moods_today', organisation.id] })
+            setMoodDismissed(true)
+          }}
+        />
+      )}
     </div>
   )
 }

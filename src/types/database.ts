@@ -971,3 +971,25 @@ export interface DemoRequest {
   sector: string | null
   created_at: string
 }
+
+export interface TeamMood {
+  id: string
+  organisation_id: string
+  user_id: string
+  mood: number
+  note: string | null
+  date: string
+  created_at: string
+}
+
+export interface TeamBriefing {
+  id: string
+  organisation_id: string
+  created_by: string
+  title: string | null
+  content: string
+  duration_minutes: number
+  date: string
+  created_at: string
+  updated_at: string
+}
