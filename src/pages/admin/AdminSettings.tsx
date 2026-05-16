@@ -6,12 +6,13 @@ import { motion } from 'framer-motion'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Settings, Shield, Bell, CreditCard, Save, Sparkles, Users,
-  Boxes, Tag, ArrowRight, ExternalLink, CheckCircle2,
+  Boxes, Tag, ArrowRight, ExternalLink, CheckCircle2, Activity,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useOrganisation } from '@/hooks/useOrganisation'
 import ActionCategories from '@/pages/admin/ActionCategories'
 import CategoryManager from '@/components/admin/CategoryManager'
+import HealthScoreSettings from '@/components/admin/HealthScoreSettings'
 import { useActiveModules } from '@/hooks/useModuleAccess'
 import { useStripeCheckout } from '@/hooks/useStripeCheckout'
 import { supabase } from '@/lib/supabase'
@@ -74,7 +75,7 @@ const MODULE_LABELS: Record<Module, string> = {
 
 // ── Tab IDs ───────────────────────────────────────────────────
 
-type SettingsTab = 'organisation' | 'categories' | 'modules' | 'facturation' | 'ia' | 'notifications'
+type SettingsTab = 'organisation' | 'categories' | 'modules' | 'facturation' | 'ia' | 'notifications' | 'score_sante'
 
 const SETTINGS_TABS: { id: SettingsTab; label: string; icon: React.FC<{ className?: string }> }[] = [
   { id: 'organisation',  label: 'Organisation',  icon: Settings },
@@ -83,6 +84,7 @@ const SETTINGS_TABS: { id: SettingsTab; label: string; icon: React.FC<{ classNam
   { id: 'facturation',   label: 'Facturation',   icon: CreditCard },
   { id: 'ia',            label: 'IA',            icon: Sparkles },
   { id: 'notifications', label: 'Notifications', icon: Bell },
+  { id: 'score_sante',   label: 'Score de santé', icon: Activity },
 ]
 
 // ── Sub-tab content components ────────────────────────────────
@@ -563,6 +565,7 @@ export default function AdminSettings() {
         {activeTab === 'facturation'   && <FacturationTab organisation={organisation ?? null} billing={billing} />}
         {activeTab === 'ia'            && <IaTab organisation={organisation ?? null} updateOrg={updateOrg} />}
         {activeTab === 'notifications' && <NotificationsTab />}
+        {activeTab === 'score_sante'   && <HealthScoreSettings />}
       </motion.div>
     </div>
   )
