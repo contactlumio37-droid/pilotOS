@@ -37,6 +37,7 @@ CREATE INDEX IF NOT EXISTS signature_requests_recipient_idx
 CREATE INDEX IF NOT EXISTS signature_requests_org_idx
   ON signature_requests(organisation_id, status);
 
+DROP TRIGGER IF EXISTS signature_requests_updated_at ON signature_requests;
 CREATE TRIGGER signature_requests_updated_at
   BEFORE UPDATE ON signature_requests
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();

@@ -107,6 +107,7 @@ CREATE POLICY "team_briefings_delete" ON team_briefings FOR DELETE
     )
   );
 
+DROP TRIGGER IF EXISTS team_briefings_updated_at ON team_briefings;
 CREATE TRIGGER team_briefings_updated_at
   BEFORE UPDATE ON team_briefings
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();

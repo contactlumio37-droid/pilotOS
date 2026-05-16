@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS codir_review_meetings (
 
 ALTER TABLE codir_review_meetings ENABLE ROW LEVEL SECURITY;
 
+DROP TRIGGER IF EXISTS codir_meetings_updated_at ON codir_review_meetings;
 CREATE TRIGGER codir_meetings_updated_at
   BEFORE UPDATE ON codir_review_meetings
   FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
