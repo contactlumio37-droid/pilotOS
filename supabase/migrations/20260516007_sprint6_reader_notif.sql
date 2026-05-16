@@ -14,19 +14,25 @@ CREATE INDEX IF NOT EXISTS notifications_entity_idx
 
 -- ── Schedule EPI/habilitation alert cron (daily at 08:00 UTC) ─────────────────
 -- Requires pg_cron + pg_net extensions enabled on the Supabase project.
--- If the job already exists (from manual setup), the SELECT is a no-op.
+-- If the job already exists (from manual setup), the exception is swallowed.
 
-SELECT cron.schedule(
-  'notify-epi-alerts',
-  '0 8 * * *',
-  $$
-    SELECT net.http_post(
-      url     := (SELECT value FROM app_settings WHERE key = 'functions_url') || '/notify-epi-alerts',
-      headers := jsonb_build_object(
-        'Content-Type', 'application/json',
-        'Authorization', 'Bearer ' || current_setting('app.service_role_key', true)
-      ),
-      body    := '{}'::jsonb
-    );
-  $$
-) ON CONFLICT DO NOTHING;
+DO $$
+BEGIN
+  PERFORM cron.schedule(
+    'notify-epi-alerts',
+    '0 8 * * *',
+    $cmd$
+      SELECT net.http_post(
+        url     := (SELECT value FROM app_settings WHERE key = 'functions_url') || '/notify-epi-alerts',
+        headers := jsonb_build_object(
+          'Content-Type', 'application/json',
+          'Authorization', 'Bearer ' || current_setting('app.service_role_key', true)
+        ),
+        body    := '{}'::jsonb
+      );
+    $cmd$
+  );
+EXCEPTION WHEN unique_violation THEN
+  NULL;
+END;
+$$;
