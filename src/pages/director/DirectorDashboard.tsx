@@ -1,25 +1,32 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Lock, TrendingUp, Target, LayoutDashboard, Package, ShieldCheck } from 'lucide-react'
+import { Lock, TrendingUp, Target, LayoutDashboard, Package, ShieldCheck, Settings2, GripVertical } from 'lucide-react'
 import PageHeader from '@/components/layout/PageHeader'
 import DashboardTabs from '@/components/layout/DashboardTabs'
-import { useDashboardKPIs } from '@/hooks/useDashboardKPIs'
+import KPIConfigDrawer from '@/components/modules/KPIConfigDrawer'
+import { useDashboardKPIs, useKpiConfig, useSaveKpiConfig } from '@/hooks/useDashboardKPIs'
+import type { KpiValue } from '@/hooks/useDashboardKPIs'
 import { useObjectives } from '@/hooks/usePilotage'
 import { useHasModule } from '@/hooks/useOrganisation'
 import SecurityApp from '@/pages/shared/SecurityApp'
-import { useNonConformities } from '@/hooks/useProcesses'
-import { useProcesses } from '@/hooks/useProcesses'
-import { Link } from 'react-router-dom'
-import { ChevronRight, Inbox } from 'lucide-react'
-import { format } from 'date-fns'
-import { fr } from 'date-fns/locale'
-import type { KpiId } from '@/hooks/useDashboardKPIs'
+import QualiteDashboardContent from '@/components/modules/QualiteDashboardContent'
+import {
+  DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext, sortableKeyboardCoordinates, rectSortingStrategy,
+  useSortable, arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
-const DIRECTOR_KPIS: KpiId[] = [
-  'actions_todo', 'actions_in_progress', 'actions_late',
-  'projects_active', 'nc_open', 'processes_health_avg',
-]
-const DIRECTOR_CONFIG = { enabled: DIRECTOR_KPIS, order: DIRECTOR_KPIS }
+const VARIANT_CLASSES = {
+  success: 'bg-success-light text-success',
+  warning: 'bg-warning-light text-warning',
+  danger:  'bg-danger-light text-danger',
+  brand:   'bg-brand-100 text-brand-700',
+  neutral: 'bg-slate-100 text-slate-600',
+}
 
 const STATUS_LABELS = {
   draft:     { label: 'Brouillon', className: 'badge-neutral' },
@@ -33,6 +40,7 @@ const TAB_KEY = 'pilotos_director_dashboard_tab'
 export default function DirectorDashboard() {
   const hasProcessus = useHasModule('processus')
   const hasSecurite  = useHasModule('securite')
+  const [configOpen, setConfigOpen] = useState(false)
 
   const [tab, setTab] = useState<string>(() =>
     sessionStorage.getItem(TAB_KEY) ?? 'pilotage'
@@ -54,13 +62,41 @@ export default function DirectorDashboard() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasProcessus, hasSecurite])
 
-  const { data: kpis = [], isLoading } = useDashboardKPIs(DIRECTOR_CONFIG)
+  const { data: kpiConfig } = useKpiConfig()
+  const { data: kpis = [], isLoading } = useDashboardKPIs(kpiConfig ?? undefined)
+  const saveConfig = useSaveKpiConfig()
   const { data: objectives = [] } = useObjectives()
   const activeObjectives = objectives.filter(o => o.status === 'active').slice(0, 6)
 
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  )
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (over && active.id !== over.id) {
+      const oldIndex = kpis.findIndex(k => k.id === active.id)
+      const newIndex = kpis.findIndex(k => k.id === over.id)
+      const newOrder = arrayMove(kpis.map(k => k.id), oldIndex, newIndex)
+      saveConfig.mutate({ enabled: kpiConfig?.enabled ?? newOrder, order: newOrder })
+    }
+  }
+
   return (
     <div className="max-w-5xl">
-      <PageHeader title="Synthèse direction" subtitle="Vue consolidée — lecture seule" />
+      <PageHeader
+        title="Synthèse direction"
+        subtitle="Vue consolidée"
+        actions={
+          tab === 'pilotage' ? (
+            <button onClick={() => setConfigOpen(true)} className="btn-secondary flex items-center gap-1.5 text-sm">
+              <Settings2 className="w-4 h-4" />
+              Configurer
+            </button>
+          ) : undefined
+        }
+      />
 
       {TABS.length > 1 && (
         <DashboardTabs tabs={TABS} active={tab} onChange={changeTab} />
@@ -74,22 +110,22 @@ export default function DirectorDashboard() {
           exit={{ opacity: 0, y: -6 }}
           transition={{ duration: 0.18 }}
         >
-          {/* ── Synthèse ── */}
           {tab === 'pilotage' && (
             <div>
-              <motion.div initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-                {isLoading
-                  ? Array.from({ length: 6 }).map((_, i) => <div key={i} className="card animate-pulse h-24" />)
-                  : kpis.map(kpi => (
-                      <div key={kpi.id} className="card">
-                        <p className="text-sm text-slate-500 mb-1">{kpi.label}</p>
-                        <p className={`text-3xl font-bold ${kpi.variant === 'danger' && kpi.value > 0 ? 'text-danger' : 'text-slate-900'}`}>
-                          {kpi.value}
-                          {kpi.id === 'processes_health_avg' && <span className="text-base text-slate-400 ml-1">%</span>}
-                        </p>
+              <motion.div initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="mb-8">
+                {isLoading ? (
+                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                    {Array.from({ length: 6 }).map((_, i) => <div key={i} className="card animate-pulse h-24" />)}
+                  </div>
+                ) : (
+                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                    <SortableContext items={kpis.map(k => k.id)} strategy={rectSortingStrategy}>
+                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                        {kpis.map(kpi => <SortableKpiCard key={kpi.id} kpi={kpi} />)}
                       </div>
-                    ))
-                }
+                    </SortableContext>
+                  </DndContext>
+                )}
               </motion.div>
 
               <motion.div initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.08 }}>
@@ -142,87 +178,44 @@ export default function DirectorDashboard() {
             </div>
           )}
 
-          {/* ── Qualité ── */}
           {tab === 'qualite' && hasProcessus && (
-            <DirectorQualiteContent />
+            <QualiteDashboardContent ncLink="/direction/processus" />
           )}
 
-          {/* ── Sécurité ── */}
           {tab === 'securite' && hasSecurite && (
             <SecurityApp />
           )}
         </motion.div>
       </AnimatePresence>
+
+      <KPIConfigDrawer open={configOpen} onClose={() => setConfigOpen(false)} />
     </div>
   )
 }
 
-function DirectorQualiteContent() {
-  const { data: ncs = [], isLoading } = useNonConformities({ status: ['open', 'in_treatment'] })
-  const { data: processes = [] } = useProcesses()
-
-  const openNcs     = ncs.length
-  const criticalNcs = ncs.filter(n => n.severity === 'critical').length
-  const activeProcs  = processes.filter(p => p.status === 'active')
-  const healthScores = activeProcs.map(p => (p as unknown as { health_score?: number | null }).health_score ?? null).filter((s): s is number => s !== null)
-  const avgHealth    = healthScores.length
-    ? Math.round(healthScores.reduce((a, b) => a + b, 0) / healthScores.length)
-    : null
+function SortableKpiCard({ kpi }: { kpi: KpiValue }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: kpi.id })
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-3 gap-4">
-        <div className="card">
-          <p className="text-sm text-slate-500 mb-1">NC ouvertes</p>
-          <p className={`text-3xl font-bold ${openNcs > 0 ? 'text-warning' : 'text-slate-900'}`}>{openNcs}</p>
-        </div>
-        <div className="card">
-          <p className="text-sm text-slate-500 mb-1">NC critiques</p>
-          <p className={`text-3xl font-bold ${criticalNcs > 0 ? 'text-danger' : 'text-slate-900'}`}>{criticalNcs}</p>
-        </div>
-        <div className="card">
-          <p className="text-sm text-slate-500 mb-1">Santé processus</p>
-          <p className="text-3xl font-bold text-slate-900">
-            {avgHealth !== null ? avgHealth : '—'}
-            {avgHealth !== null && <span className="text-base text-slate-400 ml-1">%</span>}
-          </p>
-        </div>
+    <div ref={setNodeRef} style={style} className="relative group card" title={kpi.tooltip}>
+      <div
+        {...attributes}
+        {...listeners}
+        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing transition-opacity"
+      >
+        <GripVertical className="w-4 h-4 text-slate-300" />
       </div>
-
-      <div className="card">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-semibold text-slate-900">Non-conformités ouvertes</h2>
-          <Link to="/direction/processus" className="text-xs text-brand-600 hover:underline flex items-center gap-0.5">
-            Voir tout <ChevronRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-        {isLoading ? (
-          <div className="space-y-2">
-            {Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-10 bg-slate-50 rounded-lg animate-pulse" />)}
-          </div>
-        ) : ncs.length === 0 ? (
-          <div className="text-center py-8">
-            <Inbox className="w-8 h-8 text-slate-200 mx-auto mb-2" />
-            <p className="text-sm text-slate-400">Aucune NC ouverte — qualité au vert ✓</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-slate-50">
-            {ncs.slice(0, 8).map(nc => (
-              <div key={nc.id} className="flex items-center gap-3 py-2.5">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-800 truncate">{nc.title}</p>
-                  <p className="text-xs text-slate-400">
-                    {format(new Date(nc.detected_at), 'd MMM yyyy', { locale: fr })}
-                  </p>
-                </div>
-                <span className={`badge ${nc.severity === 'critical' ? 'badge-danger' : nc.severity === 'major' ? 'badge-warning' : 'badge-neutral'}`}>
-                  {nc.severity === 'critical' ? 'Critique' : nc.severity === 'major' ? 'Majeure' : 'Mineure'}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <p className="text-sm text-slate-500 mb-1">{kpi.label}</p>
+      <p className={`text-3xl font-bold ${kpi.variant === 'danger' && kpi.value > 0 ? 'text-danger' : 'text-slate-900'}`}>
+        {kpi.value}
+        {kpi.unit && <span className="text-base font-normal text-slate-400 ml-1">{kpi.unit}</span>}
+      </p>
+      {kpi.variant !== 'neutral' && kpi.value > 0 && (
+        <span className={`mt-2 inline-block text-xs px-2 py-0.5 rounded-full font-medium ${VARIANT_CLASSES[kpi.variant]}`}>
+          {kpi.variant === 'danger' ? '⚠ Attention' : kpi.variant === 'warning' ? 'À surveiller' : ''}
+        </span>
+      )}
     </div>
   )
 }

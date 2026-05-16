@@ -13,10 +13,17 @@ export type KpiId =
   | 'terrain_pending'
   | 'projects_active'
   | 'processes_health_avg'
-  // Nouveaux KPIs disponibles via Edge Function
   | 'incidents_open'
   | 'duer_critical_risks'
   | 'docs_to_review'
+  // Nouveaux KPIs Sprint 0.3
+  | 'actions_completion_rate'
+  | 'actions_avg_resolution_days'
+  | 'nc_recurrence_rate'
+  | 'workload_per_user'
+  | 'docs_review_compliance_rate'
+  | 'kaizen_velocity'
+  | 'processes_up_to_date_rate'
 
 export interface KpiValue {
   id: KpiId
@@ -26,6 +33,8 @@ export interface KpiValue {
   unit?: string
   variant: 'success' | 'warning' | 'danger' | 'neutral' | 'brand'
   trend?: 'up' | 'down' | 'stable'
+  tooltip?: string
+  status?: 'green' | 'amber' | 'red'
 }
 
 export interface KpiConfig {
@@ -33,24 +42,98 @@ export interface KpiConfig {
   order: KpiId[]
 }
 
+export interface KpiDefinition {
+  label: string
+  variant: KpiValue['variant']
+  unit?: string
+  tooltip?: string
+  thresholds?: { green: number; amber: number }
+}
+
 export const DEFAULT_KPI_CONFIG: KpiConfig = {
   enabled: ['actions_todo', 'actions_in_progress', 'actions_late', 'nc_open', 'terrain_pending', 'projects_active'],
   order:   ['actions_todo', 'actions_in_progress', 'actions_late', 'nc_open', 'terrain_pending', 'projects_active'],
 }
 
-export const ALL_KPI_DEFINITIONS: Record<KpiId, { label: string; variant: KpiValue['variant'] }> = {
-  actions_todo:         { label: 'À faire',              variant: 'brand' },
-  actions_in_progress:  { label: 'En cours',             variant: 'neutral' },
-  actions_late:         { label: 'En retard',            variant: 'danger' },
-  actions_done_month:   { label: 'Terminées ce mois',    variant: 'success' },
-  nc_open:              { label: 'NC ouvertes',          variant: 'warning' },
-  nc_critical:          { label: 'NC critiques',         variant: 'danger' },
-  terrain_pending:      { label: 'Signalements terrain', variant: 'warning' },
-  projects_active:      { label: 'Projets actifs',       variant: 'brand' },
-  processes_health_avg: { label: 'Santé processus moy.', variant: 'neutral' },
-  incidents_open:       { label: 'Incidents ouverts',    variant: 'danger' },
-  duer_critical_risks:  { label: 'Risques DUER critiques', variant: 'danger' },
-  docs_to_review:       { label: 'Docs à réviser',       variant: 'warning' },
+export const ALL_KPI_DEFINITIONS: Record<KpiId, KpiDefinition> = {
+  actions_todo:         { label: 'À faire',              variant: 'brand',    tooltip: 'Actions au statut "À faire"' },
+  actions_in_progress:  { label: 'En cours',             variant: 'neutral',  tooltip: 'Actions en cours de traitement' },
+  actions_late:         { label: 'En retard',            variant: 'danger',   tooltip: 'Actions dont la date d\'échéance est dépassée', thresholds: { green: 0, amber: 3 } },
+  actions_done_month:   { label: 'Terminées ce mois',    variant: 'success',  tooltip: 'Actions clôturées depuis le début du mois' },
+  nc_open:              { label: 'NC ouvertes',          variant: 'warning',  tooltip: 'Non-conformités ouvertes ou en traitement', thresholds: { green: 0, amber: 5 } },
+  nc_critical:          { label: 'NC critiques',         variant: 'danger',   tooltip: 'Non-conformités de sévérité critique', thresholds: { green: 0, amber: 1 } },
+  terrain_pending:      { label: 'Signalements terrain', variant: 'warning',  tooltip: 'Signalements terrain en attente de traitement' },
+  projects_active:      { label: 'Projets actifs',       variant: 'brand',    tooltip: 'Projets stratégiques en cours' },
+  processes_health_avg: { label: 'Santé processus moy.', variant: 'neutral',  unit: '%', tooltip: 'Score de santé moyen des processus actifs', thresholds: { green: 80, amber: 60 } },
+  incidents_open:       { label: 'Incidents ouverts',    variant: 'danger',   tooltip: 'Incidents ouverts ou en analyse', thresholds: { green: 0, amber: 3 } },
+  duer_critical_risks:  { label: 'Risques DUER critiques', variant: 'danger', tooltip: 'Risques DUER avec score ≥ 80', thresholds: { green: 0, amber: 2 } },
+  docs_to_review:       { label: 'Docs à réviser',       variant: 'warning',  tooltip: 'Documents dont la date de révision est dépassée' },
+  // Nouveaux KPIs
+  actions_completion_rate: {
+    label: 'Taux de clôture actions',
+    variant: 'success',
+    unit: '%',
+    tooltip: 'Pourcentage d\'actions terminées sur le total des actions de l\'organisation',
+    thresholds: { green: 70, amber: 50 },
+  },
+  actions_avg_resolution_days: {
+    label: 'Délai moyen de résolution',
+    variant: 'neutral',
+    unit: 'j',
+    tooltip: 'Nombre de jours moyen entre la création et la clôture d\'une action',
+    thresholds: { green: 14, amber: 30 },
+  },
+  nc_recurrence_rate: {
+    label: 'Taux de récurrence NC',
+    variant: 'warning',
+    unit: '%',
+    tooltip: 'Pourcentage de NC liées à une cause racine déjà identifiée dans d\'autres NC',
+    thresholds: { green: 10, amber: 25 },
+  },
+  workload_per_user: {
+    label: 'Charge par membre',
+    variant: 'neutral',
+    tooltip: 'Nombre d\'actions actives (à faire + en cours) par membre actif',
+    thresholds: { green: 5, amber: 10 },
+  },
+  docs_review_compliance_rate: {
+    label: 'Conformité révisions docs',
+    variant: 'success',
+    unit: '%',
+    tooltip: 'Pourcentage de documents dont la prochaine révision n\'est pas encore dépassée',
+    thresholds: { green: 90, amber: 70 },
+  },
+  kaizen_velocity: {
+    label: 'Vélocité Kaizen',
+    variant: 'brand',
+    tooltip: 'Nombre d\'actions Kaizen clôturées sur le mois en cours',
+    thresholds: { green: 3, amber: 1 },
+  },
+  processes_up_to_date_rate: {
+    label: 'Processus à jour',
+    variant: 'success',
+    unit: '%',
+    tooltip: 'Pourcentage de processus actifs révisés dans les 12 derniers mois',
+    thresholds: { green: 80, amber: 60 },
+  },
+}
+
+function computeStatus(id: KpiId, value: number): 'green' | 'amber' | 'red' | undefined {
+  const def = ALL_KPI_DEFINITIONS[id]
+  if (!def.thresholds) return undefined
+  const { green, amber } = def.thresholds
+  // For "lower is better" KPIs (late, NCs, recurrence...)
+  const lowerIsBetter = ['actions_late', 'nc_open', 'nc_critical', 'incidents_open',
+    'duer_critical_risks', 'nc_recurrence_rate', 'workload_per_user',
+    'actions_avg_resolution_days'].includes(id)
+  if (lowerIsBetter) {
+    if (value <= green) return 'green'
+    if (value <= amber) return 'amber'
+    return 'red'
+  }
+  if (value >= green) return 'green'
+  if (value >= amber) return 'amber'
+  return 'red'
 }
 
 export function useDashboardKPIs(kpiConfig?: KpiConfig) {
@@ -74,10 +157,7 @@ export function useDashboardKPIs(kpiConfig?: KpiConfig) {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({
-            organisation_id: orgId,
-            kpi_ids: config.enabled,
-          }),
+          body: JSON.stringify({ organisation_id: orgId, kpi_ids: config.enabled }),
         }
       )
 
@@ -93,7 +173,15 @@ export function useDashboardKPIs(kpiConfig?: KpiConfig) {
           if (id === 'actions_late' && value > 0) variant = 'danger'
           if (id === 'nc_critical' && value > 0) variant = 'danger'
           if (id === 'duer_critical_risks' && value > 0) variant = 'danger'
-          return { id, label: def.label, value, variant } as KpiValue
+          return {
+            id,
+            label: def.label,
+            value,
+            unit: def.unit,
+            variant,
+            tooltip: def.tooltip,
+            status: computeStatus(id, value),
+          } as KpiValue
         })
     },
   })
