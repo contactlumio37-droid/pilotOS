@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   Plus, Trash2, Eye, EyeOff, ChevronLeft, Search,
-  Settings, X, Star, Clock,
+  Settings, X, Star, Clock, CalendarClock,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/components/ui/useToast'
@@ -24,6 +24,7 @@ type EditorPost = {
   seo_description: string
   featured: boolean
   published: boolean
+  scheduled_at: string
 }
 
 type AutoSaveStatus = 'idle' | 'saving' | 'saved' | 'error'
@@ -56,7 +57,7 @@ const EMPTY_POST: EditorPost = {
   id: null, title: '', slug: '', excerpt: '',
   content_blocks: [], cover_image: '', categories: [],
   keywords: '', seo_title: '', seo_description: '',
-  featured: false, published: false,
+  featured: false, published: false, scheduled_at: '',
 }
 
 // ── Hooks ─────────────────────────────────────────────────────
@@ -93,21 +94,23 @@ function useSavePost() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async ({ post, publish }: { post: EditorPost; publish?: boolean }) => {
+      const isPublished = publish !== undefined ? publish : post.published
       const payload = {
-        title:           post.title,
-        slug:            post.slug,
-        excerpt:         post.excerpt || null,
-        content_blocks:  post.content_blocks as unknown as Record<string, unknown>[],
-        cover_image:     post.cover_image || null,
-        categories:      post.categories,
-        keywords:        post.keywords || null,
-        seo_title:       post.seo_title || null,
-        seo_description: post.seo_description || null,
-        featured:        post.featured,
-        published:       publish !== undefined ? publish : post.published,
-        published_at:    (publish || post.published) ? new Date().toISOString() : null,
+        title:             post.title,
+        slug:              post.slug,
+        excerpt:           post.excerpt || null,
+        content_blocks:    post.content_blocks as unknown as Record<string, unknown>[],
+        cover_image:       post.cover_image || null,
+        categories:        post.categories,
+        keywords:          post.keywords || null,
+        seo_title:         post.seo_title || null,
+        seo_description:   post.seo_description || null,
+        featured:          post.featured,
+        published:         isPublished,
+        published_at:      isPublished ? new Date().toISOString() : null,
+        scheduled_at:      post.scheduled_at ? new Date(post.scheduled_at).toISOString() : null,
         read_time_minutes: readTime(post.content_blocks),
-        updated_at:      new Date().toISOString(),
+        updated_at:        new Date().toISOString(),
       }
       if (post.id) {
         const { error } = await supabase.from('blog_posts').update(payload).eq('id', post.id)
@@ -484,6 +487,24 @@ function EditorMode({ post: initialPost, onBack, onSaved }: EditorModeProps) {
             </span>
           </label>
 
+          {/* Scheduled publication */}
+          {!post.published && (
+            <div>
+              <label className="text-xs text-slate-400 mb-1 flex items-center gap-1 block">
+                <CalendarClock className="w-3 h-3" /> Publication planifiée
+              </label>
+              <input
+                type="datetime-local"
+                value={post.scheduled_at}
+                onChange={e => setPost(p => ({ ...p, scheduled_at: e.target.value }))}
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+              />
+              {post.scheduled_at && (
+                <p className="text-[10px] text-slate-500 mt-1">Le brouillon sera publié à cette date (cron requis).</p>
+              )}
+            </div>
+          )}
+
           {/* Read time estimate */}
           {post.content_blocks.length > 0 && (
             <div className="flex items-center gap-1 text-xs text-slate-500">
@@ -526,6 +547,7 @@ function ListMode({ onEdit, onNew }: ListModeProps) {
 
   function openEdit(post: BlogPost) {
     const contentBlocks = (post.content_blocks ?? []) as unknown as Block[]
+    const scheduledRaw = post.scheduled_at ? new Date(post.scheduled_at) : null
     onEdit({
       id: post.id,
       title: post.title,
@@ -539,6 +561,9 @@ function ListMode({ onEdit, onNew }: ListModeProps) {
       seo_description: post.seo_description ?? '',
       featured: post.featured ?? false,
       published: post.published,
+      scheduled_at: scheduledRaw
+        ? `${scheduledRaw.getFullYear()}-${String(scheduledRaw.getMonth() + 1).padStart(2, '0')}-${String(scheduledRaw.getDate()).padStart(2, '0')}T${String(scheduledRaw.getHours()).padStart(2, '0')}:${String(scheduledRaw.getMinutes()).padStart(2, '0')}`
+        : '',
     })
   }
 
@@ -656,6 +681,14 @@ function ListMode({ onEdit, onNew }: ListModeProps) {
                   {post.published ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
                   {post.published ? 'Publié' : 'Brouillon'}
                 </button>
+
+                {/* Scheduled badge */}
+                {!post.published && post.scheduled_at && new Date(post.scheduled_at) > new Date() && (
+                  <span className="flex items-center gap-1 text-[10px] text-amber-400 shrink-0">
+                    <CalendarClock className="w-3 h-3" />
+                    {new Date(post.scheduled_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}
+                  </span>
+                )}
 
                 {/* Featured badge */}
                 {post.featured && (

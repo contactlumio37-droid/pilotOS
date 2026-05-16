@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import {
   Mail, CheckCircle, Clock, Tag, Settings, Plus, Trash2, X,
@@ -11,9 +11,6 @@ import { blocksToHtml } from '@/components/editor/blocksToHtml'
 import type {
   NewsletterSubscriber, NewsletterTag, NewsletterCampaign, NewsletterCampaignStatus,
 } from '@/types/database'
-
-// suppress unused import warning
-void (useMutation)
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -309,17 +306,14 @@ function CampaignEditor({
   async function handleSend() {
     setSending(true)
     try {
-      const id = await saveCampaign(true)
-      let sent = 0; let failed = 0
-      for (const sub of recipients) {
-        const { error } = await supabase.functions.invoke('send-email', {
-          body: { to: sub.email, subject: campaign.subject, html: blocksToHtml(campaign.content_blocks) },
-        })
-        if (error) failed++; else sent++
-      }
-      await supabase.from('newsletter_campaigns').update({ sent_count: sent, failed_count: failed }).eq('id', id)
+      const id = await saveCampaign(false)
+      const { data, error } = await supabase.functions.invoke('send-newsletter', {
+        body: { campaign_id: id },
+      })
+      if (error) throw error
+      const result = data as { sent: number; failed: number }
       qc.invalidateQueries({ queryKey: ['newsletter_campaigns'] })
-      toast.success(`${sent} email${sent !== 1 ? 's' : ''} envoyé${sent !== 1 ? 's' : ''}${failed > 0 ? ` · ${failed} échec${failed > 1 ? 's' : ''}` : ''}`)
+      toast.success(`${result.sent} email${result.sent !== 1 ? 's' : ''} envoyé${result.sent !== 1 ? 's' : ''}${result.failed > 0 ? ` · ${result.failed} échec${result.failed > 1 ? 's' : ''}` : ''}`)
       setConfirmSend(false)
       onBack()
     } catch { toast.error('Erreur lors de l\'envoi') } finally { setSending(false) }
@@ -574,9 +568,6 @@ function ConfigTab() {
     if (error) { toast.error('Erreur lors de l\'envoi'); return }
     toast.success('Email de test envoyé !')
   }
-
-  void senderName; void senderEmail; void unsubUrl
-  void setSenderName; void setSenderEmail; void setUnsubUrl
 
   return (
     <div className="space-y-6 max-w-lg">

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { sendNewsletterConfirmationEmail } from '@/lib/email'
 import { Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 
 interface NewsletterFormProps {
@@ -28,10 +29,12 @@ export default function NewsletterForm({
     if (!email || !email.includes('@')) return
     setStatus('loading')
 
+    const normalizedEmail = email.toLowerCase().trim()
+
     const { error } = await supabase
       .from('newsletter_subscribers')
       .upsert(
-        { email: email.toLowerCase().trim(), source, confirmed: false },
+        { email: normalizedEmail, source, confirmed: false },
         { onConflict: 'email', ignoreDuplicates: false },
       )
 
@@ -39,6 +42,21 @@ export default function NewsletterForm({
       setStatus('error')
       setMessage('Une erreur est survenue. Réessayez plus tard.')
       return
+    }
+
+    const { data } = await supabase
+      .from('newsletter_subscribers')
+      .select('confirm_token')
+      .eq('email', normalizedEmail)
+      .single()
+
+    if (data?.confirm_token) {
+      const confirmUrl = `${window.location.origin}/confirm-newsletter?token=${data.confirm_token}`
+      try {
+        await sendNewsletterConfirmationEmail({ to: normalizedEmail, confirmUrl })
+      } catch {
+        // Email failure is silent — subscriber was created, they can request resend later
+      }
     }
 
     setStatus('success')

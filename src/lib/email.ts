@@ -17,6 +17,7 @@ import {
   joinRequestReceivedHtml,
   joinRequestAcceptedHtml,
   joinRequestRejectedHtml,
+  newsletterConfirmationEmailHtml,
 } from './emailTemplates'
 
 export interface EmailPayload {
@@ -230,5 +231,17 @@ export async function sendJoinRequestRejectedEmail(params: {
     subject: `Demande d'adhésion — ${params.orgName}`,
     html: joinRequestRejectedHtml(params),
     text: `Votre demande d'adhésion à ${params.orgName} n'a pas été retenue.`,
+  })
+}
+
+export async function sendNewsletterConfirmationEmail(params: {
+  to: string
+  confirmUrl: string
+}): Promise<void> {
+  await sendEmail({
+    to: params.to,
+    subject: 'Confirmez votre inscription à la newsletter PilotOS',
+    html: newsletterConfirmationEmailHtml(params),
+    text: `Confirmez votre inscription à la newsletter PilotOS : ${params.confirmUrl}`,
   })
 }

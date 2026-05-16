@@ -331,3 +331,18 @@ export function joinRequestRejectedHtml(params: {
     `Demande d'adhésion — ${params.orgName}`,
   )
 }
+
+export function newsletterConfirmationEmailHtml(params: {
+  confirmUrl: string
+}) {
+  return base(
+    `<h1 style="font-size:22px;font-weight:700;color:#1e293b;margin:0 0 16px">Confirmez votre inscription</h1>` +
+    `<p style="color:#475569;margin:0 0 20px">Merci de votre intérêt pour la newsletter PilotOS !</p>` +
+    `<p style="color:#475569;margin:0 0 28px">Cliquez sur le bouton ci-dessous pour confirmer votre adresse email et recevoir nos actualités produit et conseils QSE.</p>` +
+    `<div style="text-align:center;margin:0 0 28px">` +
+    `<a href="${params.confirmUrl}" style="display:inline-block;background:#444ce7;color:#fff;text-decoration:none;padding:14px 32px;border-radius:10px;font-weight:600;font-size:15px;">Confirmer mon inscription</a>` +
+    `</div>` +
+    `<p style="color:#94a3b8;font-size:13px;margin:0">Ce lien expire dans 7 jours. Si vous n'avez pas demandé cette inscription, ignorez cet email.</p>`,
+    'Confirmez votre inscription à la newsletter PilotOS',
+  )
+}
