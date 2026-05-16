@@ -6,17 +6,18 @@ import { supabase } from '@/lib/supabase'
 import { useQuery } from '@tanstack/react-query'
 
 const STEPS = [
-  { id: 'org',        label: 'Organisation créée',          check: () => true },
-  { id: 'profile',    label: 'Profil complété',              check: () => false },
-  { id: 'member',     label: 'Premier membre invité',        check: () => false },
-  { id: 'action',     label: 'Première action créée',        check: () => false },
-  { id: 'document',   label: 'Premier document déposé',      check: () => false },
+  { id: 'org',      label: 'Organisation créée' },
+  { id: 'profile',  label: 'Profil complété' },
+  { id: 'member',   label: 'Premier membre invité' },
+  { id: 'action',   label: 'Première action créée' },
+  { id: 'document', label: 'Premier document déposé' },
 ]
 
 function useOnboardingData(orgId: string | null) {
   return useQuery({
     queryKey: ['onboarding_progress', orgId],
     enabled: !!orgId,
+    staleTime: 5 * 60_000,
     queryFn: async () => {
       if (!orgId) return null
       const [members, actions, documents] = await Promise.all([
@@ -28,48 +29,50 @@ function useOnboardingData(orgId: string | null) {
           .eq('organisation_id', orgId),
       ])
       return {
-        memberCount: members.count ?? 0,
-        actionCount: actions.count ?? 0,
+        memberCount:   members.count   ?? 0,
+        actionCount:   actions.count   ?? 0,
         documentCount: documents.count ?? 0,
       }
     },
-    staleTime: 5 * 60 * 1000,
   })
 }
-
-const DISMISSED_KEY = 'pilotos_onboarding_progress_dismissed'
 
 interface Props {
   organisationId: string
 }
 
 export default function OnboardingProgress({ organisationId }: Props) {
-  const { user } = useAuth()
-  const [dismissed, setDismissed] = useState(() => !!localStorage.getItem(DISMISSED_KEY))
+  const { user, profile } = useAuth()
+
+  // Dismissed si la colonne DB le dit, ou si c'est déjà coché en local (fallback rapide)
+  const [dismissed, setDismissed] = useState<boolean>(() => {
+    return profile?.onboarding_progress_dismissed === true
+  })
+
   const { data } = useOnboardingData(organisationId)
 
   if (dismissed || !user) return null
 
   const checks = [
     true,
-    !!user.user_metadata?.full_name,
+    !!(profile?.full_name),
     (data?.memberCount ?? 0) > 1,
     (data?.actionCount ?? 0) > 0,
     (data?.documentCount ?? 0) > 0,
   ]
-  const done = checks.filter(Boolean).length
+  const done  = checks.filter(Boolean).length
   const total = checks.length
 
-  if (done === total) {
-    localStorage.setItem(DISMISSED_KEY, '1')
-    return null
-  }
+  if (done === total) return null
 
   const percent = Math.round((done / total) * 100)
 
-  function dismiss() {
-    localStorage.setItem(DISMISSED_KEY, '1')
+  async function dismiss() {
     setDismissed(true)
+    await supabase
+      .from('profiles')
+      .update({ onboarding_progress_dismissed: true })
+      .eq('id', user!.id)
   }
 
   return (

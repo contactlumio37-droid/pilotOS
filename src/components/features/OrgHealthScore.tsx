@@ -1,12 +1,67 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 
-interface HealthData {
-  actionsOnTime: number  // % actions done or in_progress not late
-  processCompliance: number  // % processes with last_review in 12 months
-  documentCurrent: number  // % documents with status 'current'
-  kpiReached: number  // % indicators with latest value >= target
+export interface HealthDimension {
+  id: string
+  label: string
+  weight: number
+  enabled: boolean
+  threshold_green: number
+  threshold_amber: number
+}
+
+export interface HealthScoreConfig {
+  enabled: boolean
+  dimensions: HealthDimension[]
+}
+
+export const DEFAULT_HEALTH_CONFIG: HealthScoreConfig = {
+  enabled: true,
+  dimensions: [
+    { id: 'actions_on_time',    label: 'Actions à jour',    weight: 25, enabled: true, threshold_green: 80, threshold_amber: 60 },
+    { id: 'processes_reviewed', label: 'Processus révisés', weight: 25, enabled: true, threshold_green: 80, threshold_amber: 60 },
+    { id: 'docs_valid',         label: 'Documents valides', weight: 25, enabled: true, threshold_green: 90, threshold_amber: 70 },
+    { id: 'kpis_met',           label: 'KPIs atteints',     weight: 25, enabled: true, threshold_green: 75, threshold_amber: 50 },
+  ],
+}
+
+export function useHealthScoreConfig() {
+  const { organisation } = useAuth()
+
+  return useQuery({
+    queryKey: ['health_score_config', organisation?.id],
+    enabled: !!organisation,
+    staleTime: 300_000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('organisations')
+        .select('health_score_config')
+        .eq('id', organisation!.id)
+        .maybeSingle()
+      if (!data?.health_score_config) return DEFAULT_HEALTH_CONFIG
+      return data.health_score_config as unknown as HealthScoreConfig
+    },
+  })
+}
+
+export function useSaveHealthScoreConfig() {
+  const qc = useQueryClient()
+  const { organisation } = useAuth()
+
+  return useMutation({
+    mutationFn: async (config: HealthScoreConfig) => {
+      const { error } = await supabase
+        .from('organisations')
+        .update({ health_score_config: config as unknown as Record<string, unknown> })
+        .eq('id', organisation!.id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['health_score_config'] })
+      qc.invalidateQueries({ queryKey: ['org_health'] })
+    },
+  })
 }
 
 function CircularGauge({ score, size = 120 }: { score: number; size?: number }) {
@@ -43,10 +98,11 @@ function CircularGauge({ score, size = 120 }: { score: number; size?: number }) 
 
 export default function OrgHealthScore() {
   const { organisation } = useAuth()
+  const { data: config = DEFAULT_HEALTH_CONFIG } = useHealthScoreConfig()
 
   const { data, isLoading } = useQuery({
-    queryKey: ['org_health', organisation?.id],
-    enabled: !!organisation,
+    queryKey: ['org_health', organisation?.id, config],
+    enabled: !!organisation && config.enabled,
     staleTime: 5 * 60_000,
     queryFn: async () => {
       const orgId = organisation!.id
@@ -60,27 +116,23 @@ export default function OrgHealthScore() {
         supabase.from('indicators').select('id, target_value').eq('organisation_id', orgId),
       ])
 
-      // 1. Actions on time
       const allActions = actions.data ?? []
       const onTime = allActions.filter(a => a.status !== 'late').length
       const actionsOnTime = allActions.length > 0 ? Math.round((onTime / allActions.length) * 100) : 100
 
-      // 2. Process compliance (reviewed in last 12 months)
       const allProcesses = processes.data ?? []
       const reviewed = allProcesses.filter(p =>
         p.last_review_date && new Date(p.last_review_date) >= twelveMonthsAgo
       ).length
-      const processCompliance = allProcesses.length > 0 ? Math.round((reviewed / allProcesses.length) * 100) : 100
+      const processesReviewed = allProcesses.length > 0 ? Math.round((reviewed / allProcesses.length) * 100) : 100
 
-      // 3. Documents current
       const allDocs = documents.data ?? []
-      const current = allDocs.filter(d => d.status === 'current' || d.status === 'approved').length
-      const documentCurrent = allDocs.length > 0 ? Math.round((current / allDocs.length) * 100) : 100
+      const current = allDocs.filter(d => d.status === 'active' || d.status === 'approved').length
+      const docsValid = allDocs.length > 0 ? Math.round((current / allDocs.length) * 100) : 100
 
-      // 4. KPIs reaching target
       const allInds = indicators.data ?? []
       const withTarget = allInds.filter(i => i.target_value != null)
-      let kpiReached = 100
+      let kpisMet = 100
       if (withTarget.length > 0) {
         const results = await Promise.all(
           withTarget.map(i =>
@@ -95,23 +147,30 @@ export default function OrgHealthScore() {
           )
         )
         const reached = results.filter((v, idx) => v !== null && v >= withTarget[idx].target_value!).length
-        kpiReached = Math.round((reached / withTarget.length) * 100)
+        kpisMet = Math.round((reached / withTarget.length) * 100)
       }
 
-      return { actionsOnTime, processCompliance, documentCurrent, kpiReached } satisfies HealthData
+      return { actions_on_time: actionsOnTime, processes_reviewed: processesReviewed, docs_valid: docsValid, kpis_met: kpisMet }
     },
   })
 
-  const score = data
-    ? Math.round((data.actionsOnTime + data.processCompliance + data.documentCurrent + data.kpiReached) / 4)
-    : 0
+  if (!config.enabled) return null
 
-  const dims = [
-    { label: 'Actions à jour', value: data?.actionsOnTime ?? 0 },
-    { label: 'Processus révisés', value: data?.processCompliance ?? 0 },
-    { label: 'Documents valides', value: data?.documentCurrent ?? 0 },
-    { label: 'KPIs atteints', value: data?.kpiReached ?? 0 },
-  ]
+  const enabledDims = config.dimensions.filter(d => d.enabled)
+  const totalWeight = enabledDims.reduce((s, d) => s + d.weight, 0)
+
+  const dimValues: Record<string, number> = {
+    actions_on_time:    data?.actions_on_time    ?? 0,
+    processes_reviewed: data?.processes_reviewed ?? 0,
+    docs_valid:         data?.docs_valid         ?? 0,
+    kpis_met:           data?.kpis_met           ?? 0,
+  }
+
+  const score = totalWeight > 0
+    ? Math.round(
+        enabledDims.reduce((sum, d) => sum + (dimValues[d.id] ?? 0) * (d.weight / totalWeight), 0)
+      )
+    : 0
 
   if (isLoading) return <div className="card animate-pulse h-44" />
 
@@ -124,22 +183,33 @@ export default function OrgHealthScore() {
           <span className="absolute bottom-3 text-xs text-slate-500 font-medium">/100</span>
         </div>
         <div className="flex-1 grid grid-cols-2 gap-3">
-          {dims.map(d => (
-            <div key={d.label}>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs text-slate-500">{d.label}</span>
-                <span className={`text-xs font-semibold ${d.value >= 80 ? 'text-emerald-600' : d.value >= 60 ? 'text-amber-600' : 'text-red-600'}`}>
-                  {d.value}%
-                </span>
+          {enabledDims.map(d => {
+            const value = dimValues[d.id] ?? 0
+            const colorClass = value >= d.threshold_green
+              ? 'text-emerald-600'
+              : value >= d.threshold_amber
+                ? 'text-amber-600'
+                : 'text-red-600'
+            const barClass = value >= d.threshold_green
+              ? 'bg-emerald-500'
+              : value >= d.threshold_amber
+                ? 'bg-amber-400'
+                : 'bg-red-500'
+            return (
+              <div key={d.id}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs text-slate-500">{d.label}</span>
+                  <span className={`text-xs font-semibold ${colorClass}`}>{value}%</span>
+                </div>
+                <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-700 ${barClass}`}
+                    style={{ width: `${value}%` }}
+                  />
+                </div>
               </div>
-              <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-700 ${d.value >= 80 ? 'bg-emerald-500' : d.value >= 60 ? 'bg-amber-400' : 'bg-red-500'}`}
-                  style={{ width: `${d.value}%` }}
-                />
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
     </div>

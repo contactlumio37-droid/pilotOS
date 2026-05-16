@@ -19,6 +19,7 @@ import RoadmapPage from '@/pages/public/RoadmapPage'
 import DynamicPage from '@/pages/public/DynamicPage'
 import DemoPage from '@/pages/public/DemoPage'
 import { BlogList, BlogPostPage } from '@/pages/public/BlogPage'
+import SignPage from '@/pages/public/SignPage'
 import CommandPalette from '@/components/features/CommandPalette'
 
 // Auth
@@ -221,6 +222,7 @@ function AppRouter() {
         <Route path="/invitation/:token"    element={<InvitationAccept />} />
         <Route path="/confirm-newsletter"  element={<ConfirmNewsletter />} />
         <Route path="/unsubscribe"         element={<UnsubscribeNewsletter />} />
+        <Route path="/sign/:token"         element={<SignPage />} />
 
         {/* Apps par rôle — lazy loaded */}
         <Route path="/terrain/*"    element={<ProtectedRoute><MFARoute><Suspense fallback={<LoadingScreen />}><TerrainApp /></Suspense></MFARoute></ProtectedRoute>} />

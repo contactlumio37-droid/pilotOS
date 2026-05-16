@@ -91,6 +91,7 @@ export interface Profile {
   onboarding_step: number
   onboarding_role: 'quality_manager' | 'hse_manager' | 'operations_manager' | 'executive' | 'consultant' | 'other' | null
   onboarding_usages: string[]
+  onboarding_progress_dismissed: boolean
 }
 
 export interface OrganisationMember {
@@ -968,5 +969,70 @@ export interface DemoRequest {
   email: string
   organisation_name: string
   sector: string | null
+  created_at: string
+}
+
+export interface TeamMood {
+  id: string
+  organisation_id: string
+  user_id: string
+  mood: number
+  note: string | null
+  date: string
+  created_at: string
+}
+
+export interface TeamBriefing {
+  id: string
+  organisation_id: string
+  created_by: string
+  title: string | null
+  content: string
+  duration_minutes: number
+  date: string
+  created_at: string
+  updated_at: string
+}
+
+export interface SignatureRequest {
+  id: string
+  organisation_id: string
+  document_id: string
+  recipient_id: string
+  sent_by: string
+  token: string
+  status: 'pending' | 'signed' | 'rejected'
+  message: string | null
+  signed_at: string | null
+  signature_storage_path: string | null
+  expires_at: string
+  created_at: string
+  updated_at: string
+}
+
+export interface CodirReviewMeeting {
+  id: string
+  organisation_id: string
+  title: string
+  meeting_date: string
+  facilitator_id: string | null
+  attendees_ids: string[]
+  decision_ids: string[]
+  status: 'planned' | 'in_progress' | 'completed' | 'cancelled'
+  notes: string | null
+  next_meeting_date: string | null
+  visibility: 'public' | 'managers' | 'restricted' | 'confidential'
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+export interface KpiSnapshot {
+  id: string
+  organisation_id: string
+  kpi_id: string
+  snapshot_date: string
+  value: number
+  target: number | null
   created_at: string
 }
