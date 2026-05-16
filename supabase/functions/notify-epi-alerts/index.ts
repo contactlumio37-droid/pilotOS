@@ -82,7 +82,7 @@ Deno.serve(async (req) => {
         subject: `PilotOS — ${userNotifs.length} alerte(s) EPI/habilitation`,
         html: `
           <p>Bonjour ${profile.full_name ?? ''},</p>
-          <p>Les éléments suivants arrivent à échéance prochainement :</p>
+          <p>Les éléments suivants arrivent à échéance prochainement :</p>
           <pre style="font-family:sans-serif;line-height:1.6">${itemList}</pre>
           <p><a href="${appUrl}">Accéder à PilotOS</a></p>
         `,

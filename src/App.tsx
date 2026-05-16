@@ -108,7 +108,7 @@ function ConfirmNewsletter() {
         ) : data?.ok ? (
           <>
             <div className="text-5xl mb-4">✅</div>
-            <h1 className="text-xl font-bold text-slate-900 mb-2">Inscription confirmée !</h1>
+            <h1 className="text-xl font-bold text-slate-900 mb-2">Inscription confirmée !</h1>
             <p className="text-slate-500 text-sm">Vous recevrez nos prochains articles et actualités.</p>
           </>
         ) : (
