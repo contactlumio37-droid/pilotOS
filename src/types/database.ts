@@ -679,6 +679,7 @@ export interface CmsPage {
   published: boolean
   is_system: boolean
   page_url: string | null
+  updated_by: string | null
   created_at: string
   updated_at: string
 }
