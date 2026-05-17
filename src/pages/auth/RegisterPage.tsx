@@ -8,6 +8,7 @@ import { ChevronRight, Eye, EyeOff, Check } from 'lucide-react'
 import { signUpWithEmail, signInWithGoogle } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
 import { sendEmail } from '@/lib/email'
+import { useCmsPage } from '@/hooks/useCmsPage'
 
 // ── Constantes ────────────────────────────────────────────────
 const SECTORS = [
@@ -70,6 +71,11 @@ export default function RegisterPage() {
   const [sector, setSector] = useState<Sector>('autre')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+
+  const { sections } = useCmsPage('register')
+  const featBlock = sections.find(b => b.type === 'features')
+  const cmsSteps = (featBlock?.config as { steps?: Array<{ id: string; title: string; subtitle?: string }> } | undefined)?.steps ?? []
+  function stepTitle(id: string, fallback: string) { return cmsSteps.find(s => s.id === id)?.title ?? fallback }
 
   // Formulaire étape 1
   const accountForm = useForm<AccountData>({ resolver: zodResolver(accountSchema) })
@@ -313,7 +319,7 @@ export default function RegisterPage() {
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -20, opacity: 0 }}
             >
-              <h1 className="text-2xl font-bold text-slate-900 mb-1">Créer mon compte</h1>
+              <h1 className="text-2xl font-bold text-slate-900 mb-1">{stepTitle('account', 'Créer mon compte')}</h1>
               <p className="text-slate-500 mb-8">
                 Déjà inscrit ?{' '}
                 <Link to="/login" className="text-brand-600 font-medium hover:underline">
@@ -414,7 +420,7 @@ export default function RegisterPage() {
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -20, opacity: 0 }}
             >
-              <h1 className="text-2xl font-bold text-slate-900 mb-1">Votre organisation</h1>
+              <h1 className="text-2xl font-bold text-slate-900 mb-1">{stepTitle('org', 'Votre organisation')}</h1>
               <p className="text-slate-500 mb-8">
                 Vous serez administrateur de cet espace.
               </p>
@@ -474,7 +480,7 @@ export default function RegisterPage() {
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -20, opacity: 0 }}
             >
-              <h1 className="text-2xl font-bold text-slate-900 mb-1">Votre secteur</h1>
+              <h1 className="text-2xl font-bold text-slate-900 mb-1">{stepTitle('sector', 'Votre secteur')}</h1>
               <p className="text-slate-500 mb-6">
                 On adapte les processus, KPIs et documents à votre métier.
               </p>
