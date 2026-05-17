@@ -54,6 +54,13 @@ serve(async (req) => {
   )
 
   try {
+    // Verify caller is an authenticated user
+    const authHeader = req.headers.get('Authorization') ?? ''
+    const { data: { user: caller }, error: authErr } = await admin.auth.getUser(
+      authHeader.replace('Bearer ', ''),
+    )
+    if (authErr || !caller) return json({ error: 'Non authentifié' }, 401)
+
     const { document_id } = await req.json() as { document_id: string }
     if (!document_id) return json({ error: 'document_id requis' }, 400)
 
@@ -64,6 +71,17 @@ serve(async (req) => {
       .single()
 
     if (docErr || !doc) return json({ error: 'Document introuvable' }, 404)
+
+    // Verify caller belongs to the document's organisation
+    const { data: membership } = await admin
+      .from('organisation_members')
+      .select('role')
+      .eq('user_id', caller.id)
+      .eq('organisation_id', doc.organisation_id)
+      .eq('is_active', true)
+      .maybeSingle()
+
+    if (!membership) return json({ error: 'Accès refusé' }, 403)
 
     const { data: org } = await admin
       .from('organisations')

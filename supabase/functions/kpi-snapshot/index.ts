@@ -15,6 +15,15 @@ serve(async (req) => {
     return new Response('ok', { headers: CORS })
   }
 
+  const authHeader = req.headers.get('Authorization') ?? ''
+  const expectedKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  if (!authHeader.includes(expectedKey)) {
+    return new Response(JSON.stringify({ error: 'Non autorisé' }), {
+      status: 401,
+      headers: { ...CORS, 'Content-Type': 'application/json' },
+    })
+  }
+
   try {
     const admin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',

@@ -23,13 +23,18 @@ const VALID_PRIORITIES = new Set<ActionPriority>(['low', 'medium', 'high', 'crit
 const VALID_STATUSES = new Set<ActionStatus>(['todo', 'in_progress', 'late', 'done', 'cancelled'])
 const VALID_ORIGINS = new Set<ActionOrigin>(['manual', 'terrain', 'codir', 'process_review', 'audit', 'incident', 'kaizen'])
 
+function stripFormula(value: string): string {
+  // Neutralise spreadsheet formula injection (=, +, -, @, tab, CR as first char)
+  return /^[=+\-@\t\r]/.test(value) ? value.slice(1).trimStart() : value
+}
+
 function parseCsv(text: string): CsvRow[] {
   const lines = text.trim().split(/\r?\n/)
   if (lines.length < 2) return []
   const header = lines[0].split(/[;,]/).map(h => h.trim().toLowerCase().replace(/^"|"$/g, ''))
 
   return lines.slice(1).filter(l => l.trim()).map(line => {
-    const cols = line.split(/[;,]/).map(c => c.trim().replace(/^"|"$/g, ''))
+    const cols = line.split(/[;,]/).map(c => stripFormula(c.trim().replace(/^"|"$/g, '')))
     const get = (key: string) => cols[header.indexOf(key)] ?? ''
 
     const title = get('titre') || get('title')

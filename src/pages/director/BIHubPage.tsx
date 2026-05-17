@@ -33,14 +33,18 @@ function trendIcon(snapshots: KpiSnapshot[]) {
     : <TrendingDown className="w-4 h-4 text-red-500" />
 }
 
+function sanitizeCsvCell(s: string) {
+  return /^[=+\-@\t\r]/.test(s) ? `'${s}` : s
+}
+
 function exportCsv(series: KpiSeries[]) {
   const rows: string[][] = [['kpi_id', 'date', 'value', 'target']]
   for (const s of series) {
     for (const snap of s.snapshots) {
-      rows.push([s.kpi_id, snap.snapshot_date, String(snap.value), snap.target != null ? String(snap.target) : ''])
+      rows.push([sanitizeCsvCell(s.kpi_id), snap.snapshot_date, String(snap.value), snap.target != null ? String(snap.target) : ''])
     }
   }
-  const csv = rows.map(r => r.join(',')).join('\n')
+  const csv = rows.map(r => r.map(c => `"${c.replace(/"/g, '""')}"`).join(',')).join('\n')
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
