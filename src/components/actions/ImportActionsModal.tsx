@@ -3,6 +3,9 @@ import { X, Upload, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react'
 import { useCreateAction } from '@/hooks/useActions'
 import type { ActionInsertPayload } from '@/hooks/useActions'
 import type { ActionPriority, ActionStatus, ActionOrigin } from '@/types/database'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/hooks/useAuth'
+import { useOrganisation } from '@/hooks/useOrganisation'
 
 type Step = 'upload' | 'validate' | 'import'
 
@@ -66,6 +69,8 @@ export default function ImportActionsModal({ onClose, onImported }: Props) {
   const [failed, setFailed] = useState(0)
   const fileRef = useRef<HTMLInputElement>(null)
   const { mutateAsync: createAction } = useCreateAction()
+  const { user } = useAuth()
+  const { organisation } = useOrganisation()
 
   function handleFile(file: File) {
     const reader = new FileReader()
@@ -108,6 +113,16 @@ export default function ImportActionsModal({ onClose, onImported }: Props) {
       setProgress(Math.round(((i + 1) / valid.length) * 100))
       setDone(d)
       setFailed(f)
+    }
+    if (organisation && user) {
+      await supabase.from('import_logs').insert({
+        organisation_id: organisation.id,
+        import_type: 'actions' as const,
+        total_rows: valid.length,
+        success_rows: d,
+        error_rows: f,
+        imported_by: user.id,
+      })
     }
     onImported()
   }

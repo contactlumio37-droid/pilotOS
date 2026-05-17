@@ -1,16 +1,19 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { motion } from 'framer-motion'
-import { Save, Lock, User, Flame, MessageSquarePlus } from 'lucide-react'
+import { Save, Lock, User, Flame, MessageSquarePlus, Bell, Shield, CheckCircle2 } from 'lucide-react'
 import { Link, useResolvedPath } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { useProfile, useUpdateProfile, useChangePassword } from '@/hooks/useProfile'
 import { useAuth } from '@/hooks/useAuth'
+import { useOrganisation } from '@/hooks/useOrganisation'
 import { useToast } from '@/components/ui/useToast'
 import { useGamification } from '@/hooks/useGamification'
 import { UserStreak } from '@/components/features/gamification/UserStreak'
 import { BadgeList } from '@/components/features/gamification/UserBadge'
+import { supabase } from '@/lib/supabase'
 
 const profileSchema = z.object({
   full_name: z.string().min(1, 'Nom requis'),
@@ -28,13 +31,52 @@ const passwordSchema = z.object({
 })
 type PasswordForm = z.infer<typeof passwordSchema>
 
+type NotifPrefs = {
+  email_late_actions: boolean
+  email_due_soon: boolean
+  email_digest_weekly: boolean
+  email_document_approval: boolean
+}
+
+const NOTIF_CONFIG: { key: keyof NotifPrefs; label: string; description: string }[] = [
+  { key: 'email_late_actions',     label: "Rappels d'actions en retard",   description: "Email quotidien à 8h listant vos actions dont l'échéance est dépassée." },
+  { key: 'email_due_soon',         label: 'Échéances proches (J-2)',        description: "Email 2 jours avant l'échéance de vos actions." },
+  { key: 'email_digest_weekly',    label: 'Résumé hebdomadaire',            description: 'Bilan envoyé chaque lundi matin : actions en retard, terminées, signalements.' },
+  { key: 'email_document_approval',label: 'Demandes de validation GED',    description: 'Notification quand un document passe en revue et nécessite votre validation.' },
+]
+
 export default function ProfilePage() {
   const { user, isImpersonating } = useAuth()
   const { data: profile } = useProfile()
+  const { member } = useOrganisation()
   const updateProfile = useUpdateProfile()
   const changePassword = useChangePassword()
   const { streak, badges } = useGamification()
   const toast = useToast()
+  const qc = useQueryClient()
+  const [savingNotif, setSavingNotif] = useState(false)
+
+  const defaultPrefs: NotifPrefs = {
+    email_late_actions: true,
+    email_due_soon: true,
+    email_digest_weekly: true,
+    email_document_approval: true,
+  }
+  const prefs: NotifPrefs = member
+    ? { ...defaultPrefs, ...(member.notification_prefs as Partial<NotifPrefs>) }
+    : defaultPrefs
+
+  async function toggleNotif(key: keyof NotifPrefs) {
+    if (!member) return
+    setSavingNotif(true)
+    const next = { ...prefs, [key]: !prefs[key] }
+    await supabase
+      .from('organisation_members')
+      .update({ notification_prefs: next })
+      .eq('id', member.id)
+    qc.invalidateQueries({ queryKey: ['organisation_member'] })
+    setSavingNotif(false)
+  }
 
   const {
     register: regProfile,
@@ -224,6 +266,64 @@ export default function ProfilePage() {
             </div>
           </form>
         </div>
+
+        {/* MFA / Sécurité */}
+        <div className="card">
+          <div className="flex items-center gap-2 mb-5">
+            <Shield className="w-5 h-5 text-brand-600" />
+            <h2 className="font-semibold text-slate-900">Double authentification (MFA)</h2>
+          </div>
+          {member?.mfa_enabled ? (
+            <div className="flex items-center gap-2 text-sm text-success-600">
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              <span>MFA activé — votre compte est protégé par une double authentification.</span>
+            </div>
+          ) : (
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm text-slate-700">MFA non activé</p>
+                <p className="text-xs text-slate-500 mt-0.5">Protégez votre compte avec un second facteur d'authentification (TOTP ou email).</p>
+              </div>
+              <Link to="/mfa/setup" className="btn-primary text-sm shrink-0">
+                Activer le MFA
+              </Link>
+            </div>
+          )}
+        </div>
+
+        {/* Notification preferences */}
+        {member && (
+          <div className="card">
+            <div className="flex items-center gap-2 mb-5">
+              <Bell className="w-5 h-5 text-brand-600" />
+              <h2 className="font-semibold text-slate-900">Notifications par email</h2>
+              {savingNotif && <span className="text-xs text-slate-400 ml-auto">Enregistrement…</span>}
+            </div>
+            <div className="space-y-1">
+              {NOTIF_CONFIG.map(({ key, label, description }) => (
+                <div key={key} className="flex items-start justify-between gap-4 py-3 border-b border-slate-100 last:border-0">
+                  <div>
+                    <p className="text-sm font-medium text-slate-800">{label}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{description}</p>
+                  </div>
+                  <button
+                    onClick={() => toggleNotif(key)}
+                    disabled={savingNotif}
+                    role="switch"
+                    aria-checked={prefs[key]}
+                    className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${
+                      prefs[key] ? 'bg-brand-600' : 'bg-slate-200'
+                    }`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                      prefs[key] ? 'translate-x-6' : 'translate-x-1'
+                    }`} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </motion.div>
     </div>
   )
