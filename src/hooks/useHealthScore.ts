@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
+import type { Json } from '@/types/database'
 
 export interface HealthDimension {
   id: string
@@ -40,7 +41,7 @@ export function useHealthScoreConfig() {
         .eq('id', organisation!.id)
         .maybeSingle()
       if (!data?.health_score_config) return DEFAULT_HEALTH_CONFIG
-      return data.health_score_config as unknown as HealthScoreConfig
+      return data.health_score_config as HealthScoreConfig
     },
   })
 }
@@ -53,7 +54,7 @@ export function useSaveHealthScoreConfig() {
     mutationFn: async (config: HealthScoreConfig) => {
       const { error } = await supabase
         .from('organisations')
-        .update({ health_score_config: config as unknown as Record<string, unknown> })
+        .update({ health_score_config: config as unknown as Json })
         .eq('id', organisation!.id)
       if (error) throw error
     },
