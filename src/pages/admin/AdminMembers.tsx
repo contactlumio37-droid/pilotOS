@@ -206,6 +206,11 @@ export default function AdminMembers() {
           }, { onConflict: 'organisation_id,user_id' })
         if (memberError) throw memberError
       }
+
+      // Email notification — fire-and-forget, must not block the UI
+      supabase.functions.invoke('notify-join-request', {
+        body: { action: status, join_request_id: id },
+      }).catch(() => { /* email failure is non-blocking */ })
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['join_requests', organisation?.id] })

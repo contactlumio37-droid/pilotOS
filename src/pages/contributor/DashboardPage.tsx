@@ -6,6 +6,8 @@ import PageHeader from '@/components/layout/PageHeader'
 import { useMyTodayActions, useUpdateAction } from '@/hooks/useActions'
 import { useAuth } from '@/hooks/useAuth'
 import type { ActionStatus } from '@/types/database'
+import DemoBanner from '@/components/features/DemoBanner'
+import OnboardingProgress from '@/components/features/OnboardingProgress'
 
 const STATUS_OPTIONS: { value: ActionStatus; label: string }[] = [
   { value: 'todo',        label: 'À faire' },
@@ -19,7 +21,7 @@ const STATUS_COLOR: Record<ActionStatus, string> = {
 }
 
 export default function DashboardPage() {
-  const { profile } = useAuth()
+  const { profile, organisation } = useAuth()
   const { data: actions = [], isLoading } = useMyTodayActions()
   const updateAction = useUpdateAction()
 
@@ -37,6 +39,8 @@ export default function DashboardPage() {
         title={`${greeting}${firstName ? `, ${firstName}` : ''} 👋`}
         subtitle="Voici vos actions du jour"
       />
+      <DemoBanner />
+      {organisation && <OnboardingProgress organisationId={organisation.id} />}
 
       <motion.div initial={{ y: 6, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="grid grid-cols-3 gap-3 mb-8">
         <StatCard label="À faire"   value={todo}       icon={<Clock className="w-4 h-4" />}        color="text-slate-600" />

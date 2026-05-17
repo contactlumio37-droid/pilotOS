@@ -62,6 +62,7 @@ export interface Organisation {
   stripe_subscription_id: string | null
   is_active: boolean
   default_kpi_config: Json
+  health_score_config: Json | null
   terrain_module_enabled: boolean
   mfa_policy: MfaPolicy
   /** IA désactivée par défaut — activée manuellement par superadmin (coût Anthropic) */
