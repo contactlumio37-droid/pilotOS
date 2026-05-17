@@ -64,6 +64,7 @@ export interface Organisation {
   default_kpi_config: Json
   health_score_config: Json | null
   terrain_module_enabled: boolean
+  team_mood_enabled: boolean
   mfa_policy: MfaPolicy
   /** IA désactivée par défaut — activée manuellement par superadmin (coût Anthropic) */
   ai_enabled: boolean
@@ -992,8 +993,31 @@ export interface TeamBriefing {
   content: string
   duration_minutes: number
   date: string
+  status: 'draft' | 'open' | 'closed'
+  scheduled_at: string | null
+  top_down_items: Json
+  team_lead_items: Json
   created_at: string
   updated_at: string
+}
+
+export interface BriefingContribution {
+  id: string
+  briefing_id: string
+  organisation_id: string
+  user_id: string
+  content: string
+  created_at: string
+}
+
+export interface BriefingAttendee {
+  id: string
+  briefing_id: string
+  organisation_id: string
+  user_id: string
+  attended: boolean
+  marked_by: string | null
+  created_at: string
 }
 
 export interface SignatureRequest {

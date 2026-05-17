@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth'
 import type { ActionStatus } from '@/types/database'
 import DemoBanner from '@/components/features/DemoBanner'
 import OnboardingProgress from '@/components/features/OnboardingProgress'
+import MoodWidget from '@/components/features/MoodWidget'
 
 const STATUS_OPTIONS: { value: ActionStatus; label: string }[] = [
   { value: 'todo',        label: 'À faire' },
@@ -22,6 +23,7 @@ const STATUS_COLOR: Record<ActionStatus, string> = {
 
 export default function DashboardPage() {
   const { profile, organisation } = useAuth()
+  const moodEnabled = organisation?.team_mood_enabled ?? true
   const { data: actions = [], isLoading } = useMyTodayActions()
   const updateAction = useUpdateAction()
 
@@ -41,6 +43,12 @@ export default function DashboardPage() {
       />
       <DemoBanner />
       {organisation && <OnboardingProgress organisationId={organisation.id} />}
+
+      {moodEnabled && organisation && (
+        <motion.div initial={{ y: 6, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="mb-6">
+          <MoodWidget organisationId={organisation.id} teamPageTo="/app/equipe" />
+        </motion.div>
+      )}
 
       <motion.div initial={{ y: 6, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="grid grid-cols-3 gap-3 mb-8">
         <StatCard label="À faire"   value={todo}       icon={<Clock className="w-4 h-4" />}        color="text-slate-600" />

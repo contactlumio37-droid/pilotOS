@@ -31,6 +31,7 @@ import SecurityApp from '@/pages/shared/SecurityApp'
 import QualiteDashboardContent from '@/components/modules/QualiteDashboardContent'
 import DemoBanner from '@/components/features/DemoBanner'
 import OnboardingProgress from '@/components/features/OnboardingProgress'
+import MoodWidget from '@/components/features/MoodWidget'
 import { supabase } from '@/lib/supabase'
 import type { TerrainReport } from '@/types/database'
 
@@ -54,6 +55,7 @@ export default function ManagerDashboard() {
   const hasTerrainModule = useHasModule('terrain')
   const hasProcessus     = useHasModule('processus')
   const hasSecurite      = useHasModule('securite')
+  const moodEnabled      = organisation?.team_mood_enabled ?? true
 
   const [tab, setTab] = useState<string>(() =>
     sessionStorage.getItem(TAB_KEY) ?? 'pilotage'
@@ -162,6 +164,12 @@ export default function ManagerDashboard() {
                   </DndContext>
                 )}
               </motion.div>
+
+              {moodEnabled && organisation && (
+                <motion.div initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.08 }} className="mb-6">
+                  <MoodWidget organisationId={organisation.id} teamPageTo="/manager/equipe" />
+                </motion.div>
+              )}
 
               <div className="grid lg:grid-cols-2 gap-6">
                 {hasTerrainModule && (

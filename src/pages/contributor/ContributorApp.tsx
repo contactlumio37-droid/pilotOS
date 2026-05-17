@@ -4,6 +4,7 @@ import { useBreakpoint } from '@/hooks/useBreakpoint'
 import Sidebar from '@/components/layout/Sidebar'
 import BottomNav from '@/components/layout/BottomNav'
 import DashboardPage from './DashboardPage'
+import ContributorTeamPage from './TeamPage'
 import ActionsPage from '@/pages/shared/ActionsPage'
 import ProcessesPage from '@/pages/shared/ProcessesPage'
 import DocumentsPage from '@/pages/shared/DocumentsPage'
@@ -40,6 +41,7 @@ export default function ContributorApp() {
           <Route path="/documents"       element={<DocumentsPage />} />
           <Route path="/terrain"         element={<TerrainReportPage />} />
           <Route path="/terrain/remontees" element={<TerrainMyReportsPage />} />
+          <Route path="/equipe"          element={<ContributorTeamPage />} />
           <Route path="/profil"          element={<ProfilePage />} />
           <Route path="/feedback"        element={<MyReportsPage />} />
         </Routes>

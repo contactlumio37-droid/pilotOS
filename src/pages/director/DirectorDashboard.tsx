@@ -8,8 +8,12 @@ import { useDashboardKPIs, useKpiConfig, useSaveKpiConfig } from '@/hooks/useDas
 import type { KpiValue } from '@/hooks/useDashboardKPIs'
 import { useObjectives } from '@/hooks/usePilotage'
 import { useHasModule } from '@/hooks/useOrganisation'
+import { useAuth } from '@/hooks/useAuth'
 import SecurityApp from '@/pages/shared/SecurityApp'
 import QualiteDashboardContent from '@/components/modules/QualiteDashboardContent'
+import DemoBanner from '@/components/features/DemoBanner'
+import OnboardingProgress from '@/components/features/OnboardingProgress'
+import MoodWidget from '@/components/features/MoodWidget'
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
   type DragEndEvent,
@@ -38,8 +42,10 @@ const STATUS_LABELS = {
 const TAB_KEY = 'pilotos_director_dashboard_tab'
 
 export default function DirectorDashboard() {
+  const { organisation } = useAuth()
   const hasProcessus = useHasModule('processus')
   const hasSecurite  = useHasModule('securite')
+  const moodEnabled  = organisation?.team_mood_enabled ?? true
   const [configOpen, setConfigOpen] = useState(false)
 
   const [tab, setTab] = useState<string>(() =>
@@ -98,6 +104,9 @@ export default function DirectorDashboard() {
         }
       />
 
+      <DemoBanner />
+      {organisation && <OnboardingProgress organisationId={organisation.id} />}
+
       {TABS.length > 1 && (
         <DashboardTabs tabs={TABS} active={tab} onChange={changeTab} />
       )}
@@ -127,6 +136,12 @@ export default function DirectorDashboard() {
                   </DndContext>
                 )}
               </motion.div>
+
+              {moodEnabled && organisation && (
+                <motion.div initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.06 }} className="mb-6">
+                  <MoodWidget organisationId={organisation.id} teamPageTo="/direction/equipe" />
+                </motion.div>
+              )}
 
               <motion.div initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.08 }}>
                 <div className="flex items-center gap-2 mb-4">
