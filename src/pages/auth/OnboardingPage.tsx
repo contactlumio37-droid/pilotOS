@@ -509,9 +509,16 @@ export default function OnboardingPage() {
 
   async function handleJoinExisting(org: OrgResult, message: string) {
     if (!user) return
-    await supabase
+    const { data: jr } = await supabase
       .from('join_requests')
-      .upsert({ organisation_id: org.id, user_id: user.id, message: message || null, status: 'pending' })
+      .upsert({ organisation_id: org.id, user_id: user.id, message: message || null, status: 'pending' }, { onConflict: 'organisation_id,user_id' })
+      .select('id')
+      .maybeSingle()
+    if (jr?.id) {
+      supabase.functions.invoke('notify-join-request', {
+        body: { action: 'created', join_request_id: jr.id },
+      }).catch(() => { /* email failure must not block the user */ })
+    }
     setRequestSent(true)
     setStep('done')
   }

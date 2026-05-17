@@ -17,6 +17,8 @@ import { useDashboardKPIs, useKpiConfig, useSaveKpiConfig } from '@/hooks/useDas
 import type { KpiValue } from '@/hooks/useDashboardKPIs'
 import OrgHealthScore from '@/components/features/OrgHealthScore'
 import DashboardTabs from '@/components/layout/DashboardTabs'
+import DemoBanner from '@/components/features/DemoBanner'
+import OnboardingProgress from '@/components/features/OnboardingProgress'
 import KPIConfigDrawer from '@/components/modules/KPIConfigDrawer'
 import SecurityApp from '@/pages/shared/SecurityApp'
 import QualiteDashboardContent from '@/components/modules/QualiteDashboardContent'
@@ -122,6 +124,8 @@ export default function AdminDashboard() {
 
   return (
     <div className="max-w-5xl">
+      <DemoBanner />
+      {organisation && <OnboardingProgress organisationId={organisation.id} />}
       <motion.div initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
         <div className="flex items-center justify-between mb-6">
           <div>

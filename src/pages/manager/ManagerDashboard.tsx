@@ -29,6 +29,8 @@ import { useHasModule } from '@/hooks/useOrganisation'
 import { useAuth } from '@/hooks/useAuth'
 import SecurityApp from '@/pages/shared/SecurityApp'
 import QualiteDashboardContent from '@/components/modules/QualiteDashboardContent'
+import DemoBanner from '@/components/features/DemoBanner'
+import OnboardingProgress from '@/components/features/OnboardingProgress'
 import { supabase } from '@/lib/supabase'
 import type { TerrainReport } from '@/types/database'
 
@@ -127,6 +129,8 @@ export default function ManagerDashboard() {
           ) : undefined
         }
       />
+      <DemoBanner />
+      {organisation && <OnboardingProgress organisationId={organisation.id} />}
 
       {TABS.length > 1 && (
         <DashboardTabs tabs={TABS} active={tab} onChange={changeTab} />
