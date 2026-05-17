@@ -1,12 +1,18 @@
 name: Deploy — Staging
 
 # ─────────────────────────────────────────────────────────────
-# Déclenché sur chaque push vers main.
-# Ordre impératif : Supabase migrations → Vercel preview (staging).
+# Déclenchement manuel uniquement.
+# Le déploiement production (deploy-production.yml) est l'unique
+# pipeline automatique sur push main — évite les conflits de
+# migrations Supabase en parallèle.
 # ─────────────────────────────────────────────────────────────
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Raison du déploiement staging'
+        required: false
+        default: 'Test avant production'
 
 jobs:
   # ════════════════════════════════════════════════════════════
@@ -58,16 +64,28 @@ jobs:
           }
 
           echo "→ Déploiement des Edge Functions..."
-          deploy_fn "send-email"          --no-verify-jwt
+          deploy_fn "send-email"               --no-verify-jwt
           deploy_fn "invite-member"
           deploy_fn "ai-assistant"
-          deploy_fn "check-ai-quota"      --no-verify-jwt
+          deploy_fn "check-ai-quota"           --no-verify-jwt
           deploy_fn "ensure-org-access"
           deploy_fn "impersonate-user"
           deploy_fn "notify-late-actions"
+          deploy_fn "notify-due-soon"
+          deploy_fn "notify-weekly-digest"
+          deploy_fn "notify-document-approval"
+          deploy_fn "notify-join-request"
+          deploy_fn "notify-epi-alerts"
           deploy_fn "stripe-checkout"
           deploy_fn "stripe-portal"
-          deploy_fn "stripe-webhook"      --no-verify-jwt
+          deploy_fn "stripe-webhook"           --no-verify-jwt
+          deploy_fn "dashboard-kpis"
+          deploy_fn "kpi-snapshot"
+          deploy_fn "search-organisation"
+          deploy_fn "seed-demo-org"
+          deploy_fn "send-newsletter"
+          deploy_fn "confirm-newsletter"       --no-verify-jwt
+          deploy_fn "unsubscribe-newsletter"   --no-verify-jwt
 
           echo "✅ Edge Functions déployées"
         env:
