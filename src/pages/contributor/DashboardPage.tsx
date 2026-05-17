@@ -9,6 +9,7 @@ import type { ActionStatus } from '@/types/database'
 import DemoBanner from '@/components/features/DemoBanner'
 import OnboardingProgress from '@/components/features/OnboardingProgress'
 import MoodWidget from '@/components/features/MoodWidget'
+import PendingSignaturesWidget from '@/components/features/PendingSignaturesWidget'
 
 const STATUS_OPTIONS: { value: ActionStatus; label: string }[] = [
   { value: 'todo',        label: 'À faire' },
@@ -43,6 +44,8 @@ export default function DashboardPage() {
       />
       <DemoBanner />
       {organisation && <OnboardingProgress organisationId={organisation.id} />}
+
+      <PendingSignaturesWidget />
 
       {moodEnabled && organisation && (
         <motion.div initial={{ y: 6, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="mb-6">

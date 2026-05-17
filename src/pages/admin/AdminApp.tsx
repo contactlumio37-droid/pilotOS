@@ -19,6 +19,7 @@ import StrategyPage from '@/pages/shared/StrategyPage'
 import ProcessesPage from '@/pages/shared/ProcessesPage'
 import IndicatorsPage from '@/pages/shared/IndicatorsPage'
 import DocumentsPage from '@/pages/shared/DocumentsPage'
+import SignaturesPage from '@/pages/shared/SignaturesPage'
 import ProfilePage from '@/pages/shared/ProfilePage'
 import TerrainReportsManager from '@/pages/shared/TerrainReportsManager'
 import SecurityApp from '@/pages/shared/SecurityApp'
@@ -86,6 +87,7 @@ export default function AdminApp() {
           <Route path="/indicateurs" element={<IndicatorsPage />} />
           <Route path="/terrain"     element={<TerrainReportsManager />} />
           <Route path="/documents"   element={<DocumentsPage />} />
+          <Route path="/signatures"  element={<SignaturesPage />} />
           <Route path="/securite/*"  element={<SecurityApp />} />
           <Route path="/membres"     element={<AdminMembers />} />
           <Route path="/invitations"  element={<Invitations />} />

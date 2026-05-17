@@ -14,6 +14,7 @@ import QualiteDashboardContent from '@/components/modules/QualiteDashboardConten
 import DemoBanner from '@/components/features/DemoBanner'
 import OnboardingProgress from '@/components/features/OnboardingProgress'
 import MoodWidget from '@/components/features/MoodWidget'
+import PendingSignaturesWidget from '@/components/features/PendingSignaturesWidget'
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
   type DragEndEvent,
@@ -106,6 +107,7 @@ export default function DirectorDashboard() {
 
       <DemoBanner />
       {organisation && <OnboardingProgress organisationId={organisation.id} />}
+      <PendingSignaturesWidget />
 
       {TABS.length > 1 && (
         <DashboardTabs tabs={TABS} active={tab} onChange={changeTab} />

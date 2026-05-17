@@ -8,6 +8,7 @@ import ContributorTeamPage from './TeamPage'
 import ActionsPage from '@/pages/shared/ActionsPage'
 import ProcessesPage from '@/pages/shared/ProcessesPage'
 import DocumentsPage from '@/pages/shared/DocumentsPage'
+import SignaturesPage from '@/pages/shared/SignaturesPage'
 import ProfilePage from '@/pages/shared/ProfilePage'
 import MyReportsPage from '@/pages/shared/MyReportsPage'
 import TerrainReportPage from '@/pages/shared/TerrainReportPage'
@@ -42,6 +43,7 @@ export default function ContributorApp() {
           <Route path="/terrain"         element={<TerrainReportPage />} />
           <Route path="/terrain/remontees" element={<TerrainMyReportsPage />} />
           <Route path="/equipe"          element={<ContributorTeamPage />} />
+          <Route path="/signatures"      element={<SignaturesPage />} />
           <Route path="/profil"          element={<ProfilePage />} />
           <Route path="/feedback"        element={<MyReportsPage />} />
         </Routes>

@@ -16,6 +16,7 @@ import StrategyPage from '@/pages/shared/StrategyPage'
 import ProcessesPage from '@/pages/shared/ProcessesPage'
 import IndicatorsPage from '@/pages/shared/IndicatorsPage'
 import DocumentsPage from '@/pages/shared/DocumentsPage'
+import SignaturesPage from '@/pages/shared/SignaturesPage'
 import MembersPage from '@/pages/shared/MembersPage'
 import ProfilePage from '@/pages/shared/ProfilePage'
 import SecurityApp from '@/pages/shared/SecurityApp'
@@ -83,6 +84,7 @@ export default function ManagerApp() {
           <Route path="/indicateurs" element={<IndicatorsPage />} />
           <Route path="/terrain"     element={<TerrainReportsManager />} />
           <Route path="/documents"   element={<DocumentsPage />} />
+          <Route path="/signatures"  element={<SignaturesPage />} />
           <Route path="/membres"     element={<MembersPage />} />
           <Route path="/equipe"      element={<TeamPage />} />
           <Route path="/codir"       element={<CodirHubPage />} />
