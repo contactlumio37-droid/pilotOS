@@ -13,6 +13,7 @@ import ProfilePage from '@/pages/shared/ProfilePage'
 import MyReportsPage from '@/pages/shared/MyReportsPage'
 import TerrainReportPage from '@/pages/shared/TerrainReportPage'
 import TerrainMyReportsPage from '@/pages/shared/TerrainMyReportsPage'
+import NotificationsPage from '@/pages/shared/NotificationsPage'
 
 const NAV_ITEMS = [
   { to: '/app',         label: 'Tableau de bord', icon: LayoutDashboard, end: true },
@@ -46,6 +47,7 @@ export default function ContributorApp() {
           <Route path="/signatures"      element={<SignaturesPage />} />
           <Route path="/profil"          element={<ProfilePage />} />
           <Route path="/feedback"        element={<MyReportsPage />} />
+          <Route path="/notifications"   element={<NotificationsPage />} />
         </Routes>
       </main>
     </div>

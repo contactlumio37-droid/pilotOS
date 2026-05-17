@@ -33,6 +33,7 @@ import DemoBanner from '@/components/features/DemoBanner'
 import OnboardingProgress from '@/components/features/OnboardingProgress'
 import MoodWidget from '@/components/features/MoodWidget'
 import PendingSignaturesWidget from '@/components/features/PendingSignaturesWidget'
+import ActivityFeed from '@/components/features/ActivityFeed'
 import { supabase } from '@/lib/supabase'
 import type { TerrainReport } from '@/types/database'
 
@@ -243,6 +244,10 @@ export default function ManagerDashboard() {
                   )}
                 </motion.div>
               </div>
+
+              <motion.div initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.12 }} className="mt-6">
+                <ActivityFeed limit={10} />
+              </motion.div>
 
               <motion.div initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.15 }} className="card mt-6">
                 <div className="flex items-center justify-between mb-4">

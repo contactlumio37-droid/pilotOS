@@ -18,6 +18,7 @@ import SecurityApp from '@/pages/shared/SecurityApp'
 import TeamPage from '@/pages/manager/TeamPage'
 import CodirHubPage from './CodirHubPage'
 import BIHubPage from './BIHubPage'
+import NotificationsPage from '@/pages/shared/NotificationsPage'
 
 const BASE_NAV_ITEMS = [
   { to: '/direction',             label: 'Synthèse',    icon: LayoutDashboard, end: true },
@@ -69,8 +70,9 @@ export default function DirectorApp() {
           <Route path="/equipe"      element={<TeamPage />} />
           <Route path="/codir"       element={<CodirHubPage />} />
           <Route path="/bi"          element={<BIHubPage />} />
-          <Route path="/securite/*"  element={<SecurityApp />} />
-          <Route path="/profil"      element={<ProfilePage />} />
+          <Route path="/securite/*"      element={<SecurityApp />} />
+          <Route path="/profil"          element={<ProfilePage />} />
+          <Route path="/notifications"   element={<NotificationsPage />} />
         </Routes>
       </main>
     </div>

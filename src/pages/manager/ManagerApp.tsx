@@ -22,6 +22,7 @@ import ProfilePage from '@/pages/shared/ProfilePage'
 import SecurityApp from '@/pages/shared/SecurityApp'
 import TeamPage from './TeamPage'
 import CodirHubPage from '@/pages/director/CodirHubPage'
+import NotificationsPage from '@/pages/shared/NotificationsPage'
 
 const BASE_NAV_ITEMS: NavItem[] = [
   { to: '/manager',             label: 'Dashboard',   icon: LayoutDashboard, end: true },
@@ -88,8 +89,9 @@ export default function ManagerApp() {
           <Route path="/membres"     element={<MembersPage />} />
           <Route path="/equipe"      element={<TeamPage />} />
           <Route path="/codir"       element={<CodirHubPage />} />
-          <Route path="/securite/*"  element={<SecurityApp />} />
-          <Route path="/profil"      element={<ProfilePage />} />
+          <Route path="/securite/*"      element={<SecurityApp />} />
+          <Route path="/profil"          element={<ProfilePage />} />
+          <Route path="/notifications"   element={<NotificationsPage />} />
         </Routes>
       </main>
     </div>

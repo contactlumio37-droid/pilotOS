@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Bell, Check, CheckCheck } from 'lucide-react'
+import { useNavigate, useLocation, Link } from 'react-router-dom'
+import { Bell, Check, CheckCheck, ExternalLink } from 'lucide-react'
 import { useNotifications, useMarkNotificationRead, useMarkAllNotificationsRead } from '@/hooks/useNotifications'
 import { useToast } from '@/components/ui/useToast'
 import type { Notification } from '@/types/database'
@@ -48,9 +48,19 @@ function NotifRow({ notif, onRead, onNavigate }: { notif: Notification; onRead: 
   )
 }
 
+function useNotifPath() {
+  const { pathname } = useLocation()
+  if (pathname.startsWith('/manager'))   return '/manager/notifications'
+  if (pathname.startsWith('/admin'))     return '/admin/notifications'
+  if (pathname.startsWith('/direction')) return '/direction/notifications'
+  if (pathname.startsWith('/reader'))    return '/reader/notifications'
+  return '/app/notifications'
+}
+
 export default function NotificationBell({ collapsed = false }: { collapsed?: boolean }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const notifPath = useNotifPath()
 
   const { data: notifications = [] } = useNotifications()
   const markRead = useMarkNotificationRead()
@@ -138,6 +148,15 @@ export default function NotificationBell({ collapsed = false }: { collapsed?: bo
               Tout est lu
             </div>
           )}
+
+          <Link
+            to={notifPath}
+            onClick={() => setOpen(false)}
+            className="flex items-center justify-center gap-1.5 px-4 py-2.5 border-t border-slate-700 text-xs text-brand-400 hover:text-brand-300 transition-colors"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+            Voir toutes les notifications
+          </Link>
         </div>
       )}
     </div>

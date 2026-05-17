@@ -24,6 +24,7 @@ import ProfilePage from '@/pages/shared/ProfilePage'
 import TerrainReportsManager from '@/pages/shared/TerrainReportsManager'
 import SecurityApp from '@/pages/shared/SecurityApp'
 import { QUICK_DECLARE_EVENT } from '@/components/features/QuickDeclareButton'
+import NotificationsPage from '@/pages/shared/NotificationsPage'
 
 const BASE_NAV_ITEMS: NavItem[] = [
   { to: '/admin',             label: 'Dashboard',   icon: LayoutDashboard, end: true },
@@ -92,8 +93,9 @@ export default function AdminApp() {
           <Route path="/membres"     element={<AdminMembers />} />
           <Route path="/invitations"  element={<Invitations />} />
           <Route path="/import-users" element={<ImportUsers />} />
-          <Route path="/parametres"   element={<AdminSettings />} />
-          <Route path="/profil"       element={<ProfilePage />} />
+          <Route path="/parametres"    element={<AdminSettings />} />
+          <Route path="/profil"        element={<ProfilePage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
         </Routes>
       </main>
     </div>
