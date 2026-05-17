@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
+import { checkAndAwardBadges } from '@/services/gamification.service'
 import type {
   Process, ProcessInsert,
   NonConformity, NcSeverity, NcStatus,
@@ -43,7 +44,12 @@ export function useCreateProcess() {
       if (error) throw error
       return data as Process
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['processes'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['processes'] })
+      if (user && organisation) {
+        checkAndAwardBadges(user.id, organisation.id, null).catch(() => {})
+      }
+    },
   })
 }
 
@@ -177,7 +183,12 @@ export function useCreateKaizen() {
       if (error) throw error
       return data as KaizenPlan
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['kaizen_plans'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['kaizen_plans'] })
+      if (user && organisation) {
+        checkAndAwardBadges(user.id, organisation.id, null).catch(() => {})
+      }
+    },
   })
 }
 
