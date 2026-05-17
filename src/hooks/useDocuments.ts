@@ -173,7 +173,14 @@ export function useUpdateDocument() {
       if (error) throw error
       return data as Document
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['documents'] }),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['documents'] })
+      if (data.status === 'in_review') {
+        supabase.functions.invoke('notify-document-approval', {
+          body: { document_id: data.id },
+        }).catch(() => {})
+      }
+    },
   })
 }
 

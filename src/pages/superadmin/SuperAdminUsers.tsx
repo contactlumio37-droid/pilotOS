@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useQuery } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { startImpersonation } from '@/hooks/useAuth'
+import { startImpersonation, useAuth } from '@/hooks/useAuth'
+import { logEvent } from '@/lib/logger'
 import { Search, Users, LogIn } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -61,6 +62,7 @@ function useAllUsers() {
 }
 
 export default function SuperAdminUsers() {
+  const { user: actor } = useAuth()
   const { data: users = [], isLoading } = useAllUsers()
   const [search, setSearch]     = useState('')
   const [loadingId, setLoadingId] = useState<string | null>(null)
@@ -83,6 +85,7 @@ export default function SuperAdminUsers() {
     setLoadingId(u.id)
     try {
       await startImpersonation(u.id, u.org_id, 'Impersonation depuis SuperAdmin Users')
+      logEvent({ action: 'user.impersonate', userId: actor?.id, organisationId: u.org_id, meta: { target_user_id: u.id, target_role: u.role } })
     } catch (e) {
       setError((e as Error).message)
       setLoadingId(null)
