@@ -11,6 +11,13 @@ dist-ssr
 .env
 .env.local
 .env.*.local
+.env.production
+.env.staging
+
+# Secret / key files
+*.pem
+*.key
+secrets.*
 
 # Logs
 *.log
