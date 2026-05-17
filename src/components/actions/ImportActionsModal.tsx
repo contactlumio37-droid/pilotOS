@@ -3,6 +3,9 @@ import { X, Upload, AlertCircle, CheckCircle2, Loader2 } from 'lucide-react'
 import { useCreateAction } from '@/hooks/useActions'
 import type { ActionInsertPayload } from '@/hooks/useActions'
 import type { ActionPriority, ActionStatus, ActionOrigin } from '@/types/database'
+import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/hooks/useAuth'
+import { useOrganisation } from '@/hooks/useOrganisation'
 
 type Step = 'upload' | 'validate' | 'import'
 
@@ -20,13 +23,18 @@ const VALID_PRIORITIES = new Set<ActionPriority>(['low', 'medium', 'high', 'crit
 const VALID_STATUSES = new Set<ActionStatus>(['todo', 'in_progress', 'late', 'done', 'cancelled'])
 const VALID_ORIGINS = new Set<ActionOrigin>(['manual', 'terrain', 'codir', 'process_review', 'audit', 'incident', 'kaizen'])
 
+function stripFormula(value: string): string {
+  // Neutralise spreadsheet formula injection (=, +, -, @, tab, CR as first char)
+  return /^[=+\-@\t\r]/.test(value) ? value.slice(1).trimStart() : value
+}
+
 function parseCsv(text: string): CsvRow[] {
   const lines = text.trim().split(/\r?\n/)
   if (lines.length < 2) return []
   const header = lines[0].split(/[;,]/).map(h => h.trim().toLowerCase().replace(/^"|"$/g, ''))
 
   return lines.slice(1).filter(l => l.trim()).map(line => {
-    const cols = line.split(/[;,]/).map(c => c.trim().replace(/^"|"$/g, ''))
+    const cols = line.split(/[;,]/).map(c => stripFormula(c.trim().replace(/^"|"$/g, '')))
     const get = (key: string) => cols[header.indexOf(key)] ?? ''
 
     const title = get('titre') || get('title')
@@ -66,6 +74,8 @@ export default function ImportActionsModal({ onClose, onImported }: Props) {
   const [failed, setFailed] = useState(0)
   const fileRef = useRef<HTMLInputElement>(null)
   const { mutateAsync: createAction } = useCreateAction()
+  const { user } = useAuth()
+  const { organisation } = useOrganisation()
 
   function handleFile(file: File) {
     const reader = new FileReader()
@@ -108,6 +118,16 @@ export default function ImportActionsModal({ onClose, onImported }: Props) {
       setProgress(Math.round(((i + 1) / valid.length) * 100))
       setDone(d)
       setFailed(f)
+    }
+    if (organisation && user) {
+      await supabase.from('import_logs').insert({
+        organisation_id: organisation.id,
+        import_type: 'actions' as const,
+        total_rows: valid.length,
+        success_rows: d,
+        error_rows: f,
+        imported_by: user.id,
+      })
     }
     onImported()
   }

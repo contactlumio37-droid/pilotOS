@@ -6,7 +6,7 @@ import { motion } from 'framer-motion'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Settings, Shield, Bell, CreditCard, Save, Sparkles, Users,
-  Boxes, Tag, ArrowRight, ExternalLink, CheckCircle2, Activity,
+  Boxes, Tag, ArrowRight, ExternalLink, CheckCircle2, Activity, SmilePlus,
 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useOrganisation } from '@/hooks/useOrganisation'
@@ -157,6 +157,34 @@ function OrganisationTab({ organisation, updateOrg }: { organisation: Organisati
             {saved && <span className="text-sm text-success-600 font-medium">Sauvegardé ✓</span>}
           </div>
         </form>
+      </div>
+
+      <div className="card">
+        <div className="flex items-center gap-3 mb-5">
+          <SmilePlus className="w-5 h-5 text-brand-600" />
+          <h2 className="font-semibold text-slate-900">Fonctionnalités équipe</h2>
+        </div>
+        <div className="flex items-center justify-between py-2">
+          <div>
+            <p className="text-sm font-medium text-slate-800">Humeur équipe</p>
+            <p className="text-xs text-slate-500 mt-0.5">Affiche le widget d'humeur quotidienne sur les tableaux de bord</p>
+          </div>
+          <button
+            role="switch"
+            aria-checked={organisation?.team_mood_enabled ?? true}
+            onClick={async () => {
+              if (!organisation) return
+              await updateOrg.mutateAsync({ id: organisation.id, team_mood_enabled: !(organisation?.team_mood_enabled ?? true) })
+            }}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 ${
+              (organisation?.team_mood_enabled ?? true) ? 'bg-brand-600' : 'bg-slate-200'
+            }`}
+          >
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+              (organisation?.team_mood_enabled ?? true) ? 'translate-x-6' : 'translate-x-1'
+            }`} />
+          </button>
+        </div>
       </div>
 
       <div className="card">

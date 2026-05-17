@@ -8,6 +8,7 @@ import { Eye, EyeOff, CheckCircle2 } from 'lucide-react'
 import { signInWithEmail, signInWithGoogle } from '@/hooks/useAuth'
 import { supabase } from '@/lib/supabase'
 import { isMFARequired } from '@/hooks/useMFA'
+import { useCmsPage } from '@/hooks/useCmsPage'
 
 const schema = z.object({
   email: z.string().email('Email invalide'),
@@ -24,6 +25,12 @@ export default function LoginPage() {
 
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const { sections, loading: cmsLoading } = useCmsPage('login')
+  const featBlock = sections.find(b => b.type === 'features')
+  const cmsConfig = featBlock?.config as { quote?: string; items?: Array<{ title: string }> } | undefined
+  const cmsQuote = cmsConfig?.quote
+  const cmsItems = cmsConfig?.items ?? []
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -100,21 +107,27 @@ export default function LoginPage() {
       <div className="hidden lg:flex lg:w-1/2 bg-slate-900 flex-col items-center justify-center p-12">
         <div className="max-w-md w-full">
           <div className="text-4xl font-display font-black text-white mb-8">PilotOS</div>
-          <blockquote className="text-xl text-slate-300 leading-relaxed">
-            "Un problème signalé sur le terrain devient une action dans le tableau de bord du manager — en 30 secondes."
-          </blockquote>
-          <div className="flex flex-col gap-3 mt-10">
-            {[
-              'Pilotage stratégique relié au terrain',
-              'Processus ISO 9001 sans effort',
-              'GED maîtrisée, zéro chaos documentaire',
-            ].map((item) => (
-              <div key={item} className="flex items-center gap-3">
-                <CheckCircle2 className="w-5 h-5 text-brand-400 shrink-0" />
-                <span className="text-slate-300 text-sm">{item}</span>
-              </div>
-            ))}
-          </div>
+          {cmsLoading ? (
+            <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <>
+              {cmsQuote && (
+                <blockquote className="text-xl text-slate-300 leading-relaxed">
+                  "{cmsQuote}"
+                </blockquote>
+              )}
+              {cmsItems.length > 0 && (
+                <div className="flex flex-col gap-3 mt-10">
+                  {cmsItems.map((item) => (
+                    <div key={item.title} className="flex items-center gap-3">
+                      <CheckCircle2 className="w-5 h-5 text-brand-400 shrink-0" />
+                      <span className="text-slate-300 text-sm">{item.title}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
 

@@ -138,8 +138,13 @@ export default function ActionsPage() {
       a.process?.title ?? '',
       a.created_at ? format(new Date(a.created_at), 'dd/MM/yyyy', { locale: fr }) : '',
     ])
+    const sanitize = (cell: string) => {
+      const s = String(cell)
+      // Neutralise formula injection — prefix dangerous leading chars for spreadsheet apps
+      return /^[=+\-@\t\r]/.test(s) ? `'${s}` : s
+    }
     const csv = [headers, ...rows]
-      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+      .map(row => row.map(cell => `"${sanitize(String(cell)).replace(/"/g, '""')}"`).join(','))
       .join('\n')
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)

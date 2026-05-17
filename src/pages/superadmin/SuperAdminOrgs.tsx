@@ -4,6 +4,7 @@ import { Search, Building2, Users, ChevronDown, UserCheck, Sparkles, Trash2, Ext
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '@/lib/supabase'
+import { logEvent } from '@/lib/logger'
 import { setOrgContext } from '@/hooks/useOrganisation'
 import { useAuth } from '@/hooks/useAuth'
 import SuperAdminUsers from './SuperAdminUsers'
@@ -76,6 +77,7 @@ function useMyOrgs() {
 
 function useUpdateOrgPlan() {
   const qc = useQueryClient()
+  const { user } = useAuth()
   return useMutation({
     mutationFn: async ({ id, plan }: { id: string; plan: Plan }) => {
       const { error } = await supabase
@@ -84,12 +86,16 @@ function useUpdateOrgPlan() {
         .eq('id', id)
       if (error) throw error
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['superadmin_orgs'] }),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['superadmin_orgs'] })
+      logEvent({ action: 'org.update_plan', userId: user?.id, organisationId: variables.id, meta: { plan: variables.plan } })
+    },
   })
 }
 
 function useUpdateOrgSeats() {
   const qc = useQueryClient()
+  const { user } = useAuth()
   return useMutation({
     mutationFn: async ({ id, seats_included, seats_extra }: { id: string; seats_included: number; seats_extra: number }) => {
       const { error } = await supabase
@@ -98,12 +104,16 @@ function useUpdateOrgSeats() {
         .eq('id', id)
       if (error) throw error
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['superadmin_orgs'] }),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['superadmin_orgs'] })
+      logEvent({ action: 'org.update_seats', userId: user?.id, organisationId: variables.id, meta: { seats_included: variables.seats_included, seats_extra: variables.seats_extra } })
+    },
   })
 }
 
 function useToggleOrgActive() {
   const qc = useQueryClient()
+  const { user } = useAuth()
   return useMutation({
     mutationFn: async ({ id, is_active }: { id: string; is_active: boolean }) => {
       const { error } = await supabase
@@ -112,12 +122,16 @@ function useToggleOrgActive() {
         .eq('id', id)
       if (error) throw error
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['superadmin_orgs'] }),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['superadmin_orgs'] })
+      logEvent({ action: variables.is_active ? 'org.activate' : 'org.deactivate', userId: user?.id, organisationId: variables.id })
+    },
   })
 }
 
 function useToggleAiEnabled() {
   const qc = useQueryClient()
+  const { user } = useAuth()
   return useMutation({
     mutationFn: async ({ id, ai_enabled }: { id: string; ai_enabled: boolean }) => {
       const { error } = await supabase
@@ -126,7 +140,10 @@ function useToggleAiEnabled() {
         .eq('id', id)
       if (error) throw error
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['superadmin_orgs'] }),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['superadmin_orgs'] })
+      logEvent({ action: variables.ai_enabled ? 'org.ai_enabled' : 'org.ai_disabled', userId: user?.id, organisationId: variables.id })
+    },
   })
 }
 
@@ -144,12 +161,16 @@ function useEnsureOrgAccess() {
 
 function useDeleteOrg() {
   const qc = useQueryClient()
+  const { user } = useAuth()
   return useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from('organisations').delete().eq('id', id)
       if (error) throw error
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['superadmin_orgs'] }),
+    onSuccess: (_data, id) => {
+      qc.invalidateQueries({ queryKey: ['superadmin_orgs'] })
+      logEvent({ action: 'org.delete', userId: user?.id, organisationId: id })
+    },
   })
 }
 

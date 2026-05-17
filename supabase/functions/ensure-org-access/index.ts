@@ -43,7 +43,7 @@ serve(async (req) => {
       .select('id, role, is_billable, can_impersonate')
       .eq('user_id', user.id)
       .eq('organisation_id', organisation_id)
-      .single()
+      .maybeSingle()
 
     if (existing) {
       return new Response(JSON.stringify({ membership: existing, provisioned: false }), {
@@ -59,7 +59,7 @@ serve(async (req) => {
       .eq('role', 'superadmin')
       .eq('is_active', true)
       .limit(1)
-      .single()
+      .maybeSingle()
 
     if (!membership) {
       return new Response(JSON.stringify({ error: 'Accès refusé — superadmin requis' }), {
@@ -80,7 +80,7 @@ serve(async (req) => {
         accepted_at: new Date().toISOString(),
       }, { onConflict: 'organisation_id,user_id' })
       .select('id, role, is_billable, can_impersonate')
-      .single()
+      .maybeSingle()
 
     if (upsertError) throw upsertError
 

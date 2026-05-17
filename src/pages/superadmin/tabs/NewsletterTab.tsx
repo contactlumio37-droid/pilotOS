@@ -153,9 +153,10 @@ function SubscribersTab() {
   }
 
   function handleExportCSV() {
+    const sanitize = (c: string) => /^[=+\-@\t\r]/.test(c) ? `'${c}` : c
     const rows = confirmed.map(s => [s.email, s.confirmed_at ?? '', s.source ?? ''])
     const csv = [['Email', 'Confirmé le', 'Source'], ...rows]
-      .map(r => r.map(c => `"${c}"`).join(','))
+      .map(r => r.map(c => `"${sanitize(c).replace(/"/g, '""')}"`).join(','))
       .join('\n')
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
+import { checkAndAwardBadges } from '@/services/gamification.service'
 import type { Document, DocumentFolder, DocType, DocStatus } from '@/types/database'
 
 export interface DocumentVersion {
@@ -150,7 +151,12 @@ export function useUploadDocument() {
       if (error) throw error
       return data as Document
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['documents'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['documents'] })
+      if (user && organisation) {
+        checkAndAwardBadges(user.id, organisation.id, null).catch(() => {})
+      }
+    },
   })
 }
 
@@ -167,7 +173,14 @@ export function useUpdateDocument() {
       if (error) throw error
       return data as Document
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['documents'] }),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['documents'] })
+      if (data.status === 'in_review') {
+        supabase.functions.invoke('notify-document-approval', {
+          body: { document_id: data.id },
+        }).catch(() => {})
+      }
+    },
   })
 }
 

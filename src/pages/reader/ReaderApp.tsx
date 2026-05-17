@@ -9,6 +9,7 @@ import DocumentsPage from '@/pages/shared/DocumentsPage'
 import ProcessesPage from '@/pages/shared/ProcessesPage'
 import IndicatorsPage from '@/pages/shared/IndicatorsPage'
 import ProfilePage from '@/pages/shared/ProfilePage'
+import NotificationsPage from '@/pages/shared/NotificationsPage'
 
 const NAV_ITEMS: NavItem[] = [
   { to: '/reader',             label: 'Accueil',     icon: LayoutDashboard, end: true },
@@ -40,7 +41,8 @@ export default function ReaderApp() {
           <Route path="/documents"   element={<DocumentsPage />} />
           <Route path="/processus"   element={<ProcessesPage />} />
           <Route path="/indicateurs" element={<IndicatorsPage />} />
-          <Route path="/profil"      element={<ProfilePage />} />
+          <Route path="/profil"        element={<ProfilePage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
         </Routes>
       </main>
     </div>

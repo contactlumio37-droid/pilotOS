@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
+import { checkAndAwardBadges } from '@/services/gamification.service'
 import type { Action, ActionStatus, ActionPriority, ActionOrigin, ActionComment } from '@/types/database'
 
 export interface ActionFilters {
@@ -179,12 +180,18 @@ export function useCreateAction() {
       if (error) throw error
       return data as Action
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: [ACTIONS_KEY] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: [ACTIONS_KEY] })
+      if (user && organisation) {
+        checkAndAwardBadges(user.id, organisation.id, null).catch(() => {})
+      }
+    },
   })
 }
 
 export function useUpdateAction() {
   const qc = useQueryClient()
+  const { organisation, user } = useAuth()
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<Action> & { id: string }) => {
@@ -198,13 +205,18 @@ export function useUpdateAction() {
       if (!data) throw new Error('Action introuvable ou accès refusé par la politique de sécurité')
       return data as Action
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: [ACTIONS_KEY] }),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: [ACTIONS_KEY] })
+      if (user && organisation && data.status === 'done') {
+        checkAndAwardBadges(user.id, organisation.id, null).catch(() => {})
+      }
+    },
   })
 }
 
 export function useAddComment() {
   const qc = useQueryClient()
-  const { user } = useAuth()
+  const { organisation, user } = useAuth()
 
   return useMutation({
     mutationFn: async ({ actionId, content }: { actionId: string; content: string }) => {
@@ -213,7 +225,11 @@ export function useAddComment() {
         .insert({ action_id: actionId, user_id: user!.id, content })
       if (error) throw error
     },
-    onSuccess: (_data, variables) =>
-      qc.invalidateQueries({ queryKey: ['action-comments', variables.actionId] }),
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['action-comments', variables.actionId] })
+      if (user && organisation) {
+        checkAndAwardBadges(user.id, organisation.id, null).catch(() => {})
+      }
+    },
   })
 }

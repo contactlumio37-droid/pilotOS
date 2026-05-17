@@ -22,6 +22,7 @@ import OnboardingProgress from '@/components/features/OnboardingProgress'
 import KPIConfigDrawer from '@/components/modules/KPIConfigDrawer'
 import SecurityApp from '@/pages/shared/SecurityApp'
 import QualiteDashboardContent from '@/components/modules/QualiteDashboardContent'
+import PendingSignaturesWidget from '@/components/features/PendingSignaturesWidget'
 
 const VARIANT_CLASSES = {
   success: 'bg-success-light text-success',
@@ -126,6 +127,7 @@ export default function AdminDashboard() {
     <div className="max-w-5xl">
       <DemoBanner />
       {organisation && <OnboardingProgress organisationId={organisation.id} />}
+      <PendingSignaturesWidget />
       <motion.div initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }}>
         <div className="flex items-center justify-between mb-6">
           <div>

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { CheckCircle, Clock, Download, ExternalLink, FileText, Save, Upload, X } from 'lucide-react'
+import { CheckCircle, Clock, Download, ExternalLink, FileText, PenLine, Save, Upload, X } from 'lucide-react'
 import Drawer from '@/components/ui/Drawer'
 import {
   useUploadDocument,
@@ -17,6 +17,8 @@ import {
 } from '@/hooks/useDocuments'
 import { useIsAtLeast } from '@/hooks/useRole'
 import { useToast } from '@/components/ui/useToast'
+import { useDocumentSignatureRequests, useCancelSignatureRequest } from '@/hooks/useSignatures'
+import SignatureRequestModal from '@/components/features/SignatureRequestModal'
 import type { Document, DocumentFolder, DocType, DocStatus } from '@/types/database'
 
 const schema = z.object({
@@ -50,6 +52,7 @@ export default function DocumentDrawer({ open, onClose, document, folders = [], 
   const canAdvance = useIsAtLeast('manager')
   const fileRef   = useRef<HTMLInputElement>(null)
   const [file, setFile] = useState<File | null>(null)
+  const [showSigModal, setShowSigModal] = useState(false)
   const toast = useToast()
 
   const upload        = useUploadDocument()
@@ -58,6 +61,8 @@ export default function DocumentDrawer({ open, onClose, document, folders = [], 
   const { data: signedUrl }    = useDocumentUrl(document?.file_path ?? null)
   const { data: versions = [] } = useDocumentVersions(document?.id)
   const { data: myAck }         = useDocumentAcknowledgment(document?.id)
+  const { data: sigRequests = [] } = useDocumentSignatureRequests(isEdit ? document?.id : undefined)
+  const cancelSig = useCancelSignatureRequest()
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -109,6 +114,7 @@ export default function DocumentDrawer({ open, onClose, document, folders = [], 
   const nextStatuses = isEdit ? STATUS_TRANSITIONS[document!.status] : []
 
   return (
+    <>
     <Drawer
       open={open}
       onClose={onClose}
@@ -293,6 +299,55 @@ export default function DocumentDrawer({ open, onClose, document, folders = [], 
         </div>
       )}
 
+      {/* Signature requests */}
+      {isEdit && canAdvance && (document?.status === 'active' || document?.status === 'approved') && (
+        <div className="mt-6">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <PenLine className="w-4 h-4 text-slate-400" />
+              <h3 className="text-sm font-semibold text-slate-700">Signatures</h3>
+              {sigRequests.length > 0 && (
+                <span className="text-xs text-slate-400">{sigRequests.length}</span>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowSigModal(true)}
+              className="text-xs btn-secondary flex items-center gap-1"
+            >
+              <PenLine className="w-3.5 h-3.5" />
+              Demander
+            </button>
+          </div>
+          {sigRequests.length === 0 ? (
+            <p className="text-xs text-slate-400">Aucune demande envoyée.</p>
+          ) : (
+            <div className="space-y-1.5">
+              {sigRequests.map(sr => (
+                <div key={sr.id} className="flex items-center gap-2 text-sm px-3 py-2 bg-slate-50 rounded-lg">
+                  <span className="flex-1 text-slate-700 truncate text-xs">
+                    {(sr.profiles as { full_name: string | null } | null)?.full_name ?? sr.recipient_id}
+                  </span>
+                  {sr.status === 'pending' && <span className="badge badge-warning text-xs">En attente</span>}
+                  {sr.status === 'signed'  && <span className="badge badge-success text-xs">Signé ✓</span>}
+                  {sr.status === 'rejected' && <span className="badge badge-danger text-xs">Refusé</span>}
+                  {sr.status === 'pending' && (
+                    <button
+                      type="button"
+                      onClick={() => cancelSig.mutate(sr.id)}
+                      className="text-slate-400 hover:text-danger transition-colors"
+                      title="Annuler"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Version history */}
       {isEdit && versions.length > 0 && (
         <div className="mt-6">
@@ -318,5 +373,15 @@ export default function DocumentDrawer({ open, onClose, document, folders = [], 
         </div>
       )}
     </Drawer>
+
+    {showSigModal && document && (
+      <SignatureRequestModal
+        documentId={document.id}
+        documentTitle={document.title}
+        organisationId={document.organisation_id}
+        onClose={() => setShowSigModal(false)}
+      />
+    )}
+    </>
   )
 }

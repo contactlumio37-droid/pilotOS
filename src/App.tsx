@@ -13,7 +13,6 @@ import { ToastProvider } from '@/components/ui/Toast'
 import { supabase } from '@/lib/supabase'
 
 // Pages publiques (petit poids — pas de lazy)
-import LandingPage from '@/pages/public/LandingPage'
 import PricingPage from '@/pages/public/PricingPage'
 import RoadmapPage from '@/pages/public/RoadmapPage'
 import DynamicPage from '@/pages/public/DynamicPage'
@@ -196,12 +195,13 @@ function AppRouter() {
       {user && <CommandPalette />}
       <Routes>
         {/* Site public */}
-        <Route path="/"                 element={<CmsOrFallback slug="home"           Fallback={LandingPage} />} />
+        <Route path="/"                 element={<DynamicPage forceSlug="home" />} />
         <Route path="/pricing"          element={<CmsOrFallback slug="pricing"        Fallback={PricingPage} />} />
         <Route path="/roadmap"          element={<RoadmapPage />} />
         <Route path="/demo"             element={<DemoPage />} />
         <Route path="/cgu"              element={<DynamicPage forceSlug="cgu" />} />
         <Route path="/confidentialite"  element={<DynamicPage forceSlug="confidentialite" />} />
+        <Route path="/mentions-legales" element={<DynamicPage forceSlug="mentions-legales" />} />
         <Route path="/blog"             element={<BlogList />} />
         <Route path="/blog/:slug"       element={<BlogPostPage />} />
         <Route path="/p/:slug"          element={<DynamicPage />} />
