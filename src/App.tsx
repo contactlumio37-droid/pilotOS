@@ -10,9 +10,9 @@ import ImpersonationBanner from '@/components/layout/ImpersonationBanner'
 import FeedbackButton from '@/components/layout/FeedbackButton'
 import QuickDeclareButton from '@/components/features/QuickDeclareButton'
 import { ToastProvider } from '@/components/ui/Toast'
-import { supabase } from '@/lib/supabase'
 
 // Pages publiques (petit poids — pas de lazy)
+import LandingPage from '@/pages/public/LandingPage'
 import PricingPage from '@/pages/public/PricingPage'
 import RoadmapPage from '@/pages/public/RoadmapPage'
 import DynamicPage from '@/pages/public/DynamicPage'
@@ -40,32 +40,6 @@ const DirectorApp    = lazy(() => import('@/pages/director/DirectorApp'))
 const AdminApp       = lazy(() => import('@/pages/admin/AdminApp'))
 const SuperAdminApp  = lazy(() => import('@/pages/superadmin/SuperAdminApp'))
 
-// ── CmsOrFallback ────────────────────────────────────────────────────────────
-// Renders DynamicPage if the CMS page has sections, otherwise the
-// hardcoded React component (Fallback). This way the landing and
-// pricing pages stay functional even when the CMS is empty.
-
-function CmsOrFallback({ slug, Fallback }: { slug: string; Fallback: React.ComponentType }) {
-  const { data, isLoading } = useQuery({
-    queryKey: ['cms_page_public', slug],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('cms_pages')
-        .select('sections, published')
-        .eq('slug', slug)
-        .eq('published', true)
-        .maybeSingle()
-      return data
-    },
-    staleTime: 5 * 60 * 1000,
-  })
-
-  if (isLoading) return null
-  if (data && Array.isArray(data.sections) && data.sections.length > 0) {
-    return <DynamicPage forceSlug={slug} />
-  }
-  return <Fallback />
-}
 
 function GlobalFeedbackButton() {
   const { user, role } = useAuth()
@@ -195,8 +169,8 @@ function AppRouter() {
       {user && <CommandPalette />}
       <Routes>
         {/* Site public */}
-        <Route path="/"                 element={<DynamicPage forceSlug="home" />} />
-        <Route path="/pricing"          element={<CmsOrFallback slug="pricing"        Fallback={PricingPage} />} />
+        <Route path="/"                 element={<LandingPage />} />
+        <Route path="/pricing"          element={<PricingPage />} />
         <Route path="/roadmap"          element={<RoadmapPage />} />
         <Route path="/demo"             element={<DemoPage />} />
         <Route path="/cgu"              element={<DynamicPage forceSlug="cgu" />} />
