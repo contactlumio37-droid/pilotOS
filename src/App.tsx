@@ -11,6 +11,7 @@ import FeedbackButton from '@/components/layout/FeedbackButton'
 import QuickDeclareButton from '@/components/features/QuickDeclareButton'
 import { ToastProvider } from '@/components/ui/Toast'
 import { SUPPORT_EMAIL } from '@/lib/constants'
+import { CheckCircle2, AlertTriangle, Building2 } from 'lucide-react'
 
 // Pages publiques (petit poids — pas de lazy)
 import LandingPage from '@/pages/public/LandingPage'
@@ -81,13 +82,13 @@ function ConfirmNewsletter() {
           <div className="w-8 h-8 border-2 border-brand-600 border-t-transparent rounded-full animate-spin mx-auto" />
         ) : data?.ok ? (
           <>
-            <div className="text-5xl mb-4">✅</div>
+            <CheckCircle2 className="w-10 h-10 text-green-500 mx-auto mb-4" aria-hidden="true" />
             <h1 className="text-xl font-bold text-slate-900 mb-2">Inscription confirmée !</h1>
             <p className="text-slate-500 text-sm">Vous recevrez nos prochains articles et actualités.</p>
           </>
         ) : (
           <>
-            <div className="text-5xl mb-4">⚠️</div>
+            <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto mb-4" aria-hidden="true" />
             <h1 className="text-xl font-bold text-slate-900 mb-2">Lien invalide</h1>
             <p className="text-slate-500 text-sm">{data?.error ?? 'Ce lien est expiré ou déjà utilisé.'}</p>
           </>
@@ -118,13 +119,13 @@ function UnsubscribeNewsletter() {
           <div className="w-8 h-8 border-2 border-brand-600 border-t-transparent rounded-full animate-spin mx-auto" />
         ) : data?.ok ? (
           <>
-            <div className="text-5xl mb-4">👋</div>
+            <CheckCircle2 className="w-10 h-10 text-slate-400 mx-auto mb-4" aria-hidden="true" />
             <h1 className="text-xl font-bold text-slate-900 mb-2">Désinscription effectuée</h1>
             <p className="text-slate-500 text-sm">Vous ne recevrez plus nos emails. Vous pouvez vous réinscrire à tout moment.</p>
           </>
         ) : (
           <>
-            <div className="text-5xl mb-4">⚠️</div>
+            <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto mb-4" aria-hidden="true" />
             <h1 className="text-xl font-bold text-slate-900 mb-2">Lien invalide</h1>
             <p className="text-slate-500 text-sm">{data?.error ?? 'Ce lien est expiré.'}</p>
           </>
@@ -242,7 +243,7 @@ function NoOrgScreen() {
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="max-w-sm w-full text-center">
         <div className="w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <span className="text-2xl">🏢</span>
+          <Building2 className="w-7 h-7 text-amber-600" aria-hidden="true" />
         </div>
         <h1 className="text-xl font-bold text-slate-900 mb-2">Aucune organisation trouvée</h1>
         <p className="text-slate-500 text-sm mb-6">
@@ -271,7 +272,7 @@ function ConnectionErrorScreen() {
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="max-w-sm w-full text-center">
         <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <span className="text-2xl">⚠</span>
+          <AlertTriangle className="w-7 h-7 text-red-500" aria-hidden="true" />
         </div>
         <h1 className="text-xl font-bold text-slate-900 mb-2">Erreur de connexion</h1>
         <p className="text-slate-500 text-sm mb-6">

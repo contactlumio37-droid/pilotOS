@@ -155,7 +155,7 @@ export default function ManagerDashboard() {
               <motion.div initial={{ y: 8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="mb-8">
                 {kpisLoading ? (
                   <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                    {Array.from({ length: 4 }).map((_, i) => <div key={i} className="card animate-pulse h-24" />)}
+                    {Array.from({ length: 4 }).map((_, i) => <div key={i} className="animate-pulse bg-slate-100 rounded-xl h-24 w-full" />)}
                   </div>
                 ) : (
                   <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>

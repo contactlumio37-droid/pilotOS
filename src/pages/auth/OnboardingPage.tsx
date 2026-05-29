@@ -5,8 +5,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  ChevronRight, Building2, Search, Plus, Users,
-  CheckCircle2, Loader2, AlertCircle,
+  ChevronRight, ArrowLeft, Building2, Search, Plus, Users,
+  CheckCircle2, Loader2, AlertCircle, Inbox, Target, Zap,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
@@ -84,7 +84,9 @@ function StepInvited({ invites, onAccept, onSkip, accepting, error }: StepInvite
   return (
     <motion.div key="invite" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }}>
       <div className="text-center mb-8">
-        <div className="text-5xl mb-4">📬</div>
+        <div className="w-14 h-14 rounded-2xl bg-brand-100 flex items-center justify-center mx-auto mb-4">
+          <Inbox className="w-7 h-7 text-brand-600" aria-hidden="true" />
+        </div>
         <h1 className="text-2xl font-bold text-slate-900">
           {invites.length === 1 ? 'Invitation en attente' : `${invites.length} invitations en attente`}
         </h1>
@@ -139,7 +141,7 @@ interface StepOrgProps {
   onBack: (() => void) | null
 }
 
-function StepOrganisation({ onCreateNew, onJoinExisting }: StepOrgProps) {
+function StepOrganisation({ onCreateNew, onJoinExisting, onBack }: StepOrgProps) {
   const breakpoint = useBreakpoint()
   const [mode, setMode] = useState<'search' | 'create'>('search')
   const [query, setQuery] = useState('')
@@ -215,8 +217,16 @@ function StepOrganisation({ onCreateNew, onJoinExisting }: StepOrgProps) {
 
   return (
     <motion.div key="org" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }}>
+      {onBack && (
+        <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-colors mb-4">
+          <ArrowLeft className="w-4 h-4" />
+          Retour
+        </button>
+      )}
       <div className="text-center mb-8">
-        <div className="text-5xl mb-4">🏢</div>
+        <div className="w-14 h-14 rounded-2xl bg-brand-100 flex items-center justify-center mx-auto mb-4">
+          <Building2 className="w-7 h-7 text-brand-600" aria-hidden="true" />
+        </div>
         <h1 className="text-2xl font-bold text-slate-900">Votre organisation</h1>
         <p className="text-slate-500 mt-2">Rejoignez une org existante ou créez la vôtre.</p>
       </div>
@@ -374,7 +384,9 @@ function StepUsage({ onNext }: StepUsageProps) {
   return (
     <motion.div key="usage" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }}>
       <div className="text-center mb-8">
-        <div className="text-5xl mb-4">🎯</div>
+        <div className="w-14 h-14 rounded-2xl bg-brand-100 flex items-center justify-center mx-auto mb-4">
+          <Target className="w-7 h-7 text-brand-600" aria-hidden="true" />
+        </div>
         <h1 className="text-2xl font-bold text-slate-900">Votre profil</h1>
         <p className="text-slate-500 mt-2">On personnalise votre expérience.</p>
       </div>
@@ -472,6 +484,10 @@ export default function OnboardingPage() {
         }
       })
   }, [user?.email])
+
+  function handleBack() {
+    if (step === 'org' && pendingInvites.length > 0) setStep('invite')
+  }
 
   async function acceptInvitation(token: string) {
     setAccepting(token)
@@ -594,7 +610,12 @@ export default function OnboardingPage() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center">
-          <div className="text-5xl mb-4">{requestSent ? '📬' : '🚀'}</div>
+          <div className="w-14 h-14 rounded-2xl bg-brand-100 flex items-center justify-center mx-auto mb-4">
+            {requestSent
+              ? <Inbox className="w-7 h-7 text-brand-600" aria-hidden="true" />
+              : <Zap className="w-7 h-7 text-brand-600" aria-hidden="true" />
+            }
+          </div>
           <h1 className="text-2xl font-bold text-slate-900">
             {requestSent ? 'Demande envoyée !' : 'Votre espace est prêt !'}
           </h1>
@@ -652,7 +673,7 @@ export default function OnboardingPage() {
             <StepOrganisation
               onCreateNew={handleCreateOrg}
               onJoinExisting={handleJoinExisting}
-              onBack={null}
+              onBack={pendingInvites.length > 0 ? handleBack : null}
             />
           )}
 
