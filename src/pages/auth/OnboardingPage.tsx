@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
+import { useBreakpoint } from '@/hooks/useBreakpoint'
 import type { MemberInvitation } from '@/types/database'
 
 // ── Types ─────────────────────────────────────────────────────
@@ -139,6 +140,7 @@ interface StepOrgProps {
 }
 
 function StepOrganisation({ onCreateNew, onJoinExisting }: StepOrgProps) {
+  const breakpoint = useBreakpoint()
   const [mode, setMode] = useState<'search' | 'create'>('search')
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<OrgResult[]>([])
@@ -269,12 +271,14 @@ function StepOrganisation({ onCreateNew, onJoinExisting }: StepOrgProps) {
               <>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <label htmlFor="org-search" className="sr-only">Rechercher une organisation</label>
                   <input
+                    id="org-search"
                     value={query}
                     onChange={e => setQuery(e.target.value)}
                     placeholder="Rechercher une organisation…"
                     className="input pl-9"
-                    autoFocus
+                    autoFocus={breakpoint !== 'mobile'}
                   />
                   {searching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 animate-spin" />}
                 </div>

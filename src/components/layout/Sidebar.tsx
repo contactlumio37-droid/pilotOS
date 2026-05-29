@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, ChevronDown, LogOut, UserCircle, Building2, Zap } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { signOut, useAuth, ADMIN_SESSION_KEY } from '@/hooks/useAuth'
@@ -93,6 +93,8 @@ function NavGroup({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
 
 export default function Sidebar({ items, dark = false, profileTo = '/profil', headerSlot }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
+  const navigate = useNavigate()
+  const { pathname } = useLocation()
   const { isImpersonating, role } = useAuth()
   const hasBannerOffset = isImpersonating || !!sessionStorage.getItem(ORG_CONTEXT_KEY) || !!localStorage.getItem(ADMIN_SESSION_KEY)
 
@@ -175,17 +177,18 @@ export default function Sidebar({ items, dark = false, profileTo = '/profil', he
         <NotificationBell collapsed={collapsed} />
 
         {/* Superadmin shortcuts — bidirectional */}
-        {role === 'superadmin' && window.location.pathname.startsWith('/superadmin') && (
+        {role === 'superadmin' && pathname.startsWith('/superadmin') && (
           <button
-            onClick={() => { window.location.href = '/app/dashboard' }}
+            onClick={() => { navigate('/app/dashboard') }}
             className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-brand-400 hover:text-brand-300 hover:bg-slate-800 transition-colors ${collapsed ? 'justify-center' : ''}`}
             title={collapsed ? 'Mon organisation' : undefined}
+            aria-label={collapsed ? 'Mon organisation' : undefined}
           >
             <Building2 className="w-5 h-5 shrink-0" />
             {!collapsed && <span className="text-sm font-medium">Mon organisation</span>}
           </button>
         )}
-        {role === 'superadmin' && !window.location.pathname.startsWith('/superadmin') && (
+        {role === 'superadmin' && !pathname.startsWith('/superadmin') && (
           <NavLink
             to="/superadmin"
             className={({ isActive }) =>
@@ -221,6 +224,7 @@ export default function Sidebar({ items, dark = false, profileTo = '/profil', he
             collapsed ? 'justify-center' : ''
           }`}
           title={collapsed ? 'Déconnexion' : undefined}
+          aria-label={collapsed ? 'Déconnexion' : undefined}
         >
           <LogOut className="w-5 h-5 shrink-0" />
           {!collapsed && <span className="text-sm">Déconnexion</span>}

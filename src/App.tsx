@@ -10,6 +10,7 @@ import ImpersonationBanner from '@/components/layout/ImpersonationBanner'
 import FeedbackButton from '@/components/layout/FeedbackButton'
 import QuickDeclareButton from '@/components/features/QuickDeclareButton'
 import { ToastProvider } from '@/components/ui/Toast'
+import { SUPPORT_EMAIL } from '@/lib/constants'
 
 // Pages publiques (petit poids — pas de lazy)
 import LandingPage from '@/pages/public/LandingPage'
@@ -249,7 +250,7 @@ function NoOrgScreen() {
           Contactez votre administrateur pour obtenir l'accès.
         </p>
         <a
-          href="mailto:support@pilotos.app"
+          href={`mailto:${SUPPORT_EMAIL}`}
           className="btn-primary inline-block mb-3"
         >
           Contacter l'administrateur

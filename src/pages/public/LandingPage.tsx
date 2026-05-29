@@ -67,6 +67,7 @@ export default function LandingPage() {
         </div>
       </header>
 
+      <main>
       {/* Hero */}
       <section className="bg-slate-900 pt-24 pb-32 px-6">
         <div className="max-w-4xl mx-auto text-center">
@@ -87,7 +88,7 @@ export default function LandingPage() {
                 Démarrer gratuitement
                 <ArrowRight className="w-5 h-5" />
               </Link>
-              <Link to="/demo" className="btn-secondary text-base px-8 py-4 bg-white/10 text-white border-white/20 hover:bg-white/20">
+              <Link to="/demo" className="btn-secondary text-base px-8 py-4 bg-white/10 text-white border-white/40 hover:bg-white/20">
                 Voir la démo
               </Link>
             </div>
@@ -205,6 +206,8 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      </main>
 
       {/* Footer */}
       <footer className="bg-slate-900 py-16 px-6">
