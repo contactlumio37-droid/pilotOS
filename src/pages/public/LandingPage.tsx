@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import { ArrowRight, BarChart2, GitBranch, FolderOpen, AlertCircle, CheckCircle2, Star, ChevronDown, ChevronUp } from 'lucide-react'
-import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { ArrowRight, BarChart2, GitBranch, FolderOpen, AlertCircle, CheckCircle2, Star, ChevronDown, ChevronUp, Menu, X } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
 import SEOHead from '@/components/ui/SEOHead'
 
 const FEATURES = [
@@ -48,6 +48,15 @@ function FAQItem({ q, a }: { q: string; a: string }) {
 }
 
 export default function LandingPage() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const firstLinkRef = useRef<HTMLAnchorElement>(null)
+
+  useEffect(() => {
+    if (mobileMenuOpen) firstLinkRef.current?.focus()
+  }, [mobileMenuOpen])
+
+  function closeMobileMenu() { setMobileMenuOpen(false) }
+
   return (
     <div className="min-h-screen bg-white">
       <SEOHead />
@@ -60,13 +69,61 @@ export default function LandingPage() {
             <Link to="/roadmap" className="text-slate-300 hover:text-white text-sm transition-colors">Roadmap</Link>
             <Link to="/demo" className="text-slate-300 hover:text-white text-sm transition-colors">Démo</Link>
           </nav>
-          <div className="flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-3">
             <Link to="/login" className="text-slate-300 hover:text-white text-sm transition-colors">Connexion</Link>
             <Link to="/register" className="btn-primary text-sm py-2">Commencer gratuitement</Link>
           </div>
+          {/* Hamburger — mobile only */}
+          <button
+            className="md:hidden flex items-center justify-center w-9 h-9 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
+            onClick={() => setMobileMenuOpen(o => !o)}
+            aria-expanded={mobileMenuOpen}
+            aria-label={mobileMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+          >
+            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
         </div>
+
+        {/* Mobile menu overlay */}
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <>
+              {/* Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="fixed inset-0 top-16 bg-black/40 z-40 md:hidden"
+                onClick={closeMobileMenu}
+                aria-hidden="true"
+              />
+              {/* Drawer */}
+              <motion.div
+                role="dialog"
+                aria-label="Menu de navigation"
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+                className="absolute top-full left-0 right-0 bg-slate-900 border-b border-white/10 z-50 md:hidden px-6 py-4"
+              >
+                <nav className="flex flex-col">
+                  <Link ref={firstLinkRef} to="/pricing" onClick={closeMobileMenu} className="py-3 text-lg font-medium text-slate-200 hover:text-white transition-colors border-b border-white/10">Tarifs</Link>
+                  <Link to="/roadmap" onClick={closeMobileMenu} className="py-3 text-lg font-medium text-slate-200 hover:text-white transition-colors border-b border-white/10">Roadmap</Link>
+                  <Link to="/demo" onClick={closeMobileMenu} className="py-3 text-lg font-medium text-slate-200 hover:text-white transition-colors border-b border-white/10">Démo</Link>
+                  <div className="pt-4 pb-2 flex flex-col gap-3">
+                    <Link to="/login" onClick={closeMobileMenu} className="py-3 text-lg font-medium text-slate-300 hover:text-white transition-colors text-center border border-white/20 rounded-lg">Connexion</Link>
+                    <Link to="/register" onClick={closeMobileMenu} className="btn-primary py-3 text-base text-center">Commencer gratuitement</Link>
+                  </div>
+                </nav>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
       </header>
 
+      <main>
       {/* Hero */}
       <section className="bg-slate-900 pt-24 pb-32 px-6">
         <div className="max-w-4xl mx-auto text-center">
@@ -87,7 +144,7 @@ export default function LandingPage() {
                 Démarrer gratuitement
                 <ArrowRight className="w-5 h-5" />
               </Link>
-              <Link to="/demo" className="btn-secondary text-base px-8 py-4 bg-white/10 text-white border-white/20 hover:bg-white/20">
+              <Link to="/demo" className="btn-secondary text-base px-8 py-4 bg-white/10 text-white border-white/40 hover:bg-white/20">
                 Voir la démo
               </Link>
             </div>
@@ -205,6 +262,8 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      </main>
 
       {/* Footer */}
       <footer className="bg-slate-900 py-16 px-6">

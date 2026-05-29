@@ -19,7 +19,7 @@ export default function PageHeader({ title, subtitle, actions, breadcrumb }: Pag
       {breadcrumb && breadcrumb.length > 0 && (
         <nav className="flex items-center gap-1 text-xs text-slate-400 mb-1">
           {breadcrumb.map((crumb, i) => (
-            <span key={i} className="flex items-center gap-1">
+            <span key={crumb.to ?? crumb.label} className="flex items-center gap-1">
               {i > 0 && <ChevronRight className="w-3 h-3" />}
               {crumb.to ? (
                 <Link to={crumb.to} className="hover:text-slate-600 transition-colors">

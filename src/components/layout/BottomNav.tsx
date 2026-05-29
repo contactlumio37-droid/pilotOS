@@ -33,7 +33,7 @@ export default function BottomNav({ items, dark = false, centerAction }: BottomN
         }
       >
         <Icon className="w-5 h-5" />
-        <span className="text-[10px] font-medium truncate w-full text-center">
+        <span className="text-[11px] font-medium truncate w-full text-center">
           {item.label}
         </span>
       </NavLink>
